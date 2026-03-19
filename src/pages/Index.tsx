@@ -43,8 +43,7 @@ const Index = () => {
 
   return (
     <>
-      {/* Main content with sidebar */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6">
         <div className="flex gap-8">
           <BrandsSidebar />
 
@@ -53,14 +52,14 @@ const Index = () => {
             <OurBrands />
 
             {/* Categories */}
-            <section className="py-10">
-              <h2 className="text-2xl font-bold sm:text-3xl font-display uppercase tracking-tight text-foreground mb-8">
+            <section className="py-8">
+              <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight text-foreground mb-6">
                 Categories
               </h2>
               {categories.length === 0 ? (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   {[...Array(4)].map((_, i) => (
-                    <div key={i} className="h-48 animate-pulse rounded-lg border bg-muted" />
+                    <div key={i} className="h-48 animate-pulse rounded border bg-muted" />
                   ))}
                 </div>
               ) : (
@@ -68,16 +67,15 @@ const Index = () => {
                   {categories.map((cat, i) => (
                     <motion.div
                       key={cat.id}
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: 16 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
                       transition={{ delay: i * 0.05 }}
                     >
                       <Link
                         to={`/categories/${cat.slug}`}
-                        className="group block rounded-lg border bg-card overflow-hidden shadow-sm hover:shadow-md transition-all"
+                        className="group block rounded border bg-card overflow-hidden hover:shadow-md transition-shadow"
                       >
-                        {/* Placeholder image */}
                         <div className="aspect-[4/3] bg-muted flex items-center justify-center">
                           {cat.image_url ? (
                             <img src={cat.image_url} alt={catName(cat)} className="w-full h-full object-cover" />
@@ -85,8 +83,8 @@ const Index = () => {
                             <div className="text-muted-foreground/30 text-4xl">📦</div>
                           )}
                         </div>
-                        <div className="p-4">
-                          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                        <div className="p-3">
+                          <h3 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
                             {catName(cat)}
                           </h3>
                           {catDesc(cat) && (
@@ -108,7 +106,6 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Shared sections */}
       <SpeakWithUs />
       <ShippingSecurity />
     </>

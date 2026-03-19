@@ -7,25 +7,23 @@ const Footer = () => {
   const lang = i18n.language as 'it' | 'en';
 
   return (
-    <footer className="bg-nexfluid-navy text-white/90">
+    <footer className="bg-primary text-primary-foreground">
       <div className="container mx-auto px-4 py-12">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           {/* Brand + Contact */}
           <div className="space-y-4">
             <div>
               <span className="text-2xl font-bold tracking-tight font-display">
-                <span className="text-white">NEX</span>
-                <span className="text-accent">✦</span>
-                <span className="text-white">FLUID</span>
+                NEX<span className="text-accent">✦</span>FLUID
               </span>
-              <p className="text-[10px] uppercase tracking-widest text-white/40 mt-0.5">Automation in Stock</p>
+              <p className="text-[9px] uppercase tracking-[0.2em] text-primary-foreground/40 mt-0.5">Automation in Stock</p>
             </div>
-            <div className="space-y-2 text-sm text-white/60">
-              <a href="tel:+390498016529" className="flex items-center gap-2 hover:text-white transition-colors">
+            <div className="space-y-2 text-sm text-primary-foreground/60">
+              <a href="tel:+390498016529" className="flex items-center gap-2 hover:text-primary-foreground transition-colors">
                 <Phone className="h-3.5 w-3.5 shrink-0" />
                 Tel 049.8016529 — Fax 049.801651
               </a>
-              <a href="mailto:info@nexfluid.it" className="flex items-center gap-2 hover:text-white transition-colors">
+              <a href="mailto:info@nexfluid.it" className="flex items-center gap-2 hover:text-primary-foreground transition-colors">
                 <Mail className="h-3.5 w-3.5 shrink-0" />
                 info@nexfluid.it
               </a>
@@ -38,52 +36,52 @@ const Footer = () => {
 
           {/* Categories */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-white/80">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-primary-foreground/80">
               Categories
             </h3>
             <nav className="flex flex-col gap-1.5">
-              <Link to="/categories/valves" className="text-sm text-white/60 hover:text-white transition-colors">
+              <Link to="/categories/valves" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">
                 {lang === 'it' ? 'Valvole' : 'Valves'}
               </Link>
-              <Link to="/categories/hydraulic" className="text-sm text-white/60 hover:text-white transition-colors">
+              <Link to="/categories/hydraulic" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">
                 {lang === 'it' ? 'Idraulica' : 'Hydraulic'}
               </Link>
-              <Link to="/categories/pneumatic" className="text-sm text-white/60 hover:text-white transition-colors">
+              <Link to="/categories/pneumatic" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">
                 {lang === 'it' ? 'Pneumatica' : 'Pneumatic'}
               </Link>
-              <Link to="/categories/vacuum" className="text-sm text-white/60 hover:text-white transition-colors">Vacuum</Link>
+              <Link to="/categories/vacuum" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">Vacuum</Link>
             </nav>
           </div>
 
           {/* Brands */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-white/80">Brands</h3>
-            <div className="flex flex-col gap-1.5 text-sm text-white/60">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-primary-foreground/80">Brands</h3>
+            <div className="flex flex-col gap-1.5 text-sm text-primary-foreground/60">
               {['Parker', 'Asco', 'Aventics', 'Joucomatic', 'Numatics', 'Emerson', 'Sirai'].map(b => (
-                <Link key={b} to={`/search?q=${b}`} className="hover:text-white transition-colors">{b}</Link>
+                <Link key={b} to={`/search?q=${b}`} className="hover:text-primary-foreground transition-colors">{b}</Link>
               ))}
             </div>
           </div>
 
           {/* Nexfluid */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-white/80">Nexfluid</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-primary-foreground/80">Nexfluid</h3>
             <nav className="flex flex-col gap-1.5">
-              <Link to="/about" className="text-sm text-white/60 hover:text-white transition-colors">
+              <Link to="/about" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">
                 {lang === 'it' ? 'Chi siamo' : 'About us'}
               </Link>
-              <Link to="/contact" className="text-sm text-white/60 hover:text-white transition-colors">
+              <Link to="/contact" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">
                 {lang === 'it' ? 'Contattaci' : 'Contact us'}
               </Link>
             </nav>
           </div>
         </div>
 
-        <div className="mt-12 border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-white/40">
+        <div className="mt-12 border-t border-primary-foreground/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-primary-foreground/40">
           <span>Nexfluid © {new Date().getFullYear()} | All Rights Reserved</span>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-white/60 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-white/60 transition-colors">Cookie Policy</a>
+            <a href="#" className="hover:text-primary-foreground/60 transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-primary-foreground/60 transition-colors">Cookie Policy</a>
           </div>
         </div>
       </div>
