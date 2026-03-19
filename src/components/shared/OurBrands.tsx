@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom';
 
-const brandNames = [
-  { name: 'Parker', display: 'Parker' },
-  { name: 'ASCO', display: 'ASCO' },
-  { name: 'AVENTICS', display: 'AVENTICS' },
-  { name: 'JOUCOMATIC', display: 'JOUCOMATIC' },
-  { name: 'NUMATICS', display: 'numatics' },
-  { name: 'EMERSON', display: 'Emerson' },
-  { name: 'SIRAI', display: 'Sirai' },
+const brandLogos = [
+  { name: 'Parker', logo: '/brands/parker.png' },
+  { name: 'ASCO', logo: '/brands/asco.png' },
+  { name: 'AVENTICS', logo: '/brands/aventics.png' },
+  { name: 'JOUCOMATIC', logo: '/brands/joucomatic.png' },
+  { name: 'NUMATICS', logo: '/brands/numatics.png' },
+  { name: 'EMERSON', logo: '/brands/emerson.png' },
+  { name: 'SIRAI', logo: '/brands/sirai.png' },
 ];
 
 const OurBrands = () => {
@@ -17,15 +17,17 @@ const OurBrands = () => {
         Our Brands
       </h2>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-        {brandNames.map((brand) => (
+        {brandLogos.map((brand) => (
           <Link
             key={brand.name}
             to={`/search?q=${brand.name}`}
-            className="flex items-center justify-center rounded border bg-card p-4 h-16 hover:shadow-md transition-shadow"
+            className="flex items-center justify-center rounded border bg-card p-4 h-20 hover:shadow-md transition-shadow"
           >
-            <span className="text-base font-bold font-display text-foreground tracking-tight">
-              {brand.display}
-            </span>
+            <img
+              src={brand.logo}
+              alt={`${brand.name} logo`}
+              className="max-h-12 max-w-full object-contain"
+            />
           </Link>
         ))}
       </div>
