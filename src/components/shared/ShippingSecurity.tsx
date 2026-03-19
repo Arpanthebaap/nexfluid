@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Truck, Clock, CheckCircle } from 'lucide-react';
+import { Truck, Clock, PackageCheck } from 'lucide-react';
 
 const ShippingSecurity = () => {
   const { i18n } = useTranslation();
@@ -8,44 +8,44 @@ const ShippingSecurity = () => {
   const items = [
     {
       icon: Truck,
-      title: lang === 'it' ? 'Spedizioni in Italia e UE' : 'Shipping service in Italy and EU',
+      title: lang === 'it' ? 'Spedizione in Italia e UE' : 'Shipping service in Italy and EU',
       desc: lang === 'it'
-        ? 'Consegne dirette dal magazzino in Nord Italia e spedizioni in tutta la UE.'
-        : 'Direct deliveries throughout Northern Italy and shipments across the EU.',
+        ? 'Servizi di spedizione via Northern Express ed altri corrieri su tutto il territorio nazionale e UE.'
+        : 'Shipping services via Northern Express and other couriers throughout Italy and the EU.',
     },
     {
       icon: Clock,
-      title: lang === 'it' ? 'Consegna express in 24h' : 'Express delivery in 24 hours',
+      title: lang === 'it' ? 'Consegna Express in 24 ore' : 'Express delivery in 24 hours',
       desc: lang === 'it'
-        ? 'Consegna 24 ore in tutta Italia e express. Spedizioni in tutta la UE.'
-        : '24 hour delivery throughout Italy and express. Shipping within the EU.',
+        ? 'Servizio di consegna urgente disponibile per ordini espressi.'
+        : '24-hour delivery throughout Italy and express orders shipping worldwide.',
     },
     {
-      icon: CheckCircle,
+      icon: PackageCheck,
       title: lang === 'it' ? 'Disponibilità immediata' : 'Immediate availability',
       desc: lang === 'it'
-        ? 'Ampia disponibilità di prodotti dai migliori brand.'
-        : 'Wide availability of products from the best brands.',
+        ? 'Alta disponibilità di prodotti per le tue esigenze con consegna immediata.'
+        : 'High availability of products from our warehouse, ready for immediate dispatch.',
     },
   ];
 
   return (
-    <section className="py-12 md:py-16">
+    <section className="bg-background py-12 md:py-16">
       <div className="container mx-auto px-4">
-        <h2 className="text-center text-2xl font-bold sm:text-3xl font-display uppercase tracking-tight text-foreground">
+        <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight text-foreground text-center mb-8">
           {lang === 'it' ? 'Spedizione e Sicurezza' : 'Shipping and Security'}
         </h2>
-        <div className="mt-8 grid gap-6 sm:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto">
           {items.map((item, i) => (
             <div
               key={i}
-              className="flex flex-col items-center text-center rounded-lg border bg-card p-6 shadow-sm"
+              className="rounded-lg border bg-card p-6 text-center space-y-3"
             >
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                <item.icon className="h-7 w-7 text-primary" />
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <item.icon className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="font-semibold text-foreground">{item.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+              <h3 className="text-sm font-bold text-foreground">{item.title}</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
             </div>
           ))}
         </div>
