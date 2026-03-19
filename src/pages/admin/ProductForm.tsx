@@ -84,10 +84,11 @@ export default function ProductForm() {
       ...form,
       category_id: form.category_id || null,
       brand: form.brand || null,
+      status: form.status as 'draft' | 'published' | 'pending_rewrite' | 'archived',
     };
 
     if (isNew) {
-      const { error } = await supabase.from('products').insert(payload);
+      const { error } = await supabase.from('products').insert([payload]);
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {

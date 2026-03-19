@@ -15,6 +15,15 @@ import ProductDetail from "./pages/ProductDetail";
 import SearchResults from "./pages/SearchResults";
 import NotFound from "./pages/NotFound";
 
+import AdminLogin from "./pages/admin/AdminLogin";
+import ProtectedRoute from "./components/admin/ProtectedRoute";
+import AdminLayout from "./components/admin/AdminLayout";
+import Dashboard from "./pages/admin/Dashboard";
+import Products from "./pages/admin/Products";
+import ProductForm from "./pages/admin/ProductForm";
+import AdminCategories from "./pages/admin/Categories";
+import QuoteRequests from "./pages/admin/QuoteRequests";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -34,6 +43,19 @@ const App = () => (
             <Route path="/products/:slug" element={<ProductDetail />} />
             <Route path="/search" element={<SearchResults />} />
           </Route>
+
+          {/* Admin routes */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/admin" element={<Dashboard />} />
+              <Route path="/admin/products" element={<Products />} />
+              <Route path="/admin/products/:id" element={<ProductForm />} />
+              <Route path="/admin/categories" element={<AdminCategories />} />
+              <Route path="/admin/quotes" element={<QuoteRequests />} />
+            </Route>
+          </Route>
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
