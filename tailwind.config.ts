@@ -13,6 +13,11 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Space Grotesk', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -56,6 +61,16 @@ export default {
           "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
+        },
+        nexfluid: {
+          navy: "hsl(var(--nexfluid-navy))",
+          blue: "hsl(var(--nexfluid-blue))",
+          "blue-light": "hsl(var(--nexfluid-blue-light))",
+          orange: "hsl(var(--nexfluid-orange))",
+          "orange-light": "hsl(var(--nexfluid-orange-light))",
+          steel: "hsl(var(--nexfluid-steel))",
+          dark: "hsl(var(--nexfluid-dark))",
+          surface: "hsl(var(--nexfluid-surface))",
         },
       },
       borderRadius: {
