@@ -36,7 +36,7 @@ const BrandsSidebar = () => {
   const catName = (cat: Category) => lang === 'it' ? cat.name_it : cat.name_en;
 
   return (
-    <aside className="hidden lg:block w-56 shrink-0 space-y-6">
+    <aside className="hidden lg:block w-52 shrink-0 space-y-6">
       {/* Brands */}
       <div>
         <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Brand</h3>
@@ -45,9 +45,9 @@ const BrandsSidebar = () => {
             <li key={b}>
               <Link
                 to={`/search?q=${b}`}
-                className="text-sm text-primary hover:underline flex items-center gap-1"
+                className="text-sm text-primary hover:underline flex items-center gap-1.5"
               >
-                <span className="text-primary">{'>'}</span> {b}
+                <span className="text-primary text-xs">{'>'}</span> {b}
               </Link>
             </li>
           ))}
@@ -65,14 +65,14 @@ const BrandsSidebar = () => {
               <li key={cat.id}>
                 <Link
                   to={`/categories/${cat.slug}`}
-                  className={`text-sm font-semibold flex items-center gap-1 ${
+                  className={`text-sm font-semibold flex items-center gap-1.5 ${
                     isActive ? 'text-foreground' : 'text-primary hover:underline'
                   }`}
                 >
-                  <span>{'>'}</span> {catName(cat).toUpperCase()}
+                  <span className="text-xs">{'>'}</span> {catName(cat).toUpperCase()}
                 </Link>
                 {children.length > 0 && (
-                  <ul className="ml-3 mt-0.5 space-y-0.5">
+                  <ul className="ml-4 mt-0.5 space-y-0.5">
                     {children.map(child => {
                       const childActive = child.slug === slug;
                       return (

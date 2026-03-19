@@ -13,15 +13,15 @@ type Category = {
   parent_id: string | null;
 };
 
+const brands = ['PARKER', 'ASCO', 'AVENTICS', 'JOUCOMATIC', 'NUMATICS', 'EMERSON', 'SIRAI'];
+
 const Header = () => {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const lang = i18n.language as 'it' | 'en';
-
-  const brands = ['PARKER', 'ASCO', 'AVENTICS', 'JOUCOMATIC', 'NUMATICS', 'EMERSON', 'SIRAI'];
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -53,44 +53,42 @@ const Header = () => {
       <header className="sticky top-0 z-50 w-full">
         {/* Top contact bar */}
         <div className="bg-primary text-primary-foreground">
-          <div className="container mx-auto flex items-center justify-end gap-4 px-4 py-1.5 text-xs">
-            <a href="tel:+390498016529" className="flex items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
+          <div className="container mx-auto flex items-center justify-end gap-6 px-4 py-1.5 text-xs">
+            <a href="tel:+390498016529" className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity">
               <Phone className="h-3 w-3" />
-              Tel 049.8016529
+              <span>049.8016529</span>
             </a>
-            <a href="mailto:info@nexfluid.it" className="flex items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
+            <a href="mailto:info@nexfluid.it" className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity">
               <Mail className="h-3 w-3" />
-              info@nexfluid.it
+              <span>info@nexfluid.it</span>
             </a>
           </div>
         </div>
 
-        {/* Main header - navy background */}
-        <div className="bg-nexfluid-navy">
+        {/* Main header */}
+        <div className="bg-primary">
           <div className="container mx-auto flex items-center justify-between gap-4 px-4 py-3">
             {/* Mobile hamburger */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="text-white md:hidden p-1"
+              className="text-primary-foreground lg:hidden p-1"
               aria-label="Menu"
             >
               <Menu className="h-6 w-6" />
             </button>
 
             {/* Logo */}
-            <Link to="/" className="flex items-center shrink-0">
-              <span className="text-xl md:text-2xl font-bold tracking-tight font-display">
-                <span className="text-white">NEX</span>
-                <span className="text-accent">✦</span>
-                <span className="text-white">FLUID</span>
+            <Link to="/" className="flex items-center gap-2 shrink-0">
+              <span className="text-xl md:text-2xl font-bold tracking-tight font-display text-primary-foreground">
+                NEX<span className="text-accent">✦</span>FLUID
               </span>
-              <span className="hidden sm:block ml-2 text-[10px] text-white/50 uppercase tracking-widest leading-tight">
+              <span className="hidden sm:block text-[9px] text-primary-foreground/50 uppercase tracking-[0.2em] leading-tight">
                 Automation<br />in Stock
               </span>
             </Link>
 
             {/* Search bar */}
-            <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-lg mx-4">
+            <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-lg mx-6">
               <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -98,24 +96,24 @@ const Header = () => {
                   placeholder={lang === 'it' ? 'Cerca per Modello, Part Number, Keyword...' : 'Search by Model, Part Number, Keyword...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 bg-white border-0 rounded-sm h-10 text-sm text-foreground"
+                  className="w-full pl-10 pr-4 bg-white border-0 rounded-sm h-10 text-sm text-foreground placeholder:text-muted-foreground"
                 />
               </div>
             </form>
 
-            {/* Mobile search + sign in */}
-            <div className="flex items-center gap-2">
-              <Link to="/search" className="text-white md:hidden p-1">
+            {/* Sign in */}
+            <div className="flex items-center gap-3">
+              <Link to="/search" className="text-primary-foreground md:hidden p-1">
                 <Search className="h-5 w-5" />
               </Link>
               <Link
                 to="/contact"
-                className="hidden md:flex items-center gap-1.5 text-white/80 hover:text-white text-sm transition-colors"
+                className="hidden md:flex items-center gap-1.5 text-primary-foreground/70 hover:text-primary-foreground text-sm transition-colors"
               >
                 <User className="h-4 w-4" />
                 Sign in
               </Link>
-              <Link to="/contact" className="text-white md:hidden p-1">
+              <Link to="/contact" className="text-primary-foreground md:hidden p-1">
                 <User className="h-5 w-5" />
               </Link>
             </div>
@@ -130,14 +128,14 @@ const Header = () => {
                 placeholder={lang === 'it' ? 'Cerca per Modello, Part Number...' : 'Search by Model, Part Number...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 bg-white border-0 rounded-sm h-9 text-sm text-foreground"
+                className="w-full pl-10 pr-4 bg-white border-0 rounded-sm h-9 text-sm text-foreground placeholder:text-muted-foreground"
               />
             </div>
           </form>
         </div>
       </header>
 
-      {/* Sidebar overlay */}
+      {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-[60] flex">
           <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
@@ -150,16 +148,16 @@ const Header = () => {
 
             {/* Brands */}
             <div className="px-4 pb-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-foreground mb-3">Brand</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Brand</h3>
               <ul className="space-y-1.5">
                 {brands.map(b => (
                   <li key={b}>
                     <Link
                       to={`/search?q=${b}`}
                       onClick={() => setSidebarOpen(false)}
-                      className="text-sm text-primary hover:underline flex items-center gap-1"
+                      className="text-sm text-primary hover:underline flex items-center gap-1.5"
                     >
-                      <span className="text-primary">{'>'}</span> {b}
+                      <span className="text-primary text-xs">{'>'}</span> {b}
                     </Link>
                   </li>
                 ))}
@@ -168,7 +166,7 @@ const Header = () => {
 
             {/* Categories */}
             <div className="px-4 pb-6">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-foreground mb-3">Categories</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Categories</h3>
               <ul className="space-y-1">
                 {topCategories.map(cat => {
                   const children = getChildren(cat.id);
@@ -177,9 +175,9 @@ const Header = () => {
                       <Link
                         to={`/categories/${cat.slug}`}
                         onClick={() => setSidebarOpen(false)}
-                        className="text-sm font-semibold text-primary hover:underline flex items-center gap-1"
+                        className="text-sm font-semibold text-primary hover:underline flex items-center gap-1.5"
                       >
-                        <span>{'>'}</span> {catName(cat).toUpperCase()}
+                        <span className="text-xs">{'>'}</span> {catName(cat).toUpperCase()}
                       </Link>
                       {children.length > 0 && (
                         <ul className="ml-4 mt-1 space-y-0.5">
