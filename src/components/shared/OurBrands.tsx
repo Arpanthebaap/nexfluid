@@ -21,12 +21,12 @@ const OurBrands = () => {
           <Link
             key={brand.name}
             to={`/search?q=${brand.name}`}
-            className="flex items-center justify-center rounded border bg-card p-4 h-20 hover:shadow-md transition-shadow"
+            className="flex items-center justify-center rounded border bg-card p-6 h-28 hover:shadow-md transition-shadow"
           >
             <img
               src={brand.logo}
               alt={`${brand.name} logo`}
-              className="max-h-12 max-w-full object-contain"
+              className="max-h-20 max-w-[80%] object-contain"
             />
           </Link>
         ))}
