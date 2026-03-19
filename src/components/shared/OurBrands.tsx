@@ -16,17 +16,17 @@ const OurBrands = () => {
       <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight text-foreground mb-6">
         Our Brands
       </h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {brandLogos.map((brand) => (
           <Link
             key={brand.name}
             to={`/search?q=${brand.name}`}
-            className="flex items-center justify-center rounded border bg-card p-6 h-28 hover:shadow-md transition-shadow"
+            className="flex items-center justify-center rounded-lg border bg-card p-8 h-36 hover:shadow-lg transition-shadow"
           >
             <img
               src={brand.logo}
               alt={`${brand.name} logo`}
-              className="max-h-20 max-w-[80%] object-contain"
+              className="max-h-24 max-w-[85%] object-contain"
             />
           </Link>
         ))}
