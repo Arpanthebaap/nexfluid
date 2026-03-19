@@ -13,10 +13,7 @@ const Footer = () => {
           {/* Brand + Contact */}
           <div className="space-y-4">
             <div>
-              <span className="text-2xl font-bold tracking-tight font-display">
-                NEX<span className="text-accent">✦</span>FLUID
-              </span>
-              <p className="text-[9px] uppercase tracking-[0.2em] text-primary-foreground/40 mt-0.5">Automation in Stock</p>
+              <img src="/nexfluid-logo.png" alt="Nexfluid - Automation in Stock" className="h-10 w-auto" />
             </div>
             <div className="space-y-2 text-sm text-primary-foreground/60">
               <a href="tel:+390498016529" className="flex items-center gap-2 hover:text-primary-foreground transition-colors">

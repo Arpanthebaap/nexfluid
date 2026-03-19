@@ -78,13 +78,8 @@ const Header = () => {
             </button>
 
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2 shrink-0">
-              <span className="text-xl md:text-2xl font-bold tracking-tight font-display text-primary-foreground">
-                NEX<span className="text-accent">✦</span>FLUID
-              </span>
-              <span className="hidden sm:block text-[9px] text-primary-foreground/50 uppercase tracking-[0.2em] leading-tight">
-                Automation<br />in Stock
-              </span>
+            <Link to="/" className="shrink-0">
+              <img src="/nexfluid-logo.png" alt="Nexfluid - Automation in Stock" className="h-8 md:h-10 w-auto" />
             </Link>
 
             {/* Search bar */}
