@@ -1,31 +1,70 @@
 
 
-# Fix Nexfluid Logo Transparency & Optimize Brand Logos
+# Current Status & Next Steps
 
-## Problem
-1. **Nexfluid logo** has a solid background color that clashes with the navy header/footer — needs transparent background while keeping the white text and styling intact.
-2. **Brand logos** need to be larger and more visible with better responsive sizing.
+## What's Done (Phase 1 - Frontend Catalog)
+- Homepage with brand grid, category cards, sidebar navigation
+- Header/Footer with Nexfluid logo (transparent), contact bar, mobile sidebar
+- Categories page with hierarchical navigation
+- Product listing with pagination and sorting
+- Product detail page with quote form
+- Search results page
+- Contact/Quote request page (saves to database)
+- About page
+- Database schema: categories, products, product_attributes, quote_requests, user_roles, category_filters
+- i18n (Italian/English) setup
+- Brand logos regenerated with proper sizing and transparency
+- Shared components: SpeakWithUs, ShippingSecurity, BrandsSidebar, OurBrands
 
-## Plan
+## Minor Issues Found
+1. **Console warning**: `ShippingSecurity` and `Footer` have "Function components cannot be given refs" warnings -- likely from `motion` wrapping. Non-breaking but should be cleaned up.
+2. **About page** has placeholder text ("Content being prepared by SocialVision") -- fine for now.
 
-### Step 1: Regenerate Nexfluid logo with transparent background
-- Use the AI image generation API (gemini-3-pro-image-preview) to edit the current `nexfluid-logo.png`
-- Instruction: "Remove the background, make it fully transparent. Keep the white NEXFLUID text with the stylized X and the AUTOMATION IN STOCK tagline exactly as-is"
-- Save as PNG (supports transparency)
-- This will make the logo blend seamlessly into the navy header and footer
+## Recommended Next Step: Admin Panel (Phase 2)
 
-### Step 2: Regenerate all 7 brand logos at higher quality
-- Use AI image generation to recreate each brand logo at larger resolution (e.g. 800x400) with transparent backgrounds and accurate corporate colors matching the reference image
-- Brands: Parker (yellow on black), ASCO (red), AVENTICS (green), JOUCOMATIC (blue), Numatics (blue), EMERSON (blue), Sirai (blue/red)
+The catalog frontend is complete. The database has `user_roles` with `has_role()` function already set up. The logical next move is building the admin panel so you can manage products, categories, and view quote requests.
 
-### Step 3: Optimize OurBrands.tsx for responsiveness
-- Increase card heights: `h-28 sm:h-36 md:h-40 lg:h-44`
-- Increase logo max heights: `max-h-16 sm:max-h-20 md:max-h-24 lg:max-h-28`
-- Ensure the grid scales well: `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`
-- Add responsive padding: `p-4 sm:p-6 md:p-8`
+### What will be built
 
-### Files modified
-- `public/nexfluid-logo.png` — regenerated with transparent background
-- `public/brands/*.png` — all 7 regenerated larger
-- `src/components/shared/OurBrands.tsx` — responsive sizing improvements
+**1. Admin Authentication**
+- Login page at `/admin/login` using email/password authentication
+- Protected route wrapper checking `has_role(auth.uid(), 'admin')`
+- No public signup -- admin users created manually
+
+**2. Admin Dashboard Layout**
+- Sidebar navigation: Dashboard, Products, Categories, Quote Requests
+- Stats overview: total products, categories, pending quotes
+
+**3. Products Management**
+- Table view with search, filter by brand/category/status
+- Create/Edit product form (code, names IT/EN, descriptions, brand, category, technical specs, images)
+- Bulk status changes (draft/published/archived)
+
+**4. Categories Management**  
+- Tree view of parent/child categories
+- Create/Edit category (names, descriptions, slug, image, sort order)
+- Toggle active/inactive
+
+**5. Quote Requests Inbox**
+- Table of incoming requests with status filters (new/in_progress/quoted/closed)
+- Detail view with admin notes field
+- Status update workflow
+
+### Files to create
+- `src/pages/admin/AdminLogin.tsx`
+- `src/pages/admin/Dashboard.tsx`
+- `src/pages/admin/Products.tsx`
+- `src/pages/admin/ProductForm.tsx`
+- `src/pages/admin/Categories.tsx`
+- `src/pages/admin/QuoteRequests.tsx`
+- `src/components/admin/AdminLayout.tsx`
+- `src/components/admin/ProtectedRoute.tsx`
+- `src/hooks/useAuth.ts`
+
+### Files to modify
+- `src/App.tsx` -- add admin routes
+
+### Database changes
+- Enable authentication (email/password)
+- RLS policies on products, categories, quote_requests for admin write access (currently public read-only)
 
