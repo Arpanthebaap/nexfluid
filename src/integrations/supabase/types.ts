@@ -297,6 +297,53 @@ export type Database = {
           },
         ]
       }
+      scrape_jobs: {
+        Row: {
+          batch_id: string | null
+          category_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          processed_data: Json | null
+          raw_data: Json | null
+          source_url: string
+          status: Database["public"]["Enums"]["scrape_status"]
+          updated_at: string
+        }
+        Insert: {
+          batch_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          processed_data?: Json | null
+          raw_data?: Json | null
+          source_url: string
+          status?: Database["public"]["Enums"]["scrape_status"]
+          updated_at?: string
+        }
+        Update: {
+          batch_id?: string | null
+          category_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          processed_data?: Json | null
+          raw_data?: Json | null
+          source_url?: string
+          status?: Database["public"]["Enums"]["scrape_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scrape_jobs_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -335,6 +382,7 @@ export type Database = {
       app_role: "admin" | "moderator" | "user"
       product_status: "draft" | "pending_rewrite" | "published" | "archived"
       quote_status: "new" | "in_progress" | "quoted" | "closed"
+      scrape_status: "pending" | "scraped" | "processed" | "imported" | "failed"
       supported_language: "it" | "en"
     }
     CompositeTypes: {
@@ -466,6 +514,7 @@ export const Constants = {
       app_role: ["admin", "moderator", "user"],
       product_status: ["draft", "pending_rewrite", "published", "archived"],
       quote_status: ["new", "in_progress", "quoted", "closed"],
+      scrape_status: ["pending", "scraped", "processed", "imported", "failed"],
       supported_language: ["it", "en"],
     },
   },
