@@ -54,6 +54,7 @@ const App = () => (
               <Route path="/admin/products/:id" element={<ProductForm />} />
               <Route path="/admin/categories" element={<AdminCategories />} />
               <Route path="/admin/quotes" element={<QuoteRequests />} />
+              <Route path="/admin/import" element={<ProductImport />} />
             </Route>
           </Route>
 
