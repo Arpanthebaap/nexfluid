@@ -64,6 +64,24 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Category verification: if no category_id or it's invalid, try URL-based matching
+        let categoryId = job.category_id || pd.category_id || null;
+        if (!categoryId && job.source_url) {
+          try {
+            const urlPath = new URL(job.source_url).pathname;
+            const segments = urlPath.split('/').filter(Boolean);
+            if (segments.length >= 2) {
+              const slug = segments[segments.length - 2];
+              const { data: cat } = await supabase
+                .from('categories')
+                .select('id')
+                .eq('slug', slug)
+                .single();
+              if (cat) categoryId = cat.id;
+            }
+          } catch {}
+        }
+
         const baseSlug = slugify(pd.name_en);
         const uniqueSlug = `${baseSlug}-${Date.now().toString(36)}`;
 
