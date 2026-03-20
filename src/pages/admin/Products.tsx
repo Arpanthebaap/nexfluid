@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
-type Product = Tables<'products'>;
+type Product = Tables<'products'> & {
+  categories: { name_en: string } | null;
+};
 
 const PAGE_SIZE = 20;
 
@@ -29,7 +31,7 @@ export default function Products() {
     setLoading(true);
     let query = supabase
       .from('products')
-      .select('*', { count: 'exact' })
+      .select('*, categories(name_en)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
@@ -41,7 +43,7 @@ export default function Products() {
     }
 
     const { data, count } = await query;
-    setProducts(data ?? []);
+    setProducts((data as Product[]) ?? []);
     setTotal(count ?? 0);
     setLoading(false);
   };
@@ -97,21 +99,25 @@ export default function Products() {
               <TableHead>Code</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Brand</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
             ) : products.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No products found</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No products found</TableCell></TableRow>
             ) : (
               products.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-mono text-sm">{p.product_code}</TableCell>
                   <TableCell className="max-w-[300px] truncate">{p.name_en}</TableCell>
                   <TableCell>{p.brand ?? '—'}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">
+                    {p.categories?.name_en ?? '—'}
+                  </TableCell>
                   <TableCell><Badge variant={statusColor(p.status)}>{p.status}</Badge></TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" asChild>
