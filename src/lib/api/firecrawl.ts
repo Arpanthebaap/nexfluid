@@ -69,4 +69,29 @@ export const firecrawlApi = {
     if (error) return { success: false, error: error.message };
     return data;
   },
+
+  // Pipeline functions
+  async scrapeBatch(batchSize = 5): Promise<FirecrawlResponse> {
+    const { data, error } = await supabase.functions.invoke('product-scrape-batch', {
+      body: { batchSize },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+
+  async aiProcess(batchSize = 5): Promise<FirecrawlResponse> {
+    const { data, error } = await supabase.functions.invoke('product-ai-process', {
+      body: { batchSize },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+
+  async bulkInsert(batchSize = 10): Promise<FirecrawlResponse> {
+    const { data, error } = await supabase.functions.invoke('product-bulk-insert', {
+      body: { batchSize },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
 };
