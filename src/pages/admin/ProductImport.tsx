@@ -120,7 +120,7 @@ export default function ProductImport() {
     let emptyRounds = 0;
     while (!stopRef.current) {
       try {
-        const res = await firecrawlApi.scrapeBatch(5);
+        const res = await firecrawlApi.scrapeBatch(2);
         const data = res as any;
         if (!res.success) { addLog(`❌ Scrape error: ${res.error}`); break; }
         if (data.scraped === 0) {
