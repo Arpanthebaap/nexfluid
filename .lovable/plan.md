@@ -1,54 +1,72 @@
 
 
-# Category Image Audit & Recommended Approach
+# Next Step: Update Homepage + Prepare Product Scraping Pipeline
 
-## Current State
+## Two tasks to tackle now
 
-| Level | Count | Have Images | Missing |
-|-------|-------|------------|---------|
-| 0 (Top) | 4 | 4 | 0 |
-| 1 (Sub) | 21 | 21 | 0 |
-| 2 (Sub-sub) | 184 | 0 | **184** |
-| 3 (Series) | 292 | 0 | **292** |
-| **Total** | **501** | **25** | **476** |
+### Task 1: Update Homepage Layout (immediate)
 
-## The Problem
+The homepage currently shows 4 flat category cards. We'll redesign it to show each top-level category as an expandable section with its Level-1 sub-categories visible, so users can navigate directly to sub-categories.
 
-476 categories have no images. However, generating 476 individual AI images is impractical and unnecessary because:
+**New layout:**
 
-- **Level 3** (292 items) are individual product series (e.g., "Series S104 Pinch solenoid valves") — these will get real product photos when products are imported
-- **Level 2** (184 items) are a mix of browsable groups (e.g., "Hydraulic Ball Valves", "Manually Operated") and series entries — most inherit the visual identity of their parent
+```text
+VALVES ────────────────────────────────────
+[hero image]
+├── Solenoid Valves    ├── Proportional Valves
+├── Seat Valves        ├── Pinch Valves
+├── Valve Systems      ├── Manually Operated
+├── Pneumatic Valves   ├── Hydraulic Valves
+└── Sensors & Switches
+                                    → View All
 
-## Recommended Approach: Image Inheritance in UI
-
-Instead of generating hundreds of images, update the frontend code to **fall back to the parent category's image** when a category has no image of its own. This way:
-
-- Every category page looks polished with a relevant image
-- No wasted effort generating images that will be replaced by real product photos later
-- The 25 existing images cascade down through the hierarchy
-
-### Technical Changes
-
-1. **`src/pages/Categories.tsx`** — When displaying subcategory cards, if `cat.image_url` is null, use `currentCategory.image_url` as fallback
-2. **`src/pages/Index.tsx`** — Already fine (only shows Level 0 which all have images)
-3. **`src/components/shared/BrandsSidebar.tsx`** — No images used, no change needed
-
-### Code Change (single file)
-
-In `Categories.tsx`, change the image rendering from:
-```
-{cat.image_url ? <img ... /> : <placeholder>}
-```
-to:
-```
-{(cat.image_url || currentCategory?.image_url) ? <img src={cat.image_url || currentCategory?.image_url} ... /> : <placeholder>}
+HYDRAULIC ─────────────────────────────────
+[hero image]
+├── Fittings & Tubing  ├── Fluids & Filtration
+├── Instrumentation    ├── Cylinders & Pumps
+└── Valves & Manifolds
+                                    → View All
+... (same for Pneumatic, Vacuum)
 ```
 
-This is a 2-line change that eliminates 476 placeholder icons instantly.
+**Changes:**
+- `src/pages/Index.tsx` — fetch both top-level and Level-1 categories; render grouped sections with the parent's hero image on the left and a grid of sub-category links on the right
+- Each sub-category card shows its own image (all 21 have images now)
+- Responsive: on mobile, hero image stacks above the sub-category grid
 
-## What to Do After This
+### Task 2: Set Up Firecrawl Product Scraping Pipeline (after homepage)
 
-1. **Update homepage layout** — show grouped sub-categories under each top-level category instead of just 4 flat cards
-2. **Build bulk product CSV/Excel import** in admin panel — this is the major next task
-3. **Product images** will provide real visuals for the deepest categories once imported
+For the ~85,000 product catalog, we'll build an automated pipeline:
+
+1. **Connect Firecrawl** — use the connector to get API access
+2. **Map source websites** — discover all product URLs from valves-direct.com and rs-online.com
+3. **Scrape product pages** — extract product data (name, code, brand, specs, images, descriptions)
+4. **AI rewrite** — use built-in AI (Gemini) to rewrite every description for 100% originality
+5. **Category mapping** — match scraped products to our 501 categories
+6. **Bulk insert** — populate the products table
+
+This will be built as an admin tool with progress tracking. Before starting, you'll need to:
+- Connect the Firecrawl connector (I'll prompt you)
+- Confirm you have a Firecrawl paid plan (scraping 85K pages requires credits)
+
+## Files to modify
+
+| File | Change |
+|------|--------|
+| `src/pages/Index.tsx` | Grouped category sections with hero images + sub-category grids |
+| `src/components/shared/BrandsSidebar.tsx` | Minor: handle deeper nesting for active state tracking |
+
+## After homepage, for the scraping pipeline:
+
+| File | Change |
+|------|--------|
+| `supabase/functions/firecrawl-*` | 4 edge functions for scrape/search/map/crawl |
+| `src/lib/api/firecrawl.ts` | Frontend API client |
+| `src/pages/admin/ProductImport.tsx` | New admin page with scraping controls and progress |
+| `src/App.tsx` | Add route for product import page |
+| `src/components/admin/AdminLayout.tsx` | Add nav item for import tool |
+
+## Order of execution
+1. Update homepage layout now
+2. Connect Firecrawl and build scraping pipeline next
 
