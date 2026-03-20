@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
             slug: uniqueSlug,
             product_code: pd.product_code,
             brand: pd.brand || null,
-            category_id: job.category_id || pd.category_id || null,
+            category_id: categoryId,
             description_en: pd.description_en || null,
             description_it: pd.description_it || null,
             description_original: pd.description_original || null,
