@@ -1,72 +1,87 @@
 
 
-# Next Step: Update Homepage + Prepare Product Scraping Pipeline
+# Build the Automated Product Scraping & Import Pipeline
 
-## Two tasks to tackle now
+## Firecrawl Subscription Requirements
 
-### Task 1: Update Homepage Layout (immediate)
+**You will need a paid Firecrawl plan.** Here's why:
 
-The homepage currently shows 4 flat category cards. We'll redesign it to show each top-level category as an expandable section with its Level-1 sub-categories visible, so users can navigate directly to sub-categories.
+- The free tier gives ~500 credits. Each scrape = 1 credit, each map = 1 credit.
+- For ~85,000 products, you need at minimum ~85,000 scrape credits.
+- **Recommendation**: Use coupon code **LOVABLE50** when signing up at firecrawl.dev — it gives **50% off the first 3 months** on the Standard plan or higher.
+- The Standard plan ($45/mo with coupon) gives 50,000 credits/month — enough to do the import in 2 months.
+- The Growth plan is better if you want it done faster.
 
-**New layout:**
+**No other paid subscriptions are needed.** AI rewriting uses Lovable's built-in AI (Gemini) which is included. The database is on Lovable Cloud, also included.
+
+## What We'll Build
+
+A complete pipeline in the admin panel with 4 stages:
 
 ```text
-VALVES ────────────────────────────────────
-[hero image]
-├── Solenoid Valves    ├── Proportional Valves
-├── Seat Valves        ├── Pinch Valves
-├── Valve Systems      ├── Manually Operated
-├── Pneumatic Valves   ├── Hydraulic Valves
-└── Sensors & Switches
-                                    → View All
-
-HYDRAULIC ─────────────────────────────────
-[hero image]
-├── Fittings & Tubing  ├── Fluids & Filtration
-├── Instrumentation    ├── Cylinders & Pumps
-└── Valves & Manifolds
-                                    → View All
-... (same for Pneumatic, Vacuum)
+[1. MAP] → [2. BATCH SCRAPE] → [3. AI PROCESS] → [4. INSERT]
+   │              │                    │                │
+   ▼              ▼                    ▼                ▼
+ Discover      Extract raw        Rewrite to        Save to
+ product       product data       unique content    products
+ URLs          from pages         + translate IT    table
 ```
 
-**Changes:**
-- `src/pages/Index.tsx` — fetch both top-level and Level-1 categories; render grouped sections with the parent's hero image on the left and a grid of sub-category links on the right
-- Each sub-category card shows its own image (all 21 have images now)
-- Responsive: on mobile, hero image stacks above the sub-category grid
+## Technical Implementation
 
-### Task 2: Set Up Firecrawl Product Scraping Pipeline (after homepage)
+### 1. Database: `scrape_jobs` table (new migration)
+Track scraping progress with a jobs table:
+- `id`, `source_url`, `status` (pending/scraped/processed/imported/failed)
+- `raw_data` (JSON from Firecrawl), `processed_data` (AI output)
+- `category_id` (mapped category), `error_message`, timestamps
 
-For the ~85,000 product catalog, we'll build an automated pipeline:
+### 2. Edge Function: `product-scrape-batch` (new)
+- Accepts a batch of URLs (e.g., 10 at a time)
+- Scrapes each using Firecrawl with JSON extraction format + schema for structured product data (name, code, brand, specs, images, description)
+- Saves raw results to `scrape_jobs` table
+- Returns progress
 
-1. **Connect Firecrawl** — use the connector to get API access
-2. **Map source websites** — discover all product URLs from valves-direct.com and rs-online.com
-3. **Scrape product pages** — extract product data (name, code, brand, specs, images, descriptions)
-4. **AI rewrite** — use built-in AI (Gemini) to rewrite every description for 100% originality
-5. **Category mapping** — match scraped products to our 501 categories
-6. **Bulk insert** — populate the products table
+### 3. Edge Function: `product-ai-process` (new)
+- Takes raw scraped data from `scrape_jobs`
+- Calls Lovable AI (Gemini 2.5 Flash) to:
+  - Rewrite description for 100% originality (English)
+  - Translate to Italian
+  - Generate SEO meta titles/descriptions in both languages
+  - Match to existing category based on product name + specs
+- Updates `scrape_jobs` with processed data
 
-This will be built as an admin tool with progress tracking. Before starting, you'll need to:
-- Connect the Firecrawl connector (I'll prompt you)
-- Confirm you have a Firecrawl paid plan (scraping 85K pages requires credits)
+### 4. Edge Function: `product-bulk-insert` (new)
+- Takes processed jobs and inserts into `products` table
+- Generates slugs, sets product_code, links category_id
+- Inserts technical_specs as JSON attributes into `product_attributes`
+- Marks jobs as imported
 
-## Files to modify
+### 5. Enhanced `ProductImport.tsx` (update)
+Replace the basic test UI with a full pipeline dashboard:
+- **Step 1 — Discover**: Map a source URL, filter to product pages only, save URLs to `scrape_jobs`
+- **Step 2 — Scrape**: Start batch scraping with progress bar (10 URLs per batch, auto-continues)
+- **Step 3 — Process**: Run AI processing on scraped data with progress tracking
+- **Step 4 — Import**: Bulk insert processed products with summary stats
+- Real-time progress counters: pending / scraped / processed / imported / failed
+- Ability to pause/resume and retry failed items
 
-| File | Change |
+### 6. Frontend API client update
+Add methods for the new edge functions in `src/lib/api/firecrawl.ts`
+
+## Files to create/modify
+
+| File | Action |
 |------|--------|
-| `src/pages/Index.tsx` | Grouped category sections with hero images + sub-category grids |
-| `src/components/shared/BrandsSidebar.tsx` | Minor: handle deeper nesting for active state tracking |
+| `scrape_jobs` table | **Create** via migration |
+| `supabase/functions/product-scrape-batch/index.ts` | **Create** — batch scrape with Firecrawl |
+| `supabase/functions/product-ai-process/index.ts` | **Create** — AI rewrite + translate via Lovable AI |
+| `supabase/functions/product-bulk-insert/index.ts` | **Create** — insert into products table |
+| `src/lib/api/firecrawl.ts` | **Update** — add pipeline API methods |
+| `src/pages/admin/ProductImport.tsx` | **Rewrite** — full pipeline dashboard with 4 steps |
 
-## After homepage, for the scraping pipeline:
-
-| File | Change |
-|------|--------|
-| `supabase/functions/firecrawl-*` | 4 edge functions for scrape/search/map/crawl |
-| `src/lib/api/firecrawl.ts` | Frontend API client |
-| `src/pages/admin/ProductImport.tsx` | New admin page with scraping controls and progress |
-| `src/App.tsx` | Add route for product import page |
-| `src/components/admin/AdminLayout.tsx` | Add nav item for import tool |
-
-## Order of execution
-1. Update homepage layout now
-2. Connect Firecrawl and build scraping pipeline next
+## Execution Order
+1. Create `scrape_jobs` table with migration
+2. Build the 3 new edge functions
+3. Update the API client
+4. Rebuild the ProductImport admin page with the pipeline UI
 
