@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import '@/lib/i18n';
+import { AuthProvider } from "@/hooks/useAuth";
 
 import PublicLayout from "./components/layout/PublicLayout";
 import Index from "./pages/Index";
@@ -32,35 +33,37 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route element={<PublicLayout />}>
-            <Route path="/" element={<Index />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/categories" element={<Categories />} />
-            <Route path="/categories/:slug" element={<Categories />} />
-            <Route path="/products/listing/:slug" element={<ProductListing />} />
-            <Route path="/products/:slug" element={<ProductDetail />} />
-            <Route path="/search" element={<SearchResults />} />
-          </Route>
-
-          {/* Admin routes */}
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AdminLayout />}>
-              <Route path="/admin" element={<Dashboard />} />
-              <Route path="/admin/products" element={<Products />} />
-              <Route path="/admin/products/:id" element={<ProductForm />} />
-              <Route path="/admin/categories" element={<AdminCategories />} />
-              <Route path="/admin/quotes" element={<QuoteRequests />} />
-              <Route path="/admin/import" element={<ProductImport />} />
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<PublicLayout />}>
+              <Route path="/" element={<Index />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/categories/:slug" element={<Categories />} />
+              <Route path="/products/listing/:slug" element={<ProductListing />} />
+              <Route path="/products/:slug" element={<ProductDetail />} />
+              <Route path="/search" element={<SearchResults />} />
             </Route>
-          </Route>
 
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+            {/* Admin routes */}
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AdminLayout />}>
+                <Route path="/admin" element={<Dashboard />} />
+                <Route path="/admin/products" element={<Products />} />
+                <Route path="/admin/products/:id" element={<ProductForm />} />
+                <Route path="/admin/categories" element={<AdminCategories />} />
+                <Route path="/admin/quotes" element={<QuoteRequests />} />
+                <Route path="/admin/import" element={<ProductImport />} />
+              </Route>
+            </Route>
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
