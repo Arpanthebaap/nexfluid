@@ -31,7 +31,7 @@ export default function Products() {
     setLoading(true);
     let query = supabase
       .from('products')
-      .select('*', { count: 'exact' })
+      .select('*, categories(name_en)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
