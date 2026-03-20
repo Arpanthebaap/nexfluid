@@ -11,3 +11,15 @@ verify_jwt = false
 
 [functions.product-discover-categories]
 verify_jwt = false
+
+[functions.firecrawl-scrape]
+verify_jwt = false
+
+[functions.firecrawl-search]
+verify_jwt = false
+
+[functions.firecrawl-crawl]
+verify_jwt = false
+
+[functions.firecrawl-map]
+verify_jwt = false
