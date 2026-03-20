@@ -90,7 +90,7 @@ export default function ProductImport() {
     // Phase 1: Discovery
     addLog('🚀 Starting URL discovery from category pages...');
     try {
-      const res = await firecrawlApi.discoverCategories(SOURCE_DOMAINS);
+      const res = await firecrawlApi.discoverCategories(SOURCE_CATEGORY_URLS);
       if (res.success) {
         const data = res as any;
         addLog(`✅ Discovery complete: ${data.totalNew} new URLs from ${data.totalMapped} mapped`);

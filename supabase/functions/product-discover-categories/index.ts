@@ -9,12 +9,9 @@ const corsHeaders = {
 function isProductUrl(url: string): boolean {
   try {
     const path = new URL(url).pathname;
-    // Must end in .html
     if (!path.endsWith('.html')) return false;
-    // Must have at least 2 path segments (category/product)
     const segments = path.split('/').filter(Boolean);
     if (segments.length < 2) return false;
-    // Product segment starts with a number
     const productSegment = segments[segments.length - 1];
     return /^\d+[-]/.test(productSegment);
   } catch {
@@ -22,7 +19,6 @@ function isProductUrl(url: string): boolean {
   }
 }
 
-// Exclude non-product pages
 const EXCLUDE_PATTERNS = [
   /\/(cart|checkout|account|login|register|wishlist|compare)/i,
   /\/(privacy|terms|cookie|contact|about|faq|help|sitemap)/i,
@@ -43,12 +39,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { domains } = await req.json();
+    const { categoryUrls } = await req.json();
 
-    // Default domains to scrape
-    const targetDomains = domains || [
-      'https://www.valves-direct.com',
-    ];
+    if (!categoryUrls?.length) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'categoryUrls array is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
     if (!firecrawlKey) {
@@ -68,12 +66,12 @@ Deno.serve(async (req) => {
       .select('source_url');
     const existingUrls = new Set((existingJobs || []).map((j: any) => j.source_url));
 
-    const results: { domain: string; mapped: number; products: number; new: number; error?: string }[] = [];
+    const results: { categoryUrl: string; mapped: number; products: number; new: number; error?: string }[] = [];
     const allNewUrls: string[] = [];
 
-    for (const domainUrl of targetDomains) {
+    for (const categoryUrl of categoryUrls) {
       try {
-        console.log(`Mapping domain: ${domainUrl}`);
+        console.log(`Mapping category URL: ${categoryUrl}`);
 
         const response = await fetch('https://api.firecrawl.dev/v1/map', {
           method: 'POST',
@@ -82,7 +80,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            url: domainUrl,
+            url: categoryUrl,
             limit: 5000,
             includeSubdomains: false,
           }),
@@ -91,13 +89,13 @@ Deno.serve(async (req) => {
         const data = await response.json();
 
         if (!response.ok) {
-          console.error(`Map failed for ${domainUrl}:`, data);
-          results.push({ domain: domainUrl, mapped: 0, products: 0, new: 0, error: data.error || `HTTP ${response.status}` });
+          console.error(`Map failed for ${categoryUrl}:`, data);
+          results.push({ categoryUrl, mapped: 0, products: 0, new: 0, error: data.error || `HTTP ${response.status}` });
           continue;
         }
 
         const links: string[] = data.links || data.data?.links || [];
-        console.log(`Found ${links.length} total URLs for ${domainUrl}`);
+        console.log(`Found ${links.length} total URLs for ${categoryUrl}`);
 
         // Filter to product URLs only
         const productUrls = links.filter(url => !shouldExclude(url) && isProductUrl(url));
@@ -107,7 +105,7 @@ Deno.serve(async (req) => {
         const newUrls = productUrls.filter(url => !existingUrls.has(url) && !allNewUrls.includes(url));
 
         results.push({
-          domain: domainUrl,
+          categoryUrl,
           mapped: links.length,
           products: productUrls.length,
           new: newUrls.length,
@@ -118,9 +116,9 @@ Deno.serve(async (req) => {
 
         await new Promise(r => setTimeout(r, 300));
       } catch (err) {
-        console.error(`Error mapping ${domainUrl}:`, err);
+        console.error(`Error mapping ${categoryUrl}:`, err);
         results.push({
-          domain: domainUrl,
+          categoryUrl,
           mapped: 0, products: 0, new: 0,
           error: err instanceof Error ? err.message : 'Unknown error',
         });

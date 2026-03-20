@@ -95,9 +95,9 @@ export const firecrawlApi = {
     return data;
   },
 
-  async discoverCategories(domains: string[]): Promise<FirecrawlResponse> {
+  async discoverCategories(categoryUrls: string[]): Promise<FirecrawlResponse> {
     const { data, error } = await supabase.functions.invoke('product-discover-categories', {
-      body: { domains },
+      body: { categoryUrls },
     });
     if (error) return { success: false, error: error.message };
     return data;
