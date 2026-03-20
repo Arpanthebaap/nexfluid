@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.product-bulk-insert]
 verify_jwt = false
+
+[functions.product-discover-categories]
+verify_jwt = false

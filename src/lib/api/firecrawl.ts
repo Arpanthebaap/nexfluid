@@ -94,4 +94,12 @@ export const firecrawlApi = {
     if (error) return { success: false, error: error.message };
     return data;
   },
+
+  async discoverCategories(categoryUrls: string[]): Promise<FirecrawlResponse> {
+    const { data, error } = await supabase.functions.invoke('product-discover-categories', {
+      body: { categoryUrls },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
 };
