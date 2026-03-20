@@ -32,8 +32,9 @@ export default function ProductImport() {
     setMappedUrls([]);
     try {
       const res = await firecrawlApi.map(mapUrl, { limit: 5000 });
-      if (res.success !== false && (res.data?.links || res.links)) {
-        const links = res.data?.links || res.links || [];
+      const resAny = res as any;
+      if (res.success !== false && (res.data?.links || resAny.links)) {
+        const links = res.data?.links || resAny.links || [];
         setMappedUrls(links);
         toast({ title: 'Map complete', description: `Found ${links.length} URLs` });
       } else {

@@ -23,6 +23,7 @@ import Products from "./pages/admin/Products";
 import ProductForm from "./pages/admin/ProductForm";
 import AdminCategories from "./pages/admin/Categories";
 import QuoteRequests from "./pages/admin/QuoteRequests";
+import ProductImport from "./pages/admin/ProductImport";
 
 const queryClient = new QueryClient();
 
