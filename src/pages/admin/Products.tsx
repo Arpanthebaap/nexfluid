@@ -115,6 +115,9 @@ export default function Products() {
                   <TableCell className="font-mono text-sm">{p.product_code}</TableCell>
                   <TableCell className="max-w-[300px] truncate">{p.name_en}</TableCell>
                   <TableCell>{p.brand ?? '—'}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">
+                    {p.categories?.name_en ?? '—'}
+                  </TableCell>
                   <TableCell><Badge variant={statusColor(p.status)}>{p.status}</Badge></TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" asChild>
