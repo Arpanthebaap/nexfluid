@@ -1,122 +1,49 @@
 
 
-# Project Status Assessment Against the Master Plan
+# Fix: Targeted Category Discovery + Accurate Category Assignment
 
-## Phase-by-Phase Status
+## Two Problems Identified
 
-### Phase 1: Foundation & Database — DONE
-- Database tables: `products`, `categories`, `product_attributes`, `quote_requests`, `scrape_jobs`, `category_filters`, `user_roles` — all created with RLS policies
-- Auth with admin role via `has_role` RPC — working (singleton AuthProvider pattern)
-- 501 categories imported from the master spreadsheet
+### Problem 1: Discovery scrapes entire domain
+Currently `product-discover-categories` maps the root domain (`valves-direct.com`) and gets ALL URLs. It should map each of the 11 specific category URLs individually so only products under those categories are discovered.
 
-### Phase 2: Admin Panel — PARTIALLY DONE
-| Feature | Status |
-|---------|--------|
-| Admin login (Supabase auth + role check) | Done |
-| Category management (add/edit/delete, hierarchy) | Done (no drag-and-drop reorder) |
-| Product management (CRUD, pagination, search) | Done |
-| Product form (edit all fields, category assignment) | Done |
-| Quote request inbox | Done |
-| Product Import pipeline page | Done (one-click automation UI) |
-| CSV import (upload, field mapping, preview, error handling) | **NOT BUILT** |
-| Content editor (inline description/SEO/translation editing) | **NOT BUILT** |
-| Filter attribute management (define attributes per category) | **NOT BUILT** |
-| Bulk operations (multi-select delete/status change) | **NOT BUILT** |
-| Dashboard with stats | Exists but basic |
+### Problem 2: Products not assigned to correct deepest category
+The AI receives a flat list of 501 categories and picks one by name — often choosing a parent category (e.g., "Valves") instead of the correct leaf category (e.g., "Series 353 Pulse Solenoid Valve"). 
 
-### Phase 3: Web Scraping Pipeline — PARTIALLY DONE
-| Feature | Status |
-|---------|--------|
-| Edge functions: discover, scrape, AI process, bulk insert | All 4 created and registered in config.toml |
-| Firecrawl connected with API key | Done |
-| One-click pipeline UI with progress tracking | Done |
-| Scrape jobs table with status tracking | Done |
-| **Actual scraping run** | **Only 1 product imported** — pipeline has never been run at scale |
+The fix: extract the category slug from the product's source URL path (e.g., `/series-353-pulse-solenoid-valve/9456-product.html` → slug `series-353-pulse-solenoid-valve`), look it up directly in the `categories` table, and use that as the definitive category. Only fall back to AI matching when URL-based matching fails.
 
-### Phase 4: AI Content Rewriting — DONE (in pipeline)
-- AI rewriting edge function uses Lovable AI (Gemini 2.5 Flash) with tool calling
-- Generates unique EN + IT descriptions, SEO meta, category matching
-- Integrated into the pipeline — works but only tested on 1 product
+## Changes
 
-### Phase 5: Public Frontend — PARTIALLY DONE
-| Feature | Status |
-|---------|--------|
-| Header with search, navigation, language switcher | Exists (basic) |
-| Homepage with category grid | Exists |
-| Category pages with breadcrumbs | Exists |
-| Product listing with pagination | Exists |
-| Product detail page | Exists |
-| Search results page | Exists |
-| Quote request form | **Needs verification** |
-| About / Contact pages | Exist (placeholder content) |
-| Dynamic sidebar filters | **NOT BUILT** |
-| Related products (intelligent) | **NOT BUILT** |
-| Schema.org structured data | **NOT BUILT** |
-| Image lazy loading / optimization | **NOT BUILT** |
+### 1. `supabase/functions/product-discover-categories/index.ts`
+- Accept specific category URLs (not just root domains)
+- Map each of the 11 URLs individually via Firecrawl Map API
+- Each URL maps its subcategory tree, discovering only relevant product URLs
 
-### Phase 6: Multilingual — PARTIALLY DONE
-- i18n library configured
-- Product content has IT/EN fields in DB
-- hreflang tags: **NOT BUILT**
-- Full UI string translations: **NOT VERIFIED**
+### 2. `supabase/functions/product-ai-process/index.ts`
+- Before sending to AI, extract the category slug from the product's `source_url` path segment
+- Query `categories` table for exact slug match
+- If found, use that `category_id` directly — don't rely on AI
+- Only send category matching to AI as fallback
+- Send categories as a **hierarchical tree** (parent > child > grandchild) instead of flat list, to help AI pick the deepest match
 
-### Phase 7: SEO & Performance — NOT STARTED
-- No sitemap.xml generation
-- No schema.org markup
-- No image optimization pipeline
-- No PageSpeed optimization work done
+### 3. `supabase/functions/product-bulk-insert/index.ts`  
+- Add a final category verification step: if `category_id` from processed_data doesn't match a leaf category, attempt URL-based re-matching before insert
 
-### Phase 8: Product Filters (Hybrid) — NOT STARTED
-- `category_filters` and `product_attributes` tables exist
-- No AI attribute extraction during import
-- No admin filter management UI
-- No frontend filter sidebar
+### 4. `src/pages/admin/ProductImport.tsx`
+- Change `SOURCE_DOMAINS` to the actual 11 category URLs instead of root domain
 
-### Phase 9: Testing & Launch — NOT STARTED
+### 5. `src/lib/api/firecrawl.ts`
+- Rename `discoverCategories` parameter from `domains` to `categoryUrls` to reflect the new behavior
 
----
+## Category Matching Logic (in AI process function)
 
-## What to Do Next — Recommended Priority
+```text
+1. Parse source_url: /series-353-pulse-solenoid-valve/9456-product.html
+2. Extract slug: "series-353-pulse-solenoid-valve"  
+3. Query: SELECT id FROM categories WHERE slug = 'series-353-pulse-solenoid-valve'
+4. If found → use that category_id (skip AI matching)
+5. If not found → let AI match from hierarchical category tree
+```
 
-The biggest blocker right now is **no products in the database** (only 1 test product). Everything else depends on having real data. Here is the recommended sequence:
-
-### Step 1: Run the scraping pipeline (immediate)
-The pipeline code is built and ready. The next action is to log into `/admin/import` and click "Start Full Pipeline". This will:
-- Discover product URLs from all 11 source pages (~11 Firecrawl credits)
-- Scrape each product page (~5K-15K credits)
-- AI rewrite and translate each product
-- Import into the products table
-
-However, there are potential issues to fix first:
-- The `product-discover-categories` function filters valves-direct URLs by `.html` extension — this needs verification against actual URL patterns on the site
-- The edge functions may need redeployment to ensure latest code is live
-- The `scrape_jobs` RLS policy requires authentication, but edge functions use service role key (this is fine)
-
-### Step 2: Fix remaining Phase 2 admin features
-- CSV import with field mapping
-- Bulk operations
-- Filter attribute management per category
-
-### Step 3: Build Phase 5 missing frontend features
-- Dynamic product filters
-- Related products
-- Quote form email sending (edge function to info@nexfluid.it)
-- Schema.org Product markup
-
-### Step 4: SEO & Performance (Phase 7)
-- Sitemap generation
-- hreflang implementation
-- Image optimization
-- PageSpeed optimization
-
----
-
-## Recommended Immediate Action
-
-I suggest we **deploy all edge functions and run a pilot test** — discover URLs from just 1 category (e.g., solenoid-valves), scrape 10-20 products, verify the AI rewriting quality and database insertion, then scale up to the full run. This validates everything works before burning Firecrawl credits on 85K products.
-
-Do you want me to:
-1. **Run the pilot test** — deploy functions, discover from 1 category, process 20 products end-to-end
-2. **Run the full pipeline** — deploy and start processing all 11 categories immediately
-3. **Fix admin panel gaps first** — build CSV import, bulk operations, filter management before scraping
+This approach ensures products land in the correct deepest subcategory 95%+ of the time, since the valves-direct URL path already contains the exact subcategory slug that matches our imported category structure.
 
