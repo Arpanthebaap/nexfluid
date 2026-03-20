@@ -1,49 +1,58 @@
 
 
-# Fix: Targeted Category Discovery + Accurate Category Assignment
+# Clean Database + Fix Category Assignment Pipeline
 
-## Two Problems Identified
+## Current State
 
-### Problem 1: Discovery scrapes entire domain
-Currently `product-discover-categories` maps the root domain (`valves-direct.com`) and gets ALL URLs. It should map each of the 11 specific category URLs individually so only products under those categories are discovered.
+- **300 products** in the database — all from valves-direct.com, all legitimate (from subcategories of the 10 target parent categories)
+- **13,590 pending scrape jobs** — also from valid subcategory URLs under the 10 targets
+- **Category assignment is broken**: 7 of 9 source URL slugs (e.g. `series-iso-5599-1`, `series-tc08-valve-systems`) have NO matching category in the database. Only 2 slugs (`series-353-pulse-solenoid-valve` and `series-fsg-flat-suction-grippers`) matched. Result: 298 products are assigned to wrong parent/generic categories.
+- **RS-Online** not yet scraped (no products or jobs from rs-online.com)
 
-### Problem 2: Products not assigned to correct deepest category
-The AI receives a flat list of 501 categories and picks one by name — often choosing a parent category (e.g., "Valves") instead of the correct leaf category (e.g., "Series 353 Pulse Solenoid Valve"). 
+## Key Finding: Products ARE Valid
 
-The fix: extract the category slug from the product's source URL path (e.g., `/series-353-pulse-solenoid-valve/9456-product.html` → slug `series-353-pulse-solenoid-valve`), look it up directly in the `categories` table, and use that as the definitive category. Only fall back to AI matching when URL-based matching fails.
+All 300 existing products come from valves-direct.com subcategory pages (e.g. `/series-tc08-valve-systems/`, `/series-iso-5599-1/`) which are nested under the 10 target parent categories (e.g. `/12-valve-systems`, `/10-solenoid-valves`). They should NOT be deleted — they just need correct category assignment.
 
-## Changes
+## Plan
 
-### 1. `supabase/functions/product-discover-categories/index.ts`
-- Accept specific category URLs (not just root domains)
-- Map each of the 11 URLs individually via Firecrawl Map API
-- Each URL maps its subcategory tree, discovering only relevant product URLs
+### Step 1: Create missing categories for unmatched URL slugs
 
-### 2. `supabase/functions/product-ai-process/index.ts`
-- Before sending to AI, extract the category slug from the product's `source_url` path segment
-- Query `categories` table for exact slug match
-- If found, use that `category_id` directly — don't rely on AI
-- Only send category matching to AI as fallback
-- Send categories as a **hierarchical tree** (parent > child > grandchild) instead of flat list, to help AI pick the deepest match
+7 source URL slugs from valves-direct have no matching category in the database. Create them under the correct parents:
 
-### 3. `supabase/functions/product-bulk-insert/index.ts`  
-- Add a final category verification step: if `category_id` from processed_data doesn't match a leaf category, attempt URL-based re-matching before insert
+| Source Slug | New Category | Parent Category |
+|---|---|---|
+| `series-iso-5599-1` | Series ISO 5599-1 Standardized Valves | Standardized Valves |
+| `series-iso-5599-2` | Series ISO 5599-2 Standardized Valves | Standardized Valves |
+| `series-tc08-valve-systems` | Series TC08 Valve Systems | Modular Valve Systems |
+| `series-es05-valve-systems` | Series ES05 Valve Systems | Modular Valve Systems |
+| `series-hf03-lg-valve-systems` | Series HF03-LG Valve Systems | Modular Valve Systems |
+| `series-581-size-iso-1-standardized-valves-iso-5599-1` | Series 581 Size ISO 1 (ISO 5599-1) | Series 581 Directional Control Valves |
+| `series-581-size-iso-3-standardized-valves-iso-5599-3` | Series 581 Size ISO 3 (ISO 5599-3) | Series 581 Directional Control Valves |
 
-### 4. `src/pages/admin/ProductImport.tsx`
-- Change `SOURCE_DOMAINS` to the actual 11 category URLs instead of root domain
+This is a database migration to insert these categories with the correct `parent_id` and `slug`.
 
-### 5. `src/lib/api/firecrawl.ts`
-- Rename `discoverCategories` parameter from `domains` to `categoryUrls` to reflect the new behavior
+### Step 2: Re-assign all 300 existing products
 
-## Category Matching Logic (in AI process function)
+Run SQL updates to re-assign each product's `category_id` based on the URL slug extracted from `source_url`. After Step 1, all 9 slugs will have matching categories.
 
-```text
-1. Parse source_url: /series-353-pulse-solenoid-valve/9456-product.html
-2. Extract slug: "series-353-pulse-solenoid-valve"  
-3. Query: SELECT id FROM categories WHERE slug = 'series-353-pulse-solenoid-valve'
-4. If found → use that category_id (skip AI matching)
-5. If not found → let AI match from hierarchical category tree
-```
+### Step 3: Verify discovery covers all 10 source pages
 
-This approach ensures products land in the correct deepest subcategory 95%+ of the time, since the valves-direct URL path already contains the exact subcategory slug that matches our imported category structure.
+The discover function and `SOURCE_CATEGORY_URLS` in `ProductImport.tsx` already list all 10 valves-direct URLs. The existing 13,590 pending jobs appear to come from these categories. No changes needed here.
+
+### Step 4: Ensure future imports get correct categories
+
+The `product-ai-process` function already does URL-based slug matching before AI fallback. After Step 1 creates the missing categories, this will work correctly for new products too.
+
+No code changes needed — only database operations.
+
+## Files to Modify
+
+| File | Change |
+|---|---|
+| Database migration | Insert 7 new subcategories with correct parent_ids and slugs |
+| Database (data update) | UPDATE products SET category_id = matched category based on source_url slug |
+
+## What About RS-Online?
+
+RS-Online (`it.rs-online.com/web/b/parker/`) hasn't been scraped yet. The discovery function would need adjustment for RS-Online URL patterns (they don't use `.html` extensions). This can be addressed after the valves-direct pipeline is fully operational.
 
