@@ -8,6 +8,7 @@ const navItems = [
   { to: '/admin/products', icon: Package, label: 'Products' },
   { to: '/admin/categories', icon: FolderTree, label: 'Categories' },
   { to: '/admin/quotes', icon: MessageSquareText, label: 'Quote Requests' },
+  { to: '/admin/import', icon: Download, label: 'Product Import' },
 ];
 
 export default function AdminLayout() {
