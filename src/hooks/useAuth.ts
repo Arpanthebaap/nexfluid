@@ -33,7 +33,7 @@ export function useAuth() {
   useEffect(() => {
     if (user && user.id !== lastCheckedUserId.current) {
       lastCheckedUserId.current = user.id;
-      supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' })
+      Promise.resolve(supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' }))
         .then(({ data }) => { setIsAdmin(!!data); setLoading(false); })
         .catch(() => { setIsAdmin(false); setLoading(false); });
     } else if (!user) {
