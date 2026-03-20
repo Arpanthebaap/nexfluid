@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
-type Product = Tables<'products'>;
+type Product = Tables<'products'> & {
+  categories: { name_en: string } | null;
+};
 
 const PAGE_SIZE = 20;
 
