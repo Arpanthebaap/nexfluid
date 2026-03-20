@@ -5,53 +5,36 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// URL patterns that indicate product pages (not category/navigation pages)
-const PRODUCT_URL_PATTERNS: Record<string, RegExp[]> = {
-  'valves-direct.com': [
-    /\/\d+-[a-z].*\.html$/i,
-    /\/[a-z].*-\d+\.html$/i,
-    /\.html$/i,
-  ],
-  'rs-online.com': [
-    /\/product\//i,
-    /\/p\//i,
-    /\/productDetail/i,
-  ],
-};
+// Product URLs end in .html and have pattern /{category-slug}/{id}-{name}.html
+function isProductUrl(url: string): boolean {
+  try {
+    const path = new URL(url).pathname;
+    // Must end in .html
+    if (!path.endsWith('.html')) return false;
+    // Must have at least 2 path segments (category/product)
+    const segments = path.split('/').filter(Boolean);
+    if (segments.length < 2) return false;
+    // Product segment starts with a number
+    const productSegment = segments[segments.length - 1];
+    return /^\d+[-]/.test(productSegment);
+  } catch {
+    return false;
+  }
+}
 
-// URL patterns to exclude (navigation, categories, etc.)
+// Exclude non-product pages
 const EXCLUDE_PATTERNS = [
   /\/(cart|checkout|account|login|register|wishlist|compare)/i,
   /\/(privacy|terms|cookie|contact|about|faq|help|sitemap)/i,
+  /\?/,
   /\/#/,
-  /\?.*page=/i,
   /\.(pdf|jpg|png|gif|svg|css|js)$/i,
   /\/cdn-cgi\//i,
+  /\/index\.php/i,
 ];
 
-function isProductUrl(url: string, domain: string): boolean {
-  // Exclude non-product pages
-  if (EXCLUDE_PATTERNS.some(p => p.test(url))) return false;
-
-  // For valves-direct: product pages end in .html and have a numeric prefix pattern
-  if (domain.includes('valves-direct')) {
-    const path = new URL(url).pathname;
-    // Category pages: /3-air-preparation-equipment (just number-name)
-    // Product pages: /123-some-product-name.html (number-name.html)
-    // Also filter out the top-level category pages we started from
-    if (!path.endsWith('.html')) return false;
-    // Must have at least 2 path segments or a numeric ID pattern
-    return /\/\d+[-_]/.test(path);
-  }
-
-  // For RS-Online: product pages contain /product/ or specific patterns
-  if (domain.includes('rs-online')) {
-    const patterns = PRODUCT_URL_PATTERNS['rs-online.com'];
-    return patterns.some(p => p.test(url));
-  }
-
-  // Default: accept URLs with numeric IDs in path
-  return /\/\d{3,}/.test(url);
+function shouldExclude(url: string): boolean {
+  return EXCLUDE_PATTERNS.some(p => p.test(url));
 }
 
 Deno.serve(async (req) => {
@@ -60,14 +43,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { categoryUrls } = await req.json();
+    const { domains } = await req.json();
 
-    if (!categoryUrls?.length) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'categoryUrls array is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Default domains to scrape
+    const targetDomains = domains || [
+      'https://www.valves-direct.com',
+    ];
 
     const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
     if (!firecrawlKey) {
@@ -87,13 +68,12 @@ Deno.serve(async (req) => {
       .select('source_url');
     const existingUrls = new Set((existingJobs || []).map((j: any) => j.source_url));
 
-    const results: { category: string; mapped: number; filtered: number; new: number; error?: string }[] = [];
+    const results: { domain: string; mapped: number; products: number; new: number; error?: string }[] = [];
     const allNewUrls: string[] = [];
 
-    for (const categoryUrl of categoryUrls) {
+    for (const domainUrl of targetDomains) {
       try {
-        console.log(`Mapping category: ${categoryUrl}`);
-        const domain = new URL(categoryUrl).hostname;
+        console.log(`Mapping domain: ${domainUrl}`);
 
         const response = await fetch('https://api.firecrawl.dev/v1/map', {
           method: 'POST',
@@ -102,7 +82,7 @@ Deno.serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            url: categoryUrl,
+            url: domainUrl,
             limit: 5000,
             includeSubdomains: false,
           }),
@@ -111,38 +91,37 @@ Deno.serve(async (req) => {
         const data = await response.json();
 
         if (!response.ok) {
-          console.error(`Map failed for ${categoryUrl}:`, data);
-          results.push({ category: categoryUrl, mapped: 0, filtered: 0, new: 0, error: data.error || `HTTP ${response.status}` });
+          console.error(`Map failed for ${domainUrl}:`, data);
+          results.push({ domain: domainUrl, mapped: 0, products: 0, new: 0, error: data.error || `HTTP ${response.status}` });
           continue;
         }
 
         const links: string[] = data.links || data.data?.links || [];
-        console.log(`Found ${links.length} URLs for ${categoryUrl}`);
+        console.log(`Found ${links.length} total URLs for ${domainUrl}`);
 
         // Filter to product URLs only
-        const productUrls = links.filter(url => isProductUrl(url, domain));
+        const productUrls = links.filter(url => !shouldExclude(url) && isProductUrl(url));
         console.log(`Filtered to ${productUrls.length} product URLs`);
 
-        // Deduplicate against existing jobs and already-found URLs
+        // Deduplicate
         const newUrls = productUrls.filter(url => !existingUrls.has(url) && !allNewUrls.includes(url));
 
         results.push({
-          category: categoryUrl,
+          domain: domainUrl,
           mapped: links.length,
-          filtered: productUrls.length,
+          products: productUrls.length,
           new: newUrls.length,
         });
 
         allNewUrls.push(...newUrls);
         newUrls.forEach(url => existingUrls.add(url));
 
-        // Small delay between map calls
         await new Promise(r => setTimeout(r, 300));
       } catch (err) {
-        console.error(`Error mapping ${categoryUrl}:`, err);
+        console.error(`Error mapping ${domainUrl}:`, err);
         results.push({
-          category: categoryUrl,
-          mapped: 0, filtered: 0, new: 0,
+          domain: domainUrl,
+          mapped: 0, products: 0, new: 0,
           error: err instanceof Error ? err.message : 'Unknown error',
         });
       }
@@ -172,7 +151,7 @@ Deno.serve(async (req) => {
         success: true,
         totalNew: inserted,
         totalMapped: results.reduce((s, r) => s + r.mapped, 0),
-        totalFiltered: results.reduce((s, r) => s + r.filtered, 0),
+        totalProducts: results.reduce((s, r) => s + r.products, 0),
         results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -9,18 +9,8 @@ import { Globe, Map, Cpu, Database, Loader2, Play, Square, RotateCcw, ChevronDow
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
 
-const CATEGORY_URLS = [
-  'https://www.valves-direct.com/3-air-preparation-equipment',
-  'https://www.valves-direct.com/4-manually-operated-valves',
-  'https://www.valves-direct.com/5-pinch-valves',
-  'https://www.valves-direct.com/6-pneumatic-cylinders',
-  'https://www.valves-direct.com/7-proportional-valves',
-  'https://www.valves-direct.com/8-seat-valves',
-  'https://www.valves-direct.com/9-sensors-switches',
-  'https://www.valves-direct.com/10-solenoid-valves',
-  'https://www.valves-direct.com/11-vacuum-technologies',
-  'https://www.valves-direct.com/12-valve-systems',
-  'https://it.rs-online.com/web/b/parker/',
+const SOURCE_DOMAINS = [
+  'https://www.valves-direct.com',
 ];
 
 type StatusCounts = {
@@ -91,7 +81,7 @@ export default function ProductImport() {
     // Phase 1: Discovery
     addLog('🚀 Starting URL discovery from category pages...');
     try {
-      const res = await firecrawlApi.discoverCategories(CATEGORY_URLS);
+      const res = await firecrawlApi.discoverCategories(SOURCE_DOMAINS);
       if (res.success) {
         const data = res as any;
         addLog(`✅ Discovery complete: ${data.totalNew} new URLs from ${data.totalMapped} mapped`);
@@ -130,7 +120,7 @@ export default function ProductImport() {
     let emptyRounds = 0;
     while (!stopRef.current) {
       try {
-        const res = await firecrawlApi.scrapeBatch(5);
+        const res = await firecrawlApi.scrapeBatch(2);
         const data = res as any;
         if (!res.success) { addLog(`❌ Scrape error: ${res.error}`); break; }
         if (data.scraped === 0) {
