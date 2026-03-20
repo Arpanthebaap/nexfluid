@@ -5,6 +5,41 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Extract category slug from valves-direct URL pattern: /{category-slug}/{id}-product.html
+function extractCategorySlug(sourceUrl: string): string | null {
+  try {
+    const path = new URL(sourceUrl).pathname;
+    const segments = path.split('/').filter(Boolean);
+    // The category slug is the second-to-last segment (before the product file)
+    if (segments.length >= 2) {
+      return segments[segments.length - 2];
+    }
+  } catch {}
+  return null;
+}
+
+// Build a compact hierarchical tree string from categories
+function buildCategoryTree(categories: any[]): string {
+  const byParent = new Map<string | null, any[]>();
+  for (const c of categories) {
+    const pid = c.parent_id || null;
+    if (!byParent.has(pid)) byParent.set(pid, []);
+    byParent.get(pid)!.push(c);
+  }
+
+  function render(parentId: string | null, depth: number): string {
+    const children = byParent.get(parentId) || [];
+    return children.map(c => {
+      const indent = '  '.repeat(depth);
+      const line = `${indent}- ${c.name_en} (slug:${c.slug}, id:${c.id})`;
+      const sub = render(c.id, depth + 1);
+      return sub ? `${line}\n${sub}` : line;
+    }).join('\n');
+  }
+
+  return render(null, 0);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -47,15 +82,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch categories for matching
+    // Fetch ALL categories for matching
     const { data: categories } = await supabase
       .from('categories')
       .select('id, name_en, name_it, slug, parent_id')
       .eq('is_active', true);
 
-    const categoryList = (categories || [])
-      .map(c => `${c.name_en} (${c.slug}, id:${c.id})`)
-      .join('\n');
+    const allCategories = categories || [];
+
+    // Build a slug lookup map for direct URL-based matching
+    const slugToCategory = new Map<string, { id: string; name_en: string }>();
+    for (const c of allCategories) {
+      slugToCategory.set(c.slug, { id: c.id, name_en: c.name_en });
+    }
+
+    // Build hierarchical tree for AI fallback (only needed if URL matching fails)
+    const categoryTree = buildCategoryTree(allCategories);
 
     let processed = 0;
     let failed = 0;
@@ -68,26 +110,43 @@ Deno.serve(async (req) => {
         const originalDesc = rawJson.description || rawMarkdown.slice(0, 2000);
         const brand = rawJson.brand || '';
         const specs = rawJson.specifications || [];
-        const categoryHint = rawJson.category_hint || '';
+
+        // Step 1: Try URL-based category matching first
+        let matchedCategoryId: string | null = null;
+        let matchedCategoryName = '';
+        const slug = extractCategorySlug(job.source_url);
+
+        if (slug) {
+          const match = slugToCategory.get(slug);
+          if (match) {
+            matchedCategoryId = match.id;
+            matchedCategoryName = match.name_en;
+            console.log(`URL match for ${job.source_url}: slug="${slug}" → category="${match.name_en}"`);
+          } else {
+            console.log(`No slug match for "${slug}" from ${job.source_url}`);
+          }
+        }
+
+        // Build the prompt — skip category matching if we already have a match
+        const categoryInstruction = matchedCategoryId
+          ? `Category has been determined from URL: "${matchedCategoryName}" (id: ${matchedCategoryId}). Use this category_id.`
+          : `Match this product to the BEST DEEPEST (leaf) category from the tree below. Always prefer the most specific subcategory, NEVER a parent when children exist.\n\nCATEGORY TREE:\n${categoryTree}`;
 
         const prompt = `You are a product content specialist for an industrial equipment catalog. Process the following product data and return structured output.
 
 PRODUCT DATA:
 - Name: ${productName}
 - Brand: ${brand}
-- Category hint: ${categoryHint}
-- Original description: ${originalDesc}
-- Specs: ${JSON.stringify(specs)}
-
-AVAILABLE CATEGORIES:
-${categoryList}
+- Source URL: ${job.source_url}
+- Original description: ${originalDesc.slice(0, 1500)}
+- Specs: ${JSON.stringify(specs).slice(0, 500)}
 
 TASKS:
 1. Rewrite the product description in English — must be 100% original, professional, SEO-friendly. Do NOT copy any text from the original.
 2. Translate the rewritten description to Italian.
-3. Generate an SEO meta title (max 60 chars) in both English and Italian.
+3. Generate an SEO meta title (max 60 chars) in both English and Italian. Include the product code if available.
 4. Generate an SEO meta description (max 160 chars) in both English and Italian.
-5. Match this product to the BEST category from the list above. Return the category ID.
+5. ${categoryInstruction}
 6. Generate a clean product code/SKU if not available.`;
 
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -97,7 +156,7 @@ TASKS:
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
+            model: 'google/gemini-2.5-flash-lite',
             messages: [
               { role: 'system', content: 'You are a product content specialist. Return structured data via the provided tool.' },
               { role: 'user', content: prompt }
@@ -134,9 +193,8 @@ TASKS:
         if (!response.ok) {
           const errText = await response.text();
           console.error(`AI error for job ${job.id}:`, response.status, errText);
-          
+
           if (response.status === 429) {
-            // Rate limited — stop processing this batch, let frontend retry
             return new Response(
               JSON.stringify({ success: true, processed, failed, rateLimited: true, message: 'Rate limited — retry in a moment' }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -160,7 +218,7 @@ TASKS:
 
         const aiData = await response.json();
         const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-        
+
         if (!toolCall) {
           await supabase.from('scrape_jobs').update({
             status: 'failed',
@@ -172,6 +230,11 @@ TASKS:
         }
 
         const processedData = JSON.parse(toolCall.function.arguments);
+
+        // Override category_id with URL-matched one if available
+        if (matchedCategoryId) {
+          processedData.category_id = matchedCategoryId;
+        }
 
         // Merge with raw data
         processedData.images = rawJson.images || [];
@@ -191,7 +254,7 @@ TASKS:
         processed++;
 
         // Delay between AI calls
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 1000));
       } catch (err) {
         console.error(`Error processing job ${job.id}:`, err);
         await supabase.from('scrape_jobs').update({
