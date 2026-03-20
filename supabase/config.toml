@@ -1,1 +1,10 @@
 project_id = "xhejomioyecdfpvmohqh"
+
+[functions.product-scrape-batch]
+verify_jwt = false
+
+[functions.product-ai-process]
+verify_jwt = false
+
+[functions.product-bulk-insert]
+verify_jwt = false
