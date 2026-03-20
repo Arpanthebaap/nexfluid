@@ -202,6 +202,9 @@ export default function ProductImport() {
         </CardContent>
       </Card>
 
+      {/* Bulk Category Discovery */}
+      <CategoryDiscovery onComplete={fetchCounts} />
+
       {/* Step 1: Discover */}
       <Card>
         <CardHeader>
