@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Package, FolderTree, MessageSquareText, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, FolderTree, MessageSquareText, LogOut, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
