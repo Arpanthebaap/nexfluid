@@ -99,6 +99,7 @@ export default function Products() {
               <TableHead>Code</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Brand</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
