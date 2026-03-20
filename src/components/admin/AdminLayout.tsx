@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Package, FolderTree, MessageSquareText, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, FolderTree, MessageSquareText, LogOut, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/admin/products', icon: Package, label: 'Products' },
   { to: '/admin/categories', icon: FolderTree, label: 'Categories' },
   { to: '/admin/quotes', icon: MessageSquareText, label: 'Quote Requests' },
+  { to: '/admin/import', icon: Download, label: 'Product Import' },
 ];
 
 export default function AdminLayout() {

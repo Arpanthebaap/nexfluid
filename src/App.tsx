@@ -23,6 +23,7 @@ import Products from "./pages/admin/Products";
 import ProductForm from "./pages/admin/ProductForm";
 import AdminCategories from "./pages/admin/Categories";
 import QuoteRequests from "./pages/admin/QuoteRequests";
+import ProductImport from "./pages/admin/ProductImport";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="/admin/products/:id" element={<ProductForm />} />
               <Route path="/admin/categories" element={<AdminCategories />} />
               <Route path="/admin/quotes" element={<QuoteRequests />} />
+              <Route path="/admin/import" element={<ProductImport />} />
             </Route>
           </Route>
 
