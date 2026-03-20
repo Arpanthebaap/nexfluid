@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Globe, Map, Cpu, Database, Loader2, Play, Pause, RotateCcw } from 'lucide-react';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
+import CategoryDiscovery from '@/components/admin/CategoryDiscovery';
 
 type StatusCounts = {
   pending: number;
