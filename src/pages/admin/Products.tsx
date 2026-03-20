@@ -43,7 +43,7 @@ export default function Products() {
     }
 
     const { data, count } = await query;
-    setProducts(data ?? []);
+    setProducts((data as Product[]) ?? []);
     setTotal(count ?? 0);
     setLoading(false);
   };
