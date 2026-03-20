@@ -24,22 +24,27 @@ const Index = () => {
   const { i18n } = useTranslation();
   const lang = i18n.language as 'it' | 'en';
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCategories = async () => {
+      // Fetch all active categories (top-level + level-1)
       const { data } = await supabase
         .from('categories')
         .select('*')
         .eq('is_active', true)
-        .is('parent_id', null)
         .order('sort_order');
       setCategories(data || []);
+      setLoading(false);
     };
     fetchCategories();
   }, []);
 
   const catName = (cat: Category) => lang === 'it' ? cat.name_it : cat.name_en;
   const catDesc = (cat: Category) => lang === 'it' ? cat.description_it : cat.description_en;
+
+  const topCategories = categories.filter(c => !c.parent_id);
+  const getChildren = (parentId: string) => categories.filter(c => c.parent_id === parentId);
 
   return (
     <>
@@ -51,55 +56,98 @@ const Index = () => {
             {/* Our Brands */}
             <OurBrands />
 
-            {/* Categories */}
-            <section className="py-8">
-              <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight text-foreground mb-6">
-                Categories
-              </h2>
-              {categories.length === 0 ? (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Category Sections */}
+            <section className="py-8 space-y-10">
+              {loading ? (
+                <div className="space-y-8">
                   {[...Array(4)].map((_, i) => (
-                    <div key={i} className="h-48 animate-pulse rounded border bg-muted" />
+                    <div key={i} className="animate-pulse">
+                      <div className="h-6 w-40 bg-muted rounded mb-4" />
+                      <div className="flex gap-6">
+                        <div className="hidden md:block w-64 h-44 bg-muted rounded" />
+                        <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {[...Array(6)].map((_, j) => (
+                            <div key={j} className="h-10 bg-muted rounded" />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  {categories.map((cat, i) => (
+                topCategories.map((parent, idx) => {
+                  const children = getChildren(parent.id);
+                  return (
                     <motion.div
-                      key={cat.id}
-                      initial={{ opacity: 0, y: 16 }}
+                      key={parent.id}
+                      initial={{ opacity: 0, y: 20 }}
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
-                      transition={{ delay: i * 0.05 }}
+                      transition={{ delay: idx * 0.08 }}
                     >
-                      <Link
-                        to={`/categories/${cat.slug}`}
-                        className="group block rounded border bg-card overflow-hidden hover:shadow-md transition-shadow"
-                      >
-                        <div className="aspect-[4/3] bg-muted flex items-center justify-center">
-                          {cat.image_url ? (
-                            <img src={cat.image_url} alt={catName(cat)} className="w-full h-full object-cover" />
+                      {/* Section Header */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <h2 className="text-lg font-bold sm:text-xl font-display uppercase tracking-tight text-foreground">
+                          {catName(parent)}
+                        </h2>
+                        <div className="flex-1 h-px bg-border" />
+                        <Link
+                          to={`/categories/${parent.slug}`}
+                          className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 shrink-0"
+                        >
+                          {lang === 'it' ? 'Vedi tutto' : 'View All'} <ArrowRight className="h-3 w-3" />
+                        </Link>
+                      </div>
+
+                      {/* Hero image + sub-category grid */}
+                      <div className="flex gap-5">
+                        {/* Hero image — desktop only */}
+                        {parent.image_url && (
+                          <Link
+                            to={`/categories/${parent.slug}`}
+                            className="hidden md:block w-56 lg:w-64 shrink-0 rounded border bg-card overflow-hidden hover:shadow-md transition-shadow"
+                          >
+                            <img
+                              src={parent.image_url}
+                              alt={catName(parent)}
+                              className="w-full h-full object-cover aspect-[4/3]"
+                            />
+                          </Link>
+                        )}
+
+                        {/* Sub-category grid */}
+                        <div className="flex-1 min-w-0">
+                          {children.length > 0 ? (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                              {children.map((child) => (
+                                <Link
+                                  key={child.id}
+                                  to={`/categories/${child.slug}`}
+                                  className="group flex items-center gap-3 rounded border bg-card p-2.5 hover:shadow-sm hover:border-primary/30 transition-all"
+                                >
+                                  {child.image_url && (
+                                    <img
+                                      src={child.image_url}
+                                      alt={catName(child)}
+                                      className="w-10 h-10 rounded object-cover shrink-0"
+                                    />
+                                  )}
+                                  <span className="text-xs sm:text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                                    {catName(child)}
+                                  </span>
+                                </Link>
+                              ))}
+                            </div>
                           ) : (
-                            <div className="text-muted-foreground/30 text-4xl">📦</div>
-                          )}
-                        </div>
-                        <div className="p-3">
-                          <h3 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
-                            {catName(cat)}
-                          </h3>
-                          {catDesc(cat) && (
-                            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                              {catDesc(cat)}
+                            <p className="text-sm text-muted-foreground">
+                              {catDesc(parent) || (lang === 'it' ? 'Esplora la categoria' : 'Explore the category')}
                             </p>
                           )}
-                          <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
-                            {lang === 'it' ? 'Scopri di più' : 'Discover more'} <ArrowRight className="h-3 w-3" />
-                          </span>
                         </div>
-                      </Link>
+                      </div>
                     </motion.div>
-                  ))}
-                </div>
+                  );
+                })
               )}
             </section>
           </div>
