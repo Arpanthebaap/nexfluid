@@ -1,14 +1,27 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Globe, Map, Cpu, Database, Loader2, Play, Pause, RotateCcw } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Globe, Map, Cpu, Database, Loader2, Play, Square, RotateCcw, ChevronDown, Rocket, Trash2, Clock } from 'lucide-react';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
-import CategoryDiscovery from '@/components/admin/CategoryDiscovery';
+
+const CATEGORY_URLS = [
+  'https://www.valves-direct.com/3-air-preparation-equipment',
+  'https://www.valves-direct.com/4-manually-operated-valves',
+  'https://www.valves-direct.com/5-pinch-valves',
+  'https://www.valves-direct.com/6-pneumatic-cylinders',
+  'https://www.valves-direct.com/7-proportional-valves',
+  'https://www.valves-direct.com/8-seat-valves',
+  'https://www.valves-direct.com/9-sensors-switches',
+  'https://www.valves-direct.com/10-solenoid-valves',
+  'https://www.valves-direct.com/11-vacuum-technologies',
+  'https://www.valves-direct.com/12-valve-systems',
+  'https://it.rs-online.com/web/b/parker/',
+];
 
 type StatusCounts = {
   pending: number;
@@ -19,21 +32,24 @@ type StatusCounts = {
   total: number;
 };
 
+type PipelinePhase = 'idle' | 'discovering' | 'running' | 'paused';
+
 export default function ProductImport() {
   const { toast } = useToast();
-  const [mapUrl, setMapUrl] = useState('https://valves-direct.com');
-  const [mapLoading, setMapLoading] = useState(false);
-  const [mappedUrls, setMappedUrls] = useState<string[]>([]);
-  const [urlFilter, setUrlFilter] = useState('');
-  const [saving, setSaving] = useState(false);
-
   const [counts, setCounts] = useState<StatusCounts>({ pending: 0, scraped: 0, processed: 0, imported: 0, failed: 0, total: 0 });
-  const [scrapeRunning, setScrapeRunning] = useState(false);
-  const [aiRunning, setAiRunning] = useState(false);
-  const [insertRunning, setInsertRunning] = useState(false);
-  const scrapeRef = useRef(false);
-  const aiRef = useRef(false);
-  const insertRef = useRef(false);
+  const [phase, setPhase] = useState<PipelinePhase>('idle');
+  const [logs, setLogs] = useState<string[]>([]);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [speed, setSpeed] = useState(0); // products imported per minute
+  const stopRef = useRef(false);
+  const lastImportedRef = useRef(0);
+  const speedCheckRef = useRef<number>(0);
+
+  const addLog = useCallback((msg: string) => {
+    const ts = new Date().toLocaleTimeString();
+    setLogs(prev => [`[${ts}] ${msg}`, ...prev].slice(0, 200));
+  }, []);
 
   const fetchCounts = useCallback(async () => {
     const statuses = ['pending', 'scraped', 'processed', 'imported', 'failed'] as const;
@@ -46,116 +62,174 @@ export default function ProductImport() {
     }
     results.total = total;
     setCounts(results);
+    return results as StatusCounts;
   }, []);
 
   useEffect(() => {
     fetchCounts();
-    const interval = setInterval(fetchCounts, 5000);
+    const interval = setInterval(fetchCounts, 3000);
     return () => clearInterval(interval);
   }, [fetchCounts]);
 
-  // Step 1: Map URLs
-  const handleMap = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMapLoading(true);
-    setMappedUrls([]);
+  // Speed calculation
+  useEffect(() => {
+    if (phase === 'running' && startTime) {
+      const elapsed = (Date.now() - startTime) / 60000; // minutes
+      if (elapsed > 0.5) {
+        setSpeed(Math.round(counts.imported / elapsed));
+      }
+    }
+  }, [counts.imported, phase, startTime]);
+
+  const runFullPipeline = async () => {
+    stopRef.current = false;
+    setPhase('discovering');
+    setStartTime(Date.now());
+    setLogs([]);
+    lastImportedRef.current = 0;
+
+    // Phase 1: Discovery
+    addLog('🚀 Starting URL discovery from category pages...');
     try {
-      const res = await firecrawlApi.map(mapUrl, { limit: 5000 });
-      const resAny = res as any;
-      const links = res.data?.links || resAny.links || [];
-      if (links.length) {
-        setMappedUrls(links);
-        toast({ title: 'Map complete', description: `Found ${links.length} URLs` });
+      const res = await firecrawlApi.discoverCategories(CATEGORY_URLS);
+      if (res.success) {
+        const data = res as any;
+        addLog(`✅ Discovery complete: ${data.totalNew} new URLs from ${data.totalMapped} mapped`);
       } else {
-        toast({ title: 'No URLs found', variant: 'destructive' });
+        addLog(`⚠️ Discovery had issues: ${res.error}`);
       }
-    } catch {
-      toast({ title: 'Map failed', variant: 'destructive' });
-    } finally {
-      setMapLoading(false);
+    } catch (err) {
+      addLog(`❌ Discovery failed: ${err}`);
     }
+
+    await fetchCounts();
+    if (stopRef.current) { setPhase('paused'); return; }
+
+    // Phase 2-4: Parallel loops
+    setPhase('running');
+    addLog('⚡ Starting parallel scrape → AI → import pipeline...');
+
+    await Promise.all([
+      runScrapeLoop(),
+      runAiLoop(),
+      runInsertLoop(),
+    ]);
+
+    if (stopRef.current) {
+      setPhase('paused');
+      addLog('⏸️ Pipeline paused. Click Start to resume.');
+    } else {
+      setPhase('idle');
+      addLog('🎉 Pipeline complete!');
+      toast({ title: 'Pipeline complete', description: 'All products have been processed.' });
+    }
+    await fetchCounts();
   };
 
-  const filteredUrls = urlFilter
-    ? mappedUrls.filter(u => u.toLowerCase().includes(urlFilter.toLowerCase()))
-    : mappedUrls;
-
-  const saveUrlsAsJobs = async () => {
-    if (!filteredUrls.length) return;
-    setSaving(true);
-    try {
-      const batchSize = 500;
-      for (let i = 0; i < filteredUrls.length; i += batchSize) {
-        const batch = filteredUrls.slice(i, i + batchSize).map(url => ({
-          source_url: url,
-          status: 'pending' as const,
-        }));
-        const { error } = await supabase.from('scrape_jobs').insert(batch as any);
-        if (error) throw error;
-      }
-      toast({ title: 'URLs saved', description: `${filteredUrls.length} jobs created` });
-      setMappedUrls([]);
-      fetchCounts();
-    } catch (err: any) {
-      toast({ title: 'Save failed', description: err.message, variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Step 2: Batch scrape
   const runScrapeLoop = async () => {
-    scrapeRef.current = true;
-    setScrapeRunning(true);
-    while (scrapeRef.current) {
-      const res = await firecrawlApi.scrapeBatch(5);
-      fetchCounts();
-      if (!res.success || (res as any).scraped === 0) break;
+    let emptyRounds = 0;
+    while (!stopRef.current) {
+      try {
+        const res = await firecrawlApi.scrapeBatch(5);
+        const data = res as any;
+        if (!res.success) { addLog(`❌ Scrape error: ${res.error}`); break; }
+        if (data.scraped === 0) {
+          emptyRounds++;
+          if (emptyRounds > 5) break; // no more pending
+          await new Promise(r => setTimeout(r, 5000));
+          continue;
+        }
+        emptyRounds = 0;
+        addLog(`🔍 Scraped ${data.scraped} products (${data.failed || 0} failed)`);
+      } catch (err) {
+        addLog(`❌ Scrape error: ${err}`);
+        await new Promise(r => setTimeout(r, 5000));
+      }
     }
-    setScrapeRunning(false);
-    scrapeRef.current = false;
   };
 
-  const stopScrape = () => { scrapeRef.current = false; };
-
-  // Step 3: AI process
   const runAiLoop = async () => {
-    aiRef.current = true;
-    setAiRunning(true);
-    while (aiRef.current) {
-      const res = await firecrawlApi.aiProcess(3);
-      fetchCounts();
-      if (!res.success || (res as any).processed === 0 || (res as any).rateLimited) {
-        if ((res as any).rateLimited) {
-          toast({ title: 'Rate limited', description: 'Pausing for 30s...' });
+    // Wait for first scraped jobs
+    await new Promise(r => setTimeout(r, 10000));
+    let emptyRounds = 0;
+    while (!stopRef.current) {
+      try {
+        const res = await firecrawlApi.aiProcess(3);
+        const data = res as any;
+        if (data.rateLimited) {
+          addLog('⏳ AI rate limited, waiting 30s...');
           await new Promise(r => setTimeout(r, 30000));
           continue;
         }
-        break;
+        if (!res.success) {
+          if (res.error?.includes('402')) { addLog('💳 AI credits exhausted'); break; }
+          addLog(`❌ AI error: ${res.error}`);
+          break;
+        }
+        if (data.processed === 0) {
+          emptyRounds++;
+          if (emptyRounds > 10) break;
+          await new Promise(r => setTimeout(r, 5000));
+          continue;
+        }
+        emptyRounds = 0;
+        addLog(`🤖 AI processed ${data.processed} products`);
+      } catch (err) {
+        addLog(`❌ AI error: ${err}`);
+        await new Promise(r => setTimeout(r, 5000));
       }
     }
-    setAiRunning(false);
-    aiRef.current = false;
   };
 
-  const stopAi = () => { aiRef.current = false; };
-
-  // Step 4: Bulk insert
   const runInsertLoop = async () => {
-    insertRef.current = true;
-    setInsertRunning(true);
-    while (insertRef.current) {
-      const res = await firecrawlApi.bulkInsert(10);
-      fetchCounts();
-      if (!res.success || (res as any).imported === 0) break;
+    // Wait for first processed jobs
+    await new Promise(r => setTimeout(r, 20000));
+    let emptyRounds = 0;
+    while (!stopRef.current) {
+      try {
+        const res = await firecrawlApi.bulkInsert(10);
+        const data = res as any;
+        if (!res.success) { addLog(`❌ Import error: ${res.error}`); break; }
+        if (data.imported === 0) {
+          emptyRounds++;
+          if (emptyRounds > 15) break;
+          await new Promise(r => setTimeout(r, 5000));
+          continue;
+        }
+        emptyRounds = 0;
+        addLog(`📦 Imported ${data.imported} products`);
+      } catch (err) {
+        addLog(`❌ Import error: ${err}`);
+        await new Promise(r => setTimeout(r, 5000));
+      }
     }
-    setInsertRunning(false);
-    insertRef.current = false;
   };
 
-  const stopInsert = () => { insertRef.current = false; };
+  const stopPipeline = () => {
+    stopRef.current = true;
+    addLog('⏸️ Stopping pipeline after current batch...');
+  };
 
-  // Retry failed
+  const resumePipeline = async () => {
+    stopRef.current = false;
+    setPhase('running');
+    addLog('▶️ Resuming pipeline...');
+
+    await Promise.all([
+      runScrapeLoop(),
+      runAiLoop(),
+      runInsertLoop(),
+    ]);
+
+    if (stopRef.current) {
+      setPhase('paused');
+    } else {
+      setPhase('idle');
+      addLog('🎉 Pipeline complete!');
+    }
+    await fetchCounts();
+  };
+
   const retryFailed = async () => {
     const { error } = await supabase
       .from('scrape_jobs')
@@ -164,180 +238,175 @@ export default function ProductImport() {
     if (error) {
       toast({ title: 'Retry failed', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Failed jobs reset to pending' });
+      toast({ title: `${counts.failed} failed jobs reset to pending` });
+      fetchCounts();
+    }
+  };
+
+  const clearAllJobs = async () => {
+    if (!confirm('This will delete ALL scrape jobs. Are you sure?')) return;
+    const { error } = await supabase.from('scrape_jobs').delete().neq('status', 'xxxxxxx');
+    if (error) {
+      toast({ title: 'Clear failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'All jobs cleared' });
       fetchCounts();
     }
   };
 
   const totalProgress = counts.total > 0
-    ? Math.round(((counts.imported) / counts.total) * 100)
+    ? Math.round((counts.imported / counts.total) * 100)
     : 0;
+
+  const eta = speed > 0 && counts.total > counts.imported
+    ? Math.round((counts.total - counts.imported) / speed)
+    : null;
+
+  const isRunning = phase === 'running' || phase === 'discovering';
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Product Import Pipeline</h1>
         <p className="text-muted-foreground mt-1">
-          4-step pipeline: Discover → Scrape → AI Process → Import
+          One-click automation: Discover → Scrape → AI Rewrite → Import
         </p>
       </div>
 
-      {/* Status overview */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Pipeline Progress</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Progress value={totalProgress} className="mb-3" />
-          <div className="flex flex-wrap gap-3 text-sm">
-            <Badge variant="outline">Pending: {counts.pending}</Badge>
-            <Badge variant="secondary">Scraped: {counts.scraped}</Badge>
-            <Badge className="bg-blue-500/20 text-blue-700 border-blue-300">Processed: {counts.processed}</Badge>
-            <Badge className="bg-green-500/20 text-green-700 border-green-300">Imported: {counts.imported}</Badge>
-            {counts.failed > 0 && (
-              <Badge variant="destructive">Failed: {counts.failed}</Badge>
-            )}
-            <span className="text-muted-foreground ml-auto">Total: {counts.total}</span>
+      {/* Main control card */}
+      <Card className="border-2 border-primary/20">
+        <CardContent className="pt-6 space-y-4">
+          {/* Progress */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">
+                {phase === 'idle' && 'Ready to start'}
+                {phase === 'discovering' && '🔍 Discovering product URLs...'}
+                {phase === 'running' && '⚡ Pipeline running...'}
+                {phase === 'paused' && '⏸️ Pipeline paused'}
+              </span>
+              <span className="text-muted-foreground">
+                {counts.imported} / {counts.total} imported ({totalProgress}%)
+              </span>
+            </div>
+            <Progress value={totalProgress} className="h-3" />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Bulk Category Discovery */}
-      <CategoryDiscovery onComplete={fetchCounts} />
+          {/* Status badges */}
+          <div className="flex flex-wrap gap-2 text-sm">
+            <Badge variant="outline" className="gap-1"><Map className="h-3 w-3" /> Pending: {counts.pending}</Badge>
+            <Badge variant="secondary" className="gap-1"><Globe className="h-3 w-3" /> Scraped: {counts.scraped}</Badge>
+            <Badge className="bg-blue-500/20 text-blue-700 border-blue-300 gap-1"><Cpu className="h-3 w-3" /> Processed: {counts.processed}</Badge>
+            <Badge className="bg-green-500/20 text-green-700 border-green-300 gap-1"><Database className="h-3 w-3" /> Imported: {counts.imported}</Badge>
+            {counts.failed > 0 && <Badge variant="destructive" className="gap-1">Failed: {counts.failed}</Badge>}
+          </div>
 
-      {/* Step 1: Discover */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Map className="h-4 w-4" /> Step 1 — Discover URLs
-          </CardTitle>
-          <CardDescription>Map a source website to find product pages, filter, then save as jobs.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <form onSubmit={handleMap} className="flex gap-3">
-            <Input value={mapUrl} onChange={e => setMapUrl(e.target.value)} placeholder="https://valves-direct.com" className="flex-1" />
-            <Button type="submit" disabled={mapLoading}>
-              {mapLoading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Mapping...</> : 'Map URLs'}
-            </Button>
-          </form>
-
-          {mappedUrls.length > 0 && (
-            <>
-              <div className="flex gap-3 items-center">
-                <Input
-                  value={urlFilter}
-                  onChange={e => setUrlFilter(e.target.value)}
-                  placeholder="Filter URLs (e.g. /product/)"
-                  className="flex-1"
-                />
-                <Badge variant="secondary">{filteredUrls.length} of {mappedUrls.length}</Badge>
-                <Button onClick={saveUrlsAsJobs} disabled={saving || !filteredUrls.length}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Save as Jobs
-                </Button>
-              </div>
-              <div className="max-h-48 overflow-auto rounded border bg-muted/50 p-2 text-xs space-y-0.5">
-                {filteredUrls.slice(0, 100).map((url, i) => (
-                  <div key={i} className="truncate text-muted-foreground">{url}</div>
-                ))}
-                {filteredUrls.length > 100 && <div className="text-muted-foreground pt-1">...and {filteredUrls.length - 100} more</div>}
-              </div>
-            </>
+          {/* Speed & ETA */}
+          {isRunning && speed > 0 && (
+            <div className="flex gap-4 text-xs text-muted-foreground">
+              <span>⚡ {speed} products/min</span>
+              {eta && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> ~{eta} min remaining</span>}
+            </div>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Step 2: Scrape */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Globe className="h-4 w-4" /> Step 2 — Batch Scrape
-          </CardTitle>
-          <CardDescription>Scrape pending URLs with Firecrawl (5 per batch, auto-continues).</CardDescription>
-        </CardHeader>
-        <CardContent>
+          {/* Main action buttons */}
           <div className="flex gap-3">
-            {!scrapeRunning ? (
-              <Button onClick={runScrapeLoop} disabled={counts.pending === 0}>
-                <Play className="h-4 w-4 mr-2" /> Start Scraping
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={stopScrape}>
-                <Pause className="h-4 w-4 mr-2" /> Stop
+            {phase === 'idle' && (
+              <Button size="lg" onClick={runFullPipeline} className="gap-2">
+                <Rocket className="h-4 w-4" /> Start Full Pipeline
               </Button>
             )}
-            <span className="text-sm text-muted-foreground self-center">
-              {counts.pending} pending → {counts.scraped} scraped
-            </span>
+            {phase === 'paused' && (
+              <Button size="lg" onClick={resumePipeline} className="gap-2">
+                <Play className="h-4 w-4" /> Resume Pipeline
+              </Button>
+            )}
+            {isRunning && (
+              <Button size="lg" variant="outline" onClick={stopPipeline} className="gap-2">
+                {phase === 'discovering' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
+                Stop Pipeline
+              </Button>
+            )}
+            {counts.failed > 0 && !isRunning && (
+              <Button variant="outline" onClick={retryFailed} className="gap-2">
+                <RotateCcw className="h-4 w-4" /> Retry {counts.failed} Failed
+              </Button>
+            )}
+            {!isRunning && counts.total > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearAllJobs} className="gap-2 text-destructive ml-auto">
+                <Trash2 className="h-3 w-3" /> Clear All Jobs
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Step 3: AI Process */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Cpu className="h-4 w-4" /> Step 3 — AI Rewrite & Translate
-          </CardTitle>
-          <CardDescription>Rewrite descriptions, translate to Italian, match categories (3 per batch).</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-3">
-            {!aiRunning ? (
-              <Button onClick={runAiLoop} disabled={counts.scraped === 0}>
-                <Play className="h-4 w-4 mr-2" /> Start AI Processing
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={stopAi}>
-                <Pause className="h-4 w-4 mr-2" /> Stop
-              </Button>
-            )}
-            <span className="text-sm text-muted-foreground self-center">
-              {counts.scraped} scraped → {counts.processed} processed
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Step 4: Import */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Database className="h-4 w-4" /> Step 4 — Bulk Insert
-          </CardTitle>
-          <CardDescription>Insert processed products into the catalog (10 per batch).</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-3">
-            {!insertRunning ? (
-              <Button onClick={runInsertLoop} disabled={counts.processed === 0}>
-                <Play className="h-4 w-4 mr-2" /> Start Import
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={stopInsert}>
-                <Pause className="h-4 w-4 mr-2" /> Stop
-              </Button>
-            )}
-            <span className="text-sm text-muted-foreground self-center">
-              {counts.processed} processed → {counts.imported} imported
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Retry failed */}
-      {counts.failed > 0 && (
+      {/* Live log */}
+      {logs.length > 0 && (
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={retryFailed}>
-                <RotateCcw className="h-4 w-4 mr-2" /> Retry {counts.failed} Failed Jobs
-              </Button>
-              <span className="text-sm text-muted-foreground">Reset failed jobs back to pending status</span>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Activity Log</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="max-h-48 overflow-auto rounded border bg-muted/50 p-3 text-xs font-mono space-y-0.5">
+              {logs.map((log, i) => (
+                <div key={i} className="text-muted-foreground">{log}</div>
+              ))}
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Advanced manual controls */}
+      <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="gap-2 text-muted-foreground">
+            <ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
+            Advanced: Manual Step Controls
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-4 pt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2"><Globe className="h-4 w-4" /> Batch Scrape</CardTitle>
+              <CardDescription className="text-xs">Scrape pending URLs (5 per batch)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button size="sm" onClick={async () => {
+                const res = await firecrawlApi.scrapeBatch(5);
+                addLog(`Manual scrape: ${JSON.stringify(res)}`);
+                fetchCounts();
+              }} disabled={counts.pending === 0 || isRunning}>Run Once</Button>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2"><Cpu className="h-4 w-4" /> AI Process</CardTitle>
+              <CardDescription className="text-xs">AI rewrite scraped content (3 per batch)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button size="sm" onClick={async () => {
+                const res = await firecrawlApi.aiProcess(3);
+                addLog(`Manual AI: ${JSON.stringify(res)}`);
+                fetchCounts();
+              }} disabled={counts.scraped === 0 || isRunning}>Run Once</Button>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2"><Database className="h-4 w-4" /> Bulk Insert</CardTitle>
+              <CardDescription className="text-xs">Import processed products (10 per batch)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button size="sm" onClick={async () => {
+                const res = await firecrawlApi.bulkInsert(10);
+                addLog(`Manual import: ${JSON.stringify(res)}`);
+                fetchCounts();
+              }} disabled={counts.processed === 0 || isRunning}>Run Once</Button>
+            </CardContent>
+          </Card>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }
