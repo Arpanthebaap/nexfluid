@@ -9,8 +9,17 @@ import { Globe, Map, Cpu, Database, Loader2, Play, Square, RotateCcw, ChevronDow
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
 
-const SOURCE_DOMAINS = [
-  'https://www.valves-direct.com',
+const SOURCE_CATEGORY_URLS = [
+  'https://www.valves-direct.com/3-air-preparation-equipment',
+  'https://www.valves-direct.com/4-manually-operated-valves',
+  'https://www.valves-direct.com/5-pinch-valves',
+  'https://www.valves-direct.com/6-pneumatic-cylinders',
+  'https://www.valves-direct.com/7-proportional-valves',
+  'https://www.valves-direct.com/8-seat-valves',
+  'https://www.valves-direct.com/9-sensors-switches',
+  'https://www.valves-direct.com/10-solenoid-valves',
+  'https://www.valves-direct.com/11-vacuum-technologies',
+  'https://www.valves-direct.com/12-valve-systems',
 ];
 
 type StatusCounts = {
