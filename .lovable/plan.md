@@ -1,52 +1,80 @@
 
 
-# Fix: Admin Pages Stuck on Loading Spinner
+# Fix: Infinite Re-render Loop on Admin Login Page
 
 ## Root Cause
 
-The `useAuth` hook has a race condition / potential deadlock. It performs async database calls (`has_role` RPC) inside `onAuthStateChange`, which is a known anti-pattern with Supabase. The `onAuthStateChange` listener can block when async work is done inside it, preventing `loading` from ever becoming `false`.
+The `useAuth` hook has an infinite render loop. The `user` effect dependency (`[user]`) triggers every time `onAuthStateChange` fires because Supabase creates a **new user object** on each event (different object reference, same user ID). This causes:
 
-Both the `onAuthStateChange` callback and `getSession().then()` call `has_role` independently, creating duplicate async RPC calls that can race and leave state inconsistent.
+1. `getSession()` sets user → triggers `has_role` effect
+2. `onAuthStateChange` fires → sets a new user object (same ID, new reference) → triggers `has_role` effect again
+3. Each `has_role` response triggers `setIsAdmin`/`setLoading` → re-render
+4. Multiple `useAuth` instances (AdminLogin + ProtectedRoute) multiply this
+5. Result: dozens of `has_role` RPC calls per second, constant DOM re-renders, input fields lose focus
+
+The session replay confirms: the login form "structure is updated" every ~300ms, and network logs show 30+ `has_role` calls in 5 seconds.
 
 ## Fix
 
-Restructure `useAuth` to:
-1. Use `onAuthStateChange` only for setting user/session state (no async DB calls inside it)
-2. Check admin role in a separate `useEffect` that triggers when `user` changes
-3. Ensure `loading` is set to `false` reliably in all code paths
+Track user ID with a `useRef` and only call `has_role` when the user ID actually changes:
 
-## File to modify
-
-`src/hooks/useAuth.ts` — rewrite to separate auth state from role checking:
+**File: `src/hooks/useAuth.ts`**
 
 ```typescript
-useEffect(() => {
-  // Only set user/session, no async DB calls
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    setSession(session);
-    setUser(session?.user ?? null);
-  });
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import type { User, Session } from '@supabase/supabase-js';
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
+export function useAuth() {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const lastCheckedUserId = useRef<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-    }
-  );
-  return () => subscription.unsubscribe();
-}, []);
+      if (!session?.user) setLoading(false);
+    });
 
-// Separate effect for role check
-useEffect(() => {
-  if (user) {
-    supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' })
-      .then(({ data }) => { setIsAdmin(!!data); setLoading(false); });
-  } else {
-    setIsAdmin(false);
-    setLoading(false);
-  }
-}, [user]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (!session?.user) {
+          lastCheckedUserId.current = null;
+          setIsAdmin(false);
+          setLoading(false);
+        }
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (user && user.id !== lastCheckedUserId.current) {
+      lastCheckedUserId.current = user.id;
+      supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' })
+        .then(({ data }) => { setIsAdmin(!!data); setLoading(false); })
+        .catch(() => { setIsAdmin(false); setLoading(false); });
+    } else if (!user) {
+      lastCheckedUserId.current = null;
+      setIsAdmin(false);
+      setLoading(false);
+    }
+  }, [user]);
+
+  // signIn, signOut unchanged
+}
 ```
 
-This eliminates the deadlock by never doing async work inside `onAuthStateChange`, and ensures `loading` always resolves.
+Key change: `lastCheckedUserId` ref prevents duplicate RPC calls when the same user object is re-created by `onAuthStateChange`. This stops the infinite loop.
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `src/hooks/useAuth.ts` | Add `useRef` guard to prevent infinite `has_role` loop |
 
