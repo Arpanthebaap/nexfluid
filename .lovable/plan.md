@@ -1,80 +1,69 @@
 
 
-# Fix: Infinite Re-render Loop on Admin Login Page
+# Full Pipeline Automation Plan
 
-## Root Cause
+## Current State Assessment
 
-The `useAuth` hook has an infinite render loop. The `user` effect dependency (`[user]`) triggers every time `onAuthStateChange` fires because Supabase creates a **new user object** on each event (different object reference, same user ID). This causes:
+Your project is in solid shape for Phase 3 (Scraping Pipeline):
+- **501 categories** already in the database
+- **1 product** successfully imported end-to-end (pipeline proven working)
+- **4 edge functions** deployed and functional (discover, scrape, AI process, bulk insert)
+- **Admin panel** working with login fixed
+- **Firecrawl** connected with ~100K credits available
 
-1. `getSession()` sets user → triggers `has_role` effect
-2. `onAuthStateChange` fires → sets a new user object (same ID, new reference) → triggers `has_role` effect again
-3. Each `has_role` response triggers `setIsAdmin`/`setLoading` → re-render
-4. Multiple `useAuth` instances (AdminLogin + ProtectedRoute) multiply this
-5. Result: dozens of `has_role` RPC calls per second, constant DOM re-renders, input fields lose focus
+The pipeline works — it just needs to be run at scale with a simpler UX.
 
-The session replay confirms: the login form "structure is updated" every ~300ms, and network logs show 30+ `has_role` calls in 5 seconds.
+## What I'll Build
 
-## Fix
+### 1. One-Click "Run Full Pipeline" Button
+Replace the current 4-step manual process with a single button that chains everything automatically:
+- **Step 1**: Discover product URLs from all 11 category pages (uses ~11 Firecrawl credits)
+- **Step 2**: Auto-start batch scraping all discovered URLs (5 per batch, auto-continues)
+- **Step 3**: Auto-start AI rewriting as scraped jobs become available (3 per batch)
+- **Step 4**: Auto-start importing as processed jobs become available (10 per batch)
 
-Track user ID with a `useRef` and only call `has_role` when the user ID actually changes:
+Steps 2-4 will run in parallel where possible — as soon as scraped jobs appear, AI processing starts; as soon as processed jobs appear, import starts.
 
-**File: `src/hooks/useAuth.ts`**
+### 2. Simplified Import Page
+- Large progress display showing overall pipeline state
+- Real-time counts updating every 3 seconds
+- Estimated time remaining based on processing speed
+- Single "Start Pipeline" / "Stop Pipeline" toggle
+- Keep individual step controls collapsed under an "Advanced" section for manual control
+- Add a "Clear All Jobs" button to reset for fresh runs
 
-```typescript
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { User, Session } from '@supabase/supabase-js';
+### 3. Deploy All Edge Functions
+Ensure all 4 pipeline functions plus the map function are deployed and ready.
 
-export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const lastCheckedUserId = useRef<string | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (!session?.user) setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (!session?.user) {
-          lastCheckedUserId.current = null;
-          setIsAdmin(false);
-          setLoading(false);
-        }
-      }
-    );
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (user && user.id !== lastCheckedUserId.current) {
-      lastCheckedUserId.current = user.id;
-      supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' })
-        .then(({ data }) => { setIsAdmin(!!data); setLoading(false); })
-        .catch(() => { setIsAdmin(false); setLoading(false); });
-    } else if (!user) {
-      lastCheckedUserId.current = null;
-      setIsAdmin(false);
-      setLoading(false);
-    }
-  }, [user]);
-
-  // signIn, signOut unchanged
-}
-```
-
-Key change: `lastCheckedUserId` ref prevents duplicate RPC calls when the same user object is re-created by `onAuthStateChange`. This stops the infinite loop.
-
-## Files Modified
+## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/hooks/useAuth.ts` | Add `useRef` guard to prevent infinite `has_role` loop |
+| `src/pages/admin/ProductImport.tsx` | Rewrite with one-click automation, parallel pipeline, progress display |
+| `src/components/admin/CategoryDiscovery.tsx` | Integrate into the automated flow (callable programmatically) |
+
+## How It Will Work
+
+```text
+User clicks "Start Full Pipeline"
+  → Discovery runs (11 category URLs mapped via Firecrawl)
+  → ~5,000-15,000 product URLs saved as pending jobs
+  → Scrape loop starts automatically (5/batch, ~500ms delay)
+  → AI loop starts in parallel once first scraped jobs appear
+  → Import loop starts in parallel once first processed jobs appear
+  → Progress bar shows: X of Y products imported
+  → User can stop anytime, resume later
+```
+
+## Cost Estimate
+- Discovery: ~11 credits (map calls)
+- Scraping: 1 credit per product URL (~5K-15K credits)
+- AI processing: uses Lovable AI (no Firecrawl credits)
+- Total Firecrawl: ~5K-15K credits (well within your 100K budget)
+
+## Important Notes
+- Each edge function has a ~60s timeout, so batch sizes stay small (5 scrape, 3 AI, 10 import)
+- The UI loops continuously, calling the edge function repeatedly
+- If you close the browser, processing stops — you can resume by clicking Start again
+- All progress is saved in `scrape_jobs` table, so nothing is lost
 
