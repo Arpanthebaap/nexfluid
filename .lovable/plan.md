@@ -1,69 +1,122 @@
 
 
-# Full Pipeline Automation Plan
+# Project Status Assessment Against the Master Plan
 
-## Current State Assessment
+## Phase-by-Phase Status
 
-Your project is in solid shape for Phase 3 (Scraping Pipeline):
-- **501 categories** already in the database
-- **1 product** successfully imported end-to-end (pipeline proven working)
-- **4 edge functions** deployed and functional (discover, scrape, AI process, bulk insert)
-- **Admin panel** working with login fixed
-- **Firecrawl** connected with ~100K credits available
+### Phase 1: Foundation & Database — DONE
+- Database tables: `products`, `categories`, `product_attributes`, `quote_requests`, `scrape_jobs`, `category_filters`, `user_roles` — all created with RLS policies
+- Auth with admin role via `has_role` RPC — working (singleton AuthProvider pattern)
+- 501 categories imported from the master spreadsheet
 
-The pipeline works — it just needs to be run at scale with a simpler UX.
+### Phase 2: Admin Panel — PARTIALLY DONE
+| Feature | Status |
+|---------|--------|
+| Admin login (Supabase auth + role check) | Done |
+| Category management (add/edit/delete, hierarchy) | Done (no drag-and-drop reorder) |
+| Product management (CRUD, pagination, search) | Done |
+| Product form (edit all fields, category assignment) | Done |
+| Quote request inbox | Done |
+| Product Import pipeline page | Done (one-click automation UI) |
+| CSV import (upload, field mapping, preview, error handling) | **NOT BUILT** |
+| Content editor (inline description/SEO/translation editing) | **NOT BUILT** |
+| Filter attribute management (define attributes per category) | **NOT BUILT** |
+| Bulk operations (multi-select delete/status change) | **NOT BUILT** |
+| Dashboard with stats | Exists but basic |
 
-## What I'll Build
+### Phase 3: Web Scraping Pipeline — PARTIALLY DONE
+| Feature | Status |
+|---------|--------|
+| Edge functions: discover, scrape, AI process, bulk insert | All 4 created and registered in config.toml |
+| Firecrawl connected with API key | Done |
+| One-click pipeline UI with progress tracking | Done |
+| Scrape jobs table with status tracking | Done |
+| **Actual scraping run** | **Only 1 product imported** — pipeline has never been run at scale |
 
-### 1. One-Click "Run Full Pipeline" Button
-Replace the current 4-step manual process with a single button that chains everything automatically:
-- **Step 1**: Discover product URLs from all 11 category pages (uses ~11 Firecrawl credits)
-- **Step 2**: Auto-start batch scraping all discovered URLs (5 per batch, auto-continues)
-- **Step 3**: Auto-start AI rewriting as scraped jobs become available (3 per batch)
-- **Step 4**: Auto-start importing as processed jobs become available (10 per batch)
+### Phase 4: AI Content Rewriting — DONE (in pipeline)
+- AI rewriting edge function uses Lovable AI (Gemini 2.5 Flash) with tool calling
+- Generates unique EN + IT descriptions, SEO meta, category matching
+- Integrated into the pipeline — works but only tested on 1 product
 
-Steps 2-4 will run in parallel where possible — as soon as scraped jobs appear, AI processing starts; as soon as processed jobs appear, import starts.
+### Phase 5: Public Frontend — PARTIALLY DONE
+| Feature | Status |
+|---------|--------|
+| Header with search, navigation, language switcher | Exists (basic) |
+| Homepage with category grid | Exists |
+| Category pages with breadcrumbs | Exists |
+| Product listing with pagination | Exists |
+| Product detail page | Exists |
+| Search results page | Exists |
+| Quote request form | **Needs verification** |
+| About / Contact pages | Exist (placeholder content) |
+| Dynamic sidebar filters | **NOT BUILT** |
+| Related products (intelligent) | **NOT BUILT** |
+| Schema.org structured data | **NOT BUILT** |
+| Image lazy loading / optimization | **NOT BUILT** |
 
-### 2. Simplified Import Page
-- Large progress display showing overall pipeline state
-- Real-time counts updating every 3 seconds
-- Estimated time remaining based on processing speed
-- Single "Start Pipeline" / "Stop Pipeline" toggle
-- Keep individual step controls collapsed under an "Advanced" section for manual control
-- Add a "Clear All Jobs" button to reset for fresh runs
+### Phase 6: Multilingual — PARTIALLY DONE
+- i18n library configured
+- Product content has IT/EN fields in DB
+- hreflang tags: **NOT BUILT**
+- Full UI string translations: **NOT VERIFIED**
 
-### 3. Deploy All Edge Functions
-Ensure all 4 pipeline functions plus the map function are deployed and ready.
+### Phase 7: SEO & Performance — NOT STARTED
+- No sitemap.xml generation
+- No schema.org markup
+- No image optimization pipeline
+- No PageSpeed optimization work done
 
-## Files to Modify
+### Phase 8: Product Filters (Hybrid) — NOT STARTED
+- `category_filters` and `product_attributes` tables exist
+- No AI attribute extraction during import
+- No admin filter management UI
+- No frontend filter sidebar
 
-| File | Change |
-|------|--------|
-| `src/pages/admin/ProductImport.tsx` | Rewrite with one-click automation, parallel pipeline, progress display |
-| `src/components/admin/CategoryDiscovery.tsx` | Integrate into the automated flow (callable programmatically) |
+### Phase 9: Testing & Launch — NOT STARTED
 
-## How It Will Work
+---
 
-```text
-User clicks "Start Full Pipeline"
-  → Discovery runs (11 category URLs mapped via Firecrawl)
-  → ~5,000-15,000 product URLs saved as pending jobs
-  → Scrape loop starts automatically (5/batch, ~500ms delay)
-  → AI loop starts in parallel once first scraped jobs appear
-  → Import loop starts in parallel once first processed jobs appear
-  → Progress bar shows: X of Y products imported
-  → User can stop anytime, resume later
-```
+## What to Do Next — Recommended Priority
 
-## Cost Estimate
-- Discovery: ~11 credits (map calls)
-- Scraping: 1 credit per product URL (~5K-15K credits)
-- AI processing: uses Lovable AI (no Firecrawl credits)
-- Total Firecrawl: ~5K-15K credits (well within your 100K budget)
+The biggest blocker right now is **no products in the database** (only 1 test product). Everything else depends on having real data. Here is the recommended sequence:
 
-## Important Notes
-- Each edge function has a ~60s timeout, so batch sizes stay small (5 scrape, 3 AI, 10 import)
-- The UI loops continuously, calling the edge function repeatedly
-- If you close the browser, processing stops — you can resume by clicking Start again
-- All progress is saved in `scrape_jobs` table, so nothing is lost
+### Step 1: Run the scraping pipeline (immediate)
+The pipeline code is built and ready. The next action is to log into `/admin/import` and click "Start Full Pipeline". This will:
+- Discover product URLs from all 11 source pages (~11 Firecrawl credits)
+- Scrape each product page (~5K-15K credits)
+- AI rewrite and translate each product
+- Import into the products table
+
+However, there are potential issues to fix first:
+- The `product-discover-categories` function filters valves-direct URLs by `.html` extension — this needs verification against actual URL patterns on the site
+- The edge functions may need redeployment to ensure latest code is live
+- The `scrape_jobs` RLS policy requires authentication, but edge functions use service role key (this is fine)
+
+### Step 2: Fix remaining Phase 2 admin features
+- CSV import with field mapping
+- Bulk operations
+- Filter attribute management per category
+
+### Step 3: Build Phase 5 missing frontend features
+- Dynamic product filters
+- Related products
+- Quote form email sending (edge function to info@nexfluid.it)
+- Schema.org Product markup
+
+### Step 4: SEO & Performance (Phase 7)
+- Sitemap generation
+- hreflang implementation
+- Image optimization
+- PageSpeed optimization
+
+---
+
+## Recommended Immediate Action
+
+I suggest we **deploy all edge functions and run a pilot test** — discover URLs from just 1 category (e.g., solenoid-valves), scrape 10-20 products, verify the AI rewriting quality and database insertion, then scale up to the full run. This validates everything works before burning Firecrawl credits on 85K products.
+
+Do you want me to:
+1. **Run the pilot test** — deploy functions, discover from 1 category, process 20 products end-to-end
+2. **Run the full pipeline** — deploy and start processing all 11 categories immediately
+3. **Fix admin panel gaps first** — build CSV import, bulk operations, filter management before scraping
 
