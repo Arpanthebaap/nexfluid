@@ -245,7 +245,7 @@ export default function ProductImport() {
 
   const clearAllJobs = async () => {
     if (!confirm('This will delete ALL scrape jobs. Are you sure?')) return;
-    const { error } = await supabase.from('scrape_jobs').delete().neq('status', 'xxxxxxx');
+    const { error } = await supabase.from('scrape_jobs').delete().not('status', 'eq', 'never_match_placeholder');
     if (error) {
       toast({ title: 'Clear failed', description: error.message, variant: 'destructive' });
     } else {
