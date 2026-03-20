@@ -1,29 +1,50 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, createContext, useContext, type ReactNode } from 'react';
+import React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 
-export function useAuth() {
+interface AuthState {
+  user: User | null;
+  session: Session | null;
+  isAdmin: boolean;
+  loading: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signOut: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthState | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const lastCheckedUserId = useRef<string | null>(null);
+  const currentUserId = useRef<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (!session?.user) setLoading(false);
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      const uid = s?.user?.id ?? null;
+      if (uid !== currentUserId.current) {
+        currentUserId.current = uid;
+        setSession(s);
+        setUser(s?.user ?? null);
+      }
+      if (!s?.user) setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (!session?.user) {
-          lastCheckedUserId.current = null;
-          setIsAdmin(false);
-          setLoading(false);
+      (_event, s) => {
+        const uid = s?.user?.id ?? null;
+        if (uid !== currentUserId.current) {
+          currentUserId.current = uid;
+          setSession(s);
+          setUser(s?.user ?? null);
+          if (!s?.user) {
+            lastCheckedUserId.current = null;
+            setIsAdmin(false);
+            setLoading(false);
+          }
         }
       }
     );
@@ -43,14 +64,22 @@ export function useAuth() {
     }
   }, [user]);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     await supabase.auth.signOut();
-  };
+  }, []);
 
-  return { user, session, isAdmin, loading, signIn, signOut };
+  const value = { user, session, isAdmin, loading, signIn, signOut };
+
+  return React.createElement(AuthContext.Provider, { value }, children);
+}
+
+export function useAuth(): AuthState {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 }
