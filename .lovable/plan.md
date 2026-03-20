@@ -1,35 +1,60 @@
 
 
-# Test the Product Scraping Pipeline End-to-End
+# Scrape Products from Valves Direct & RS-Online
 
-Firecrawl is already connected and configured. No additional API key setup is needed. The next step is to verify the full pipeline works with a small test batch.
+The pipeline is already built. Here's what needs to happen to scrape your specific category pages.
 
-## What we'll do
+## Approach
 
-1. **Log into admin panel** and navigate to the Product Import page
-2. **Map valves-direct.com** to discover product URLs
-3. **Save 5-10 product URLs** as scrape jobs
-4. **Run batch scrape** on those URLs to extract product data
-5. **Run AI processing** to rewrite descriptions and translate to Italian
-6. **Run bulk insert** to import the processed products into the database
+These URLs are **category pages**, not individual product pages. We need to:
 
-## Before testing, two improvements needed
+1. **Map each category URL** to discover individual product page URLs within it
+2. **Filter** to keep only product pages (not navigation, footer links, etc.)
+3. **Save as scrape jobs**, then run the existing 3-stage pipeline (Scrape → AI Process → Import)
 
-### Fix: `product-ai-process` edge function
-The current function calls Lovable AI gateway but needs the correct endpoint URL format. Need to verify the gateway URL and model identifier are correct.
+## What I'll Build
 
-### Fix: `product-bulk-insert` edge function  
-Need to verify it correctly maps to the existing `products` table schema (columns, required fields, slug generation).
+### 1. Enhanced ProductImport page — "Bulk Category Import" mode
+Add a new section to the import page where you can paste multiple category URLs at once. For each URL, the system will:
+- Call the Firecrawl Map API to discover all product links under that category
+- Auto-filter to product-pattern URLs (e.g. URLs containing `/product/` or item-level patterns)
+- Aggregate all discovered product URLs and save them as scrape jobs in one click
 
-## Steps
+### 2. New edge function: `product-discover-categories`
+A backend function that takes a list of category URLs, maps each one via Firecrawl, and inserts all discovered product URLs directly into `scrape_jobs` as pending jobs. This avoids manually mapping each URL one by one from the UI.
 
-1. Review and fix the 3 pipeline edge functions to ensure they work with the actual database schema
-2. Test by navigating to `/admin/import` in the preview
-3. Run through all 4 pipeline stages with a small batch
+Key logic:
+- For **valves-direct.com**: Map each of the 10 category URLs, filter for product-level pages
+- For **rs-online.com**: Map the Parker brand page, filter for product pages
+- Deduplicate URLs already in `scrape_jobs`
+- Return count of new jobs created per source
 
-## Files to review/update
-- `supabase/functions/product-scrape-batch/index.ts` — verify scrape schema
-- `supabase/functions/product-ai-process/index.ts` — verify AI gateway call
-- `supabase/functions/product-bulk-insert/index.ts` — verify products table mapping
-- `src/pages/admin/ProductImport.tsx` — ensure UI handles all responses correctly
+### 3. Pre-loaded source URLs
+Hard-code the 11 URLs you provided as presets in the import UI, so you can launch discovery with one click.
+
+## Files to create/modify
+
+| File | Action |
+|------|--------|
+| `supabase/functions/product-discover-categories/index.ts` | **Create** — bulk map categories → save product URLs |
+| `src/pages/admin/ProductImport.tsx` | **Update** — add bulk category discovery UI with preset URLs |
+| `src/lib/api/firecrawl.ts` | **Update** — add `discoverCategories` method |
+
+## How it works end-to-end
+
+```text
+You click "Discover All" 
+  → Edge function maps all 11 category URLs via Firecrawl
+  → Filters to product-level URLs only
+  → Deduplicates against existing scrape_jobs
+  → Inserts as pending jobs
+  → You then run Scrape → AI Process → Import as before
+```
+
+## Important notes
+
+- Each Map call costs 1 Firecrawl credit (11 total for discovery)
+- The actual scraping will cost 1 credit per product URL found
+- RS-Online may have pagination — the map function handles up to 5,000 URLs per domain
+- Discovery runs server-side to avoid timeouts
 
