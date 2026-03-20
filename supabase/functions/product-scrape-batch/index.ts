@@ -87,7 +87,11 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             url: job.source_url,
-            formats: ['markdown', 'links', { type: 'json', schema: productSchema, prompt: 'Extract the product information from this page. Get the product name, code/SKU, brand, description, image URLs, and technical specifications.' }],
+            formats: ['markdown', 'links', 'json'],
+            jsonOptions: {
+              schema: productSchema,
+              prompt: 'Extract the product information from this page. Get the product name, code/SKU, brand, description, image URLs, and technical specifications.',
+            },
             onlyMainContent: true,
           }),
         });
