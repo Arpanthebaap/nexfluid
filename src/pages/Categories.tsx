@@ -123,8 +123,8 @@ const Categories = () => {
                       className="group block rounded-lg border bg-card overflow-hidden shadow-sm hover:shadow-md transition-all"
                     >
                       <div className="aspect-[4/3] bg-muted flex items-center justify-center">
-                        {cat.image_url ? (
-                          <img src={cat.image_url} alt={catName(cat)} className="w-full h-full object-cover" />
+                        {(cat.image_url || currentCategory?.image_url) ? (
+                          <img src={cat.image_url || currentCategory?.image_url || ''} alt={catName(cat)} className="w-full h-full object-cover" />
                         ) : (
                           <div className="text-muted-foreground/30 text-4xl">📦</div>
                         )}
