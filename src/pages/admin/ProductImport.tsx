@@ -88,19 +88,28 @@ export default function ProductImport() {
     setLogs([]);
     lastImportedRef.current = 0;
 
-    // Phase 1: Discovery
+    // Phase 1: Discovery — one category at a time to avoid 60s timeout
     addLog('🚀 Starting URL discovery from category pages...');
-    try {
-      const res = await firecrawlApi.discoverCategories(SOURCE_CATEGORY_URLS);
-      if (res.success) {
+    let totalNewUrls = 0;
+    for (let i = 0; i < SOURCE_CATEGORY_URLS.length; i++) {
+      if (stopRef.current) break;
+      const catUrl = SOURCE_CATEGORY_URLS[i];
+      addLog(`🔍 [${i + 1}/${SOURCE_CATEGORY_URLS.length}] Discovering: ${catUrl}`);
+      try {
+        const res = await firecrawlApi.discoverCategory(catUrl);
         const data = res as any;
-        addLog(`✅ Discovery complete: ${data.totalNew} new URLs from ${data.totalMapped} mapped`);
-      } else {
-        addLog(`⚠️ Discovery had issues: ${res.error}`);
+        if (res.success) {
+          totalNewUrls += data.totalNew || 0;
+          addLog(`✅ Found ${data.totalFound || 0} products, ${data.totalNew || 0} new${data.timedOut ? ' (partial — timed out)' : ''}`);
+        } else {
+          addLog(`⚠️ ${catUrl}: ${res.error}`);
+        }
+      } catch (err) {
+        addLog(`❌ ${catUrl}: ${err}`);
       }
-    } catch (err) {
-      addLog(`❌ Discovery failed: ${err}`);
+      await fetchCounts();
     }
+    addLog(`📊 Discovery complete: ${totalNewUrls} total new URLs discovered`);
 
     await fetchCounts();
     if (stopRef.current) { setPhase('paused'); return; }
