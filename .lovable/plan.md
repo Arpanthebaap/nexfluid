@@ -1,77 +1,45 @@
 
 
-# Pipeline Diagnosis: 3 Critical Bugs Found
+# Pipeline Readiness Assessment & Fixes
 
-## Bug 1: Discovery Returns 0 Product URLs (BROKEN)
+## Current State
 
-The Firecrawl Map API returns only 1 URL per category (the page itself) and 0 product URLs. The logs confirm this across all 10 categories:
+- **Your paid Firecrawl key** (100K credits) is already connected and being used — confirmed via "Firecrawl.Arpan" connection
+- **778 products** in DB (777 valid brands + 1 "Widget Co." to delete)
+- **13,062 pending** scrape jobs, **78 failed**, **784 imported**
+- Category assignment is mostly working: 547 products in correct leaf categories, but **231 stuck in "Directional Control Valves"** (a parent) and **21 with no category**
 
-```text
-Found 1 total URLs for https://www.valves-direct.com/10-solenoid-valves
-Filtered to 0 product URLs
-```
+## Critical Issue: Discovery Will Timeout
 
-**Root cause**: The Map API doesn't deep-crawl this site. It returns only the input URL.
-
-**The site has 3 levels**: Parent category → Subcategory → Product pages. For example:
-- `/10-solenoid-valves` → lists subcategories like `/77-general-service-valves`
-- `/77-general-service-valves` → lists products like `/series-260-.../133162-asco-...html`
-
-**Fix**: Replace Map API with a multi-level scrape approach:
-1. Scrape each of the 10 parent category pages to extract subcategory links (e.g., `/73-cryogenic-service-valves`, `/77-general-service-valves`)
-2. Scrape each subcategory page to extract product links (pattern: `/{series-slug}/{id}-{name}.html`)
-3. Handle pagination on subcategory pages (e.g., "Showing 1-12 of 5305 items" means many pages)
-
-## Bug 2: Every Product Page Scrape Times Out (BROKEN)
-
-100% of scrape attempts on product pages fail with `SCRAPE_TIMEOUT`. I confirmed this — even my own fetch of a product page timed out. The site is heavy/slow to render.
-
-**Fix**: Add `timeout: 60000` (60 seconds) to Firecrawl scrape requests, and simplify formats to just `['markdown']` (remove `json` extraction which adds processing time). The AI process step already handles content extraction.
-
-## Bug 3: RS-Online Not Supported
-
-The discovery function's `isProductUrl()` filter requires `.html` extension — RS-Online URLs don't use this pattern. RS-Online needs its own URL pattern detection.
-
-**Fix**: Add RS-Online URL pattern support to the discovery function.
-
----
+The `product-discover-categories` function tries to process all 11 category URLs in **one edge function call**, scraping each parent page → all subcategories → all pagination pages. This means potentially **hundreds of Firecrawl API calls** in a single invocation. Supabase edge functions have a **60-second hard timeout** — the function will crash before finishing even 2 categories.
 
 ## Plan
 
-### Step 1: Rewrite `product-discover-categories/index.ts`
-Replace the broken Map API approach with a multi-level scrape strategy:
-- Scrape each of the 10 parent category pages using Firecrawl Scrape with `formats: ['links']`
-- Extract subcategory URLs (pattern: `/{number}-{slug}`)
-- Scrape each subcategory page to extract product URLs
-- Handle pagination: detect "page=2", "page=3" etc. links
-- For RS-Online: extract product URLs matching their pattern (`/web/p/...` or similar)
-- Insert all discovered product URLs as pending scrape jobs
+### Step 1: Delete the remaining fake product
+Delete the 1 "Widget Co." product still in the database.
 
-### Step 2: Fix `product-scrape-batch/index.ts`
-- Add `timeout: 60000` to Firecrawl scrape request
-- Simplify formats to `['markdown', 'links']` (remove `json` — AI does extraction later)
-- Add retry logic for timeout failures (retry once with `timeout: 90000`)
+### Step 2: Clear failed jobs + fix mismatched products
+- Delete the 78 failed scrape jobs (most are hallucination rejects or timeouts from old code)
+- Fix 231 products stuck in "Directional Control Valves" parent category — re-match them to leaf categories by extracting the slug from their `source_url`
+- Fix 21 products with NULL category_id the same way
 
-### Step 3: Update `ProductImport.tsx`
-- Add the RS-Online URL to `SOURCE_CATEGORY_URLS`
-- Increase discovery timeout handling in the UI
+### Step 3: Rewrite discovery to process ONE category per call
+Split the discovery function so it accepts a **single category URL** per invocation. The frontend `ProductImport.tsx` will call it in a loop — one category at a time — with progress updates between calls. This avoids the 60-second timeout.
+
+Additionally, for categories with many subcategories, the function should limit itself to discovering subcategory URLs first, then return them. A second pass discovers product URLs from each subcategory. This two-pass approach keeps each call under 60 seconds.
+
+### Step 4: Keep existing 13K pending jobs
+The existing 13,062 pending jobs appear to be legitimate valves-direct product URLs (confirmed by sample check). They should stay — no need to re-discover them. The pipeline just needs to scrape → AI process → import them.
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `supabase/functions/product-discover-categories/index.ts` | Replace Map API with multi-level scrape; add RS-Online support |
-| `supabase/functions/product-scrape-batch/index.ts` | Add timeout: 60000, simplify formats, add retry for timeouts |
-| `src/pages/admin/ProductImport.tsx` | Add RS-Online URL to source list |
+| Database | Delete Widget Co. product; delete 78 failed jobs; re-assign 252 mismatched products |
+| `supabase/functions/product-discover-categories/index.ts` | Process ONE category URL per call; return partial results within 50s safety window |
+| `src/pages/admin/ProductImport.tsx` | Loop through category URLs calling discovery one at a time; show per-category progress |
 
-## Expected Impact
-- Discovery will find thousands of product URLs instead of 0
-- Scraping will succeed with extended timeouts instead of 100% failure rate
-- RS-Online products will be discoverable
+## After These Fixes
 
-## Cost Estimate
-- Discovery: ~10 parent + ~100 subcategory scrape calls = ~110 Firecrawl credits
-- Pagination discovery: ~500 additional calls for paginated subcategories
-- Product scraping: 1 credit per product page
-- Total discovery phase: ~600 credits (vs current 10 credits that find nothing)
+The pipeline will be ready to run. The existing 13K pending jobs will flow through scrape → AI → import. New discovery calls will find additional products from categories not yet covered. Each step respects the 60-second timeout.
 
