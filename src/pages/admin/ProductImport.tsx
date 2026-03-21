@@ -219,7 +219,37 @@ export default function ProductImport() {
 
   const stopPipeline = () => {
     stopRef.current = true;
-    addLog('⏸️ Stopping pipeline after current batch...');
+    addLog('⏸️ Stopping after current batch...');
+  };
+
+  const runStandaloneScrape = async () => {
+    stopRef.current = false;
+    setScraping(true);
+    addLog('🔍 Starting standalone scrape loop...');
+    await runScrapeLoop();
+    setScraping(false);
+    addLog(stopRef.current ? '⏸️ Scrape stopped.' : '✅ Scrape loop complete.');
+    await fetchCounts();
+  };
+
+  const runStandaloneProcess = async () => {
+    stopRef.current = false;
+    setProcessing(true);
+    addLog('🤖 Starting standalone AI process loop...');
+    await runAiLoop(true);
+    setProcessing(false);
+    addLog(stopRef.current ? '⏸️ AI processing stopped.' : '✅ AI processing complete.');
+    await fetchCounts();
+  };
+
+  const runStandaloneImport = async () => {
+    stopRef.current = false;
+    setImporting(true);
+    addLog('📦 Starting standalone import loop...');
+    await runInsertLoop(true);
+    setImporting(false);
+    addLog(stopRef.current ? '⏸️ Import stopped.' : '✅ Import complete.');
+    await fetchCounts();
   };
 
   const resumePipeline = async () => {
@@ -275,6 +305,7 @@ export default function ProductImport() {
     : null;
 
   const isRunning = phase === 'running' || phase === 'discovering';
+  const anyRunning = isRunning || scraping || processing || importing;
 
   return (
     <div className="space-y-6">
