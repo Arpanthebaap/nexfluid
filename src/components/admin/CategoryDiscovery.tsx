@@ -59,9 +59,9 @@ export default function CategoryDiscovery({ onComplete }: Props) {
         if (res.success) {
           totalNew += data.totalNew || 0;
           totalMapped += data.totalFound || 0;
-          allResults.push({ categoryUrl: catUrl, totalMapped: data.totalFound || 0, totalNew: data.totalNew || 0, productUrls: [] });
+          allResults.push({ category: catUrl, mapped: data.totalFound || 0, filtered: 0, new: data.totalNew || 0 });
         } else {
-          allResults.push({ categoryUrl: catUrl, totalMapped: 0, totalNew: 0, productUrls: [], error: res.error });
+          allResults.push({ category: catUrl, mapped: 0, filtered: 0, new: 0, error: res.error });
         }
       }
 
