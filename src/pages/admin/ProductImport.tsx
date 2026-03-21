@@ -41,7 +41,10 @@ export default function ProductImport() {
   const [logs, setLogs] = useState<string[]>([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
-  const [speed, setSpeed] = useState(0); // products imported per minute
+  const [speed, setSpeed] = useState(0);
+  const [scraping, setScraping] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const stopRef = useRef(false);
   const lastImportedRef = useRef(0);
   const speedCheckRef = useRef<number>(0);
