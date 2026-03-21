@@ -8,12 +8,18 @@ const corsHeaders = {
 const EXCLUDE_PATTERNS = [
   /\/(cart|checkout|account|login|register|wishlist|compare)/i,
   /\/(privacy|terms|cookie|contact|about|faq|help|sitemap)/i,
-  /\?.*(?!page)/,
   /\/#/,
   /\.(pdf|jpg|png|gif|svg|css|js)$/i,
   /\/cdn-cgi\//i,
   /\/index\.php/i,
 ];
+
+const START_TIME = Date.now();
+const SAFETY_LIMIT_MS = 50000; // 50s safety window (edge fn has 60s limit)
+
+function isTimeSafe(): boolean {
+  return (Date.now() - START_TIME) < SAFETY_LIMIT_MS;
+}
 
 function shouldExclude(url: string): boolean {
   return EXCLUDE_PATTERNS.some(p => p.test(url));
@@ -52,19 +58,24 @@ function isRsOnlineProductUrl(url: string): boolean {
   } catch { return false; }
 }
 
-// Pagination URLs: ?page=N
+// Pagination URLs: ?page=N or p=N
 function extractPaginationUrls(links: string[], baseUrl: string): string[] {
+  const baseWithoutParams = baseUrl.split('?')[0];
   const pageUrls: string[] = [];
   for (const link of links) {
     try {
       const u = new URL(link);
-      const page = u.searchParams.get('page');
-      if (page && parseInt(page) > 1 && link.startsWith(baseUrl.split('?')[0])) {
+      const page = u.searchParams.get('page') || u.searchParams.get('p');
+      if (page && parseInt(page) > 1 && link.startsWith(baseWithoutParams)) {
         pageUrls.push(link);
       }
     } catch { /* skip */ }
   }
-  return [...new Set(pageUrls)];
+  return [...new Set(pageUrls)].sort((a, b) => {
+    const pa = parseInt(new URL(a).searchParams.get('page') || new URL(a).searchParams.get('p') || '0');
+    const pb = parseInt(new URL(b).searchParams.get('page') || new URL(b).searchParams.get('p') || '0');
+    return pa - pb;
+  });
 }
 
 async function scrapeLinks(url: string, firecrawlKey: string): Promise<string[]> {
@@ -97,11 +108,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { categoryUrls } = await req.json();
+    const { categoryUrl } = await req.json();
 
-    if (!categoryUrls?.length) {
+    if (!categoryUrl) {
       return new Response(
-        JSON.stringify({ success: false, error: 'categoryUrls array is required' }),
+        JSON.stringify({ success: false, error: 'categoryUrl is required (single URL)' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -124,111 +135,87 @@ Deno.serve(async (req) => {
       .select('source_url');
     const existingUrls = new Set((existingJobs || []).map((j: any) => j.source_url));
 
-    const allNewProductUrls: string[] = [];
-    const results: any[] = [];
+    const isRsOnline = categoryUrl.includes('rs-online.com');
+    const baseDomain = new URL(categoryUrl).hostname;
 
-    for (const categoryUrl of categoryUrls) {
-      try {
-        const isRsOnline = categoryUrl.includes('rs-online.com');
-        const baseDomain = new URL(categoryUrl).hostname;
+    console.log(`--- Discovering: ${categoryUrl} ---`);
 
-        console.log(`--- Discovering: ${categoryUrl} ---`);
+    // Step 1: Scrape the parent category page
+    const parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
+    console.log(`Found ${parentLinks.length} links on parent page`);
 
-        // Step 1: Scrape the parent category page to find subcategory links
-        const parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
-        console.log(`Found ${parentLinks.length} links on parent page`);
+    const allProductUrls: string[] = [];
+    let subcategoriesScraped = 0;
+    let pagesScraped = 0;
+    let timedOut = false;
 
-        if (isRsOnline) {
-          // RS-Online: directly find product URLs from the category page and paginated pages
-          const productUrls = parentLinks.filter(l => isRsOnlineProductUrl(l) && !shouldExclude(l));
-          const pageUrls = extractPaginationUrls(parentLinks, categoryUrl);
-          console.log(`RS-Online: ${productUrls.length} products, ${pageUrls.length} pagination pages`);
+    if (isRsOnline) {
+      // RS-Online: find product URLs directly + pagination
+      const productUrls = parentLinks.filter(l => isRsOnlineProductUrl(l) && !shouldExclude(l));
+      allProductUrls.push(...productUrls);
 
-          // Scrape pagination pages
-          for (const pageUrl of pageUrls.slice(0, 50)) {
+      const pageUrls = extractPaginationUrls(parentLinks, categoryUrl);
+      console.log(`RS-Online: ${productUrls.length} products, ${pageUrls.length} pagination pages`);
+
+      for (const pageUrl of pageUrls) {
+        if (!isTimeSafe()) { timedOut = true; break; }
+        const pageLinks = await scrapeLinks(pageUrl, firecrawlKey);
+        const moreProducts = pageLinks.filter(l => isRsOnlineProductUrl(l) && !shouldExclude(l));
+        allProductUrls.push(...moreProducts);
+        pagesScraped++;
+        await new Promise(r => setTimeout(r, 200));
+      }
+    } else {
+      // Valves-direct: find subcategories, then product URLs from each
+      const subcatUrls = parentLinks.filter(l => isValvesDirectSubcategoryUrl(l, baseDomain) && !shouldExclude(l));
+      const directProducts = parentLinks.filter(l => isValvesDirectProductUrl(l) && !shouldExclude(l));
+      allProductUrls.push(...directProducts);
+
+      console.log(`Found ${subcatUrls.length} subcategories, ${directProducts.length} direct products`);
+
+      for (const subcatUrl of subcatUrls) {
+        if (!isTimeSafe()) { timedOut = true; break; }
+
+        try {
+          console.log(`  Scraping subcategory: ${subcatUrl}`);
+          const subcatLinks = await scrapeLinks(subcatUrl, firecrawlKey);
+          subcategoriesScraped++;
+
+          const products = subcatLinks.filter(l => isValvesDirectProductUrl(l) && !shouldExclude(l));
+          allProductUrls.push(...products);
+
+          // Handle pagination within this subcategory
+          const pageUrls = extractPaginationUrls(subcatLinks, subcatUrl);
+          for (const pageUrl of pageUrls) {
+            if (!isTimeSafe()) { timedOut = true; break; }
             const pageLinks = await scrapeLinks(pageUrl, firecrawlKey);
-            const moreProducts = pageLinks.filter(l => isRsOnlineProductUrl(l) && !shouldExclude(l));
-            productUrls.push(...moreProducts);
-            await new Promise(r => setTimeout(r, 300));
+            const moreProducts = pageLinks.filter(l => isValvesDirectProductUrl(l) && !shouldExclude(l));
+            allProductUrls.push(...moreProducts);
+            pagesScraped++;
+            await new Promise(r => setTimeout(r, 200));
           }
 
-          const unique = [...new Set(productUrls)];
-          const newUrls = unique.filter(u => !existingUrls.has(u) && !allNewProductUrls.includes(u));
-          allNewProductUrls.push(...newUrls);
-          newUrls.forEach(u => existingUrls.add(u));
-
-          results.push({ categoryUrl, subcategories: 0, products: unique.length, new: newUrls.length });
-        } else {
-          // Valves-direct: find subcategory links, then scrape each for product URLs
-          const subcatUrls = parentLinks.filter(l => isValvesDirectSubcategoryUrl(l, baseDomain) && !shouldExclude(l));
-          // Also check for direct product URLs on parent page
-          const directProducts = parentLinks.filter(l => isValvesDirectProductUrl(l) && !shouldExclude(l));
-
-          console.log(`Found ${subcatUrls.length} subcategories, ${directProducts.length} direct products`);
-
-          const allProductUrls = [...directProducts];
-
-          // Step 2: Scrape each subcategory to find product URLs
-          for (const subcatUrl of subcatUrls) {
-            try {
-              console.log(`  Scraping subcategory: ${subcatUrl}`);
-              const subcatLinks = await scrapeLinks(subcatUrl, firecrawlKey);
-
-              const products = subcatLinks.filter(l => isValvesDirectProductUrl(l) && !shouldExclude(l));
-              allProductUrls.push(...products);
-
-              // Step 3: Handle pagination
-              const pageUrls = extractPaginationUrls(subcatLinks, subcatUrl);
-              for (const pageUrl of pageUrls.slice(0, 100)) {
-                const pageLinks = await scrapeLinks(pageUrl, firecrawlKey);
-                const moreProducts = pageLinks.filter(l => isValvesDirectProductUrl(l) && !shouldExclude(l));
-                allProductUrls.push(...moreProducts);
-                await new Promise(r => setTimeout(r, 300));
-              }
-
-              await new Promise(r => setTimeout(r, 300));
-            } catch (err) {
-              console.error(`Error scraping subcategory ${subcatUrl}:`, err);
-            }
-          }
-
-          const unique = [...new Set(allProductUrls)];
-          const newUrls = unique.filter(u => !existingUrls.has(u) && !allNewProductUrls.includes(u));
-          allNewProductUrls.push(...newUrls);
-          newUrls.forEach(u => existingUrls.add(u));
-
-          results.push({
-            categoryUrl,
-            subcategories: subcatUrls.length,
-            products: unique.length,
-            new: newUrls.length,
-          });
+          if (timedOut) break;
+          await new Promise(r => setTimeout(r, 200));
+        } catch (err) {
+          console.error(`Error scraping subcategory ${subcatUrl}:`, err);
         }
-
-        console.log(`Category ${categoryUrl}: ${results[results.length - 1].new} new product URLs`);
-        await new Promise(r => setTimeout(r, 300));
-      } catch (err) {
-        console.error(`Error processing ${categoryUrl}:`, err);
-        results.push({
-          categoryUrl,
-          subcategories: 0,
-          products: 0,
-          new: 0,
-          error: err instanceof Error ? err.message : 'Unknown error',
-        });
       }
     }
 
-    // Bulk insert new URLs as pending scrape jobs
+    // Deduplicate
+    const unique = [...new Set(allProductUrls)];
+    const newUrls = unique.filter(u => !existingUrls.has(u));
+
+    // Insert new URLs as pending scrape jobs
     let inserted = 0;
-    if (allNewProductUrls.length > 0) {
+    if (newUrls.length > 0) {
       const batchSize = 500;
-      for (let i = 0; i < allNewProductUrls.length; i += batchSize) {
-        const batch = allNewProductUrls.slice(i, i + batchSize).map(url => ({
+      for (let i = 0; i < newUrls.length; i += batchSize) {
+        const batch = newUrls.slice(i, i + batchSize).map(url => ({
           source_url: url,
           status: 'pending' as const,
         }));
-
         const { error } = await supabase.from('scrape_jobs').insert(batch);
         if (error) {
           console.error('Insert error:', error);
@@ -238,12 +225,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    const elapsed = Math.round((Date.now() - START_TIME) / 1000);
+    console.log(`Done in ${elapsed}s: ${inserted} new of ${unique.length} total products found`);
+
     return new Response(
       JSON.stringify({
         success: true,
+        categoryUrl,
+        totalFound: unique.length,
         totalNew: inserted,
-        totalProducts: allNewProductUrls.length,
-        results,
+        subcategoriesScraped,
+        pagesScraped,
+        timedOut,
+        elapsedSeconds: elapsed,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
