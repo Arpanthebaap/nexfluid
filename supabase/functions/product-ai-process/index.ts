@@ -5,12 +5,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Allowed brands and normalization
+const ALLOWED_BRANDS = ['PARKER', 'ASCO', 'AVENTICS', 'JOUCOMATIC', 'NUMATICS', 'EMERSON', 'SIRAI'];
+const BRAND_NORMALIZATION: Record<string, string> = {
+  'EMERSON AVENTICS': 'AVENTICS',
+  'EMERSON ASCO': 'ASCO',
+  'AVENTICS': 'AVENTICS',
+  'PARKER': 'PARKER',
+  'PARKER HANNIFIN': 'PARKER',
+  'ASCO NUMATICS': 'NUMATICS',
+};
+
+function normalizeBrand(brand: string): string | null {
+  if (!brand) return null;
+  const upper = brand.trim().toUpperCase();
+  // Check normalization map first
+  if (BRAND_NORMALIZATION[upper]) return BRAND_NORMALIZATION[upper];
+  // Check if it matches an allowed brand
+  const match = ALLOWED_BRANDS.find(b => upper === b || upper.startsWith(b + ' ') || upper.endsWith(' ' + b));
+  if (match) return match;
+  // Try stripping "EMERSON " prefix
+  if (upper.startsWith('EMERSON ')) {
+    const rest = upper.replace('EMERSON ', '');
+    if (ALLOWED_BRANDS.includes(rest)) return rest;
+  }
+  return null;
+}
+
 // Extract category slug from valves-direct URL pattern: /{category-slug}/{id}-product.html
 function extractCategorySlug(sourceUrl: string): string | null {
   try {
     const path = new URL(sourceUrl).pathname;
     const segments = path.split('/').filter(Boolean);
-    // The category slug is the second-to-last segment (before the product file)
     if (segments.length >= 2) {
       return segments[segments.length - 2];
     }
