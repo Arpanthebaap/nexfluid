@@ -345,7 +345,7 @@ export default function ProductImport() {
           </div>
 
           {/* Speed & ETA */}
-          {isRunning && speed > 0 && (
+          {(isRunning || scraping || processing || importing) && speed > 0 && (
             <div className="flex gap-4 text-xs text-muted-foreground">
               <span>⚡ {speed} products/min</span>
               {eta && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> ~{eta} min remaining</span>}
@@ -353,13 +353,13 @@ export default function ProductImport() {
           )}
 
           {/* Main action buttons */}
-          <div className="flex gap-3">
-            {phase === 'idle' && (
+          <div className="flex flex-wrap gap-3">
+            {phase === 'idle' && !anyRunning && (
               <Button size="lg" onClick={runFullPipeline} className="gap-2">
                 <Rocket className="h-4 w-4" /> Start Full Pipeline
               </Button>
             )}
-            {phase === 'paused' && (
+            {phase === 'paused' && !anyRunning && (
               <Button size="lg" onClick={resumePipeline} className="gap-2">
                 <Play className="h-4 w-4" /> Resume Pipeline
               </Button>
@@ -370,12 +370,52 @@ export default function ProductImport() {
                 Stop Pipeline
               </Button>
             )}
-            {counts.failed > 0 && !isRunning && (
+          </div>
+
+          {/* Standalone loop buttons */}
+          <div className="flex flex-wrap gap-3">
+            {scraping ? (
+              <Button variant="outline" onClick={stopPipeline} className="gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Stop Scraping
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={runStandaloneScrape} disabled={counts.pending === 0 || anyRunning} className="gap-2">
+                <Globe className="h-4 w-4" /> Scrape All
+                {counts.pending > 0 && <Badge variant="secondary" className="ml-1 text-xs">{counts.pending.toLocaleString()}</Badge>}
+              </Button>
+            )}
+
+            {processing ? (
+              <Button variant="outline" onClick={stopPipeline} className="gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Stop Processing
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={runStandaloneProcess} disabled={counts.scraped === 0 || anyRunning} className="gap-2">
+                <Cpu className="h-4 w-4" /> Process All
+                {counts.scraped > 0 && <Badge variant="secondary" className="ml-1 text-xs">{counts.scraped.toLocaleString()}</Badge>}
+              </Button>
+            )}
+
+            {importing ? (
+              <Button variant="outline" onClick={stopPipeline} className="gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Stop Importing
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={runStandaloneImport} disabled={counts.processed === 0 || anyRunning} className="gap-2">
+                <Database className="h-4 w-4" /> Import All
+                {counts.processed > 0 && <Badge variant="secondary" className="ml-1 text-xs">{counts.processed.toLocaleString()}</Badge>}
+              </Button>
+            )}
+          </div>
+
+          {/* Utility buttons */}
+          <div className="flex flex-wrap gap-3">
+            {counts.failed > 0 && !anyRunning && (
               <Button variant="outline" onClick={retryFailed} className="gap-2">
                 <RotateCcw className="h-4 w-4" /> Retry {counts.failed} Failed
               </Button>
             )}
-            {!isRunning && counts.total > 0 && (
+            {!anyRunning && counts.total > 0 && (
               <Button variant="ghost" size="sm" onClick={clearAllJobs} className="gap-2 text-destructive ml-auto">
                 <Trash2 className="h-3 w-3" /> Clear All Jobs
               </Button>
