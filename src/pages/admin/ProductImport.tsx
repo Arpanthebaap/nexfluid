@@ -160,9 +160,8 @@ export default function ProductImport() {
     }
   };
 
-  const runAiLoop = async () => {
-    // Wait for first scraped jobs
-    await new Promise(r => setTimeout(r, 10000));
+  const runAiLoop = async (skipDelay = false) => {
+    if (!skipDelay) await new Promise(r => setTimeout(r, 10000));
     let emptyRounds = 0;
     while (!stopRef.current) {
       try {
@@ -186,6 +185,7 @@ export default function ProductImport() {
         }
         emptyRounds = 0;
         addLog(`🤖 AI processed ${data.processed} products`);
+        await fetchCounts();
       } catch (err) {
         addLog(`❌ AI error: ${err}`);
         await new Promise(r => setTimeout(r, 5000));
@@ -193,9 +193,8 @@ export default function ProductImport() {
     }
   };
 
-  const runInsertLoop = async () => {
-    // Wait for first processed jobs
-    await new Promise(r => setTimeout(r, 20000));
+  const runInsertLoop = async (skipDelay = false) => {
+    if (!skipDelay) await new Promise(r => setTimeout(r, 20000));
     let emptyRounds = 0;
     while (!stopRef.current) {
       try {
@@ -210,6 +209,7 @@ export default function ProductImport() {
         }
         emptyRounds = 0;
         addLog(`📦 Imported ${data.imported} products`);
+        await fetchCounts();
       } catch (err) {
         addLog(`❌ Import error: ${err}`);
         await new Promise(r => setTimeout(r, 5000));
