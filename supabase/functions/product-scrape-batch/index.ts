@@ -5,6 +5,43 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+async function scrapeWithRetry(url: string, firecrawlKey: string): Promise<{ ok: boolean; data: any }> {
+  // First attempt with 60s timeout
+  const attempt = async (timeout: number) => {
+    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${firecrawlKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        formats: ['markdown', 'links'],
+        onlyMainContent: true,
+        timeout,
+      }),
+    });
+    return { response, data: await response.json() };
+  };
+
+  // First try: 60s
+  let result = await attempt(60000);
+  if (result.response.ok) {
+    return { ok: true, data: result.data };
+  }
+
+  // If timeout, retry with 90s
+  if (result.data?.code === 'SCRAPE_TIMEOUT') {
+    console.log(`Retrying ${url} with 90s timeout...`);
+    result = await attempt(90000);
+    if (result.response.ok) {
+      return { ok: true, data: result.data };
+    }
+  }
+
+  return { ok: false, data: result.data };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -26,7 +63,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get pending jobs - either specific IDs or next batch
+    // Get pending jobs
     let query = supabase.from('scrape_jobs').select('*').eq('status', 'pending').limit(batchSize);
     if (jobIds?.length) {
       query = supabase.from('scrape_jobs').select('*').in('id', jobIds).eq('status', 'pending');
@@ -47,31 +84,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const productSchema = {
-      type: "object",
-      properties: {
-        product_name: { type: "string" },
-        product_code: { type: "string" },
-        brand: { type: "string" },
-        description: { type: "string" },
-        images: { type: "array", items: { type: "string" } },
-        specifications: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              name: { type: "string" },
-              value: { type: "string" },
-              unit: { type: "string" }
-            },
-            required: ["name", "value"]
-          }
-        },
-        category_hint: { type: "string" }
-      },
-      required: ["product_name"]
-    };
-
     let scraped = 0;
     let failed = 0;
 
@@ -79,30 +91,13 @@ Deno.serve(async (req) => {
       try {
         console.log(`Scraping: ${job.source_url}`);
 
-        const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url: job.source_url,
-            formats: ['markdown', 'links', 'json'],
-            jsonOptions: {
-              schema: productSchema,
-              prompt: 'Extract the product information from this page. Get the product name, code/SKU, brand, description, image URLs, and technical specifications.',
-            },
-            onlyMainContent: true,
-          }),
-        });
+        const result = await scrapeWithRetry(job.source_url, firecrawlKey);
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          console.error(`Scrape failed for ${job.source_url}:`, data);
+        if (!result.ok) {
+          console.error(`Scrape failed for ${job.source_url}:`, result.data);
           await supabase.from('scrape_jobs').update({
             status: 'failed',
-            error_message: data.error || `HTTP ${response.status}`,
+            error_message: result.data.error || result.data.code || `Scrape failed`,
             updated_at: new Date().toISOString(),
           }).eq('id', job.id);
           failed++;
@@ -110,10 +105,9 @@ Deno.serve(async (req) => {
         }
 
         const rawData = {
-          markdown: data.data?.markdown || data.markdown,
-          json: data.data?.json || data.json,
-          links: data.data?.links || data.links,
-          metadata: data.data?.metadata || data.metadata,
+          markdown: result.data.data?.markdown || result.data.markdown,
+          links: result.data.data?.links || result.data.links,
+          metadata: result.data.data?.metadata || result.data.metadata,
         };
 
         await supabase.from('scrape_jobs').update({
@@ -123,8 +117,6 @@ Deno.serve(async (req) => {
         }).eq('id', job.id);
 
         scraped++;
-
-        // Small delay between scrapes to be respectful
         await new Promise(r => setTimeout(r, 500));
       } catch (err) {
         console.error(`Error scraping ${job.source_url}:`, err);
