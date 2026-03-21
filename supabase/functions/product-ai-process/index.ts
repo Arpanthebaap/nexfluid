@@ -281,7 +281,20 @@ TASKS:
         processedData.specifications = specs;
         processedData.source_url = job.source_url;
         processedData.description_original = originalDesc;
-        if (!processedData.brand && brand) processedData.brand = brand;
+        // Brand validation and normalization
+        const rawBrand = processedData.brand || brand || '';
+        const normalizedBrand = normalizeBrand(rawBrand);
+        if (!normalizedBrand) {
+          console.log(`Rejected job ${job.id}: invalid brand "${rawBrand}"`);
+          await supabase.from('scrape_jobs').update({
+            status: 'failed',
+            error_message: `Invalid brand "${rawBrand}" — not in allowed list`,
+            updated_at: new Date().toISOString(),
+          }).eq('id', job.id);
+          failed++;
+          continue;
+        }
+        processedData.brand = normalizedBrand;
         if (!processedData.product_code) processedData.product_code = rawJson.product_code || '';
 
         await supabase.from('scrape_jobs').update({
