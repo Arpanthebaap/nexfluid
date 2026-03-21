@@ -137,6 +137,20 @@ Deno.serve(async (req) => {
         const brand = rawJson.brand || '';
         const specs = rawJson.specifications || [];
 
+        // GUARD: Skip jobs with empty/missing raw data to prevent AI hallucinations
+        const hasContent = (rawMarkdown && rawMarkdown.trim().length > 50) || 
+                           (rawJson.product_name && rawJson.product_name !== 'Unknown Product');
+        if (!hasContent) {
+          console.log(`Skipping job ${job.id}: no meaningful scraped content`);
+          await supabase.from('scrape_jobs').update({
+            status: 'failed',
+            error_message: 'No scraped content available — skipped to prevent hallucination',
+            updated_at: new Date().toISOString(),
+          }).eq('id', job.id);
+          failed++;
+          continue;
+        }
+
         // Step 1: Try URL-based category matching first
         let matchedCategoryId: string | null = null;
         let matchedCategoryName = '';
