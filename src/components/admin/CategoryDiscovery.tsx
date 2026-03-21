@@ -49,16 +49,26 @@ export default function CategoryDiscovery({ onComplete }: Props) {
     setSummary(null);
 
     try {
-      const res = await firecrawlApi.discoverCategories(categoryUrls);
-      if (res.success) {
+      const allResults: DiscoveryResult[] = [];
+      let totalNew = 0;
+      let totalMapped = 0;
+
+      for (const catUrl of categoryUrls) {
+        const res = await firecrawlApi.discoverCategory(catUrl);
         const data = res as any;
-        setResults(data.results || []);
-        setSummary({ totalNew: data.totalNew, totalMapped: data.totalMapped, totalFiltered: data.totalFiltered });
-        toast({ title: 'Discovery complete', description: `${data.totalNew} new product URLs saved as jobs` });
-        onComplete();
-      } else {
-        toast({ title: 'Discovery failed', description: res.error, variant: 'destructive' });
+        if (res.success) {
+          totalNew += data.totalNew || 0;
+          totalMapped += data.totalFound || 0;
+          allResults.push({ categoryUrl: catUrl, totalMapped: data.totalFound || 0, totalNew: data.totalNew || 0, productUrls: [] });
+        } else {
+          allResults.push({ categoryUrl: catUrl, totalMapped: 0, totalNew: 0, productUrls: [], error: res.error });
+        }
       }
+
+      setResults(allResults);
+      setSummary({ totalNew, totalMapped, totalFiltered: 0 });
+      toast({ title: 'Discovery complete', description: `${totalNew} new product URLs saved as jobs` });
+      onComplete();
     } catch {
       toast({ title: 'Discovery failed', variant: 'destructive' });
     } finally {
