@@ -5,12 +5,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Allowed brands and normalization
+const ALLOWED_BRANDS = ['PARKER', 'ASCO', 'AVENTICS', 'JOUCOMATIC', 'NUMATICS', 'EMERSON', 'SIRAI'];
+const BRAND_NORMALIZATION: Record<string, string> = {
+  'EMERSON AVENTICS': 'AVENTICS',
+  'EMERSON ASCO': 'ASCO',
+  'AVENTICS': 'AVENTICS',
+  'PARKER': 'PARKER',
+  'PARKER HANNIFIN': 'PARKER',
+  'ASCO NUMATICS': 'NUMATICS',
+};
+
+function normalizeBrand(brand: string): string | null {
+  if (!brand) return null;
+  const upper = brand.trim().toUpperCase();
+  // Check normalization map first
+  if (BRAND_NORMALIZATION[upper]) return BRAND_NORMALIZATION[upper];
+  // Check if it matches an allowed brand
+  const match = ALLOWED_BRANDS.find(b => upper === b || upper.startsWith(b + ' ') || upper.endsWith(' ' + b));
+  if (match) return match;
+  // Try stripping "EMERSON " prefix
+  if (upper.startsWith('EMERSON ')) {
+    const rest = upper.replace('EMERSON ', '');
+    if (ALLOWED_BRANDS.includes(rest)) return rest;
+  }
+  return null;
+}
+
 // Extract category slug from valves-direct URL pattern: /{category-slug}/{id}-product.html
 function extractCategorySlug(sourceUrl: string): string | null {
   try {
     const path = new URL(sourceUrl).pathname;
     const segments = path.split('/').filter(Boolean);
-    // The category slug is the second-to-last segment (before the product file)
     if (segments.length >= 2) {
       return segments[segments.length - 2];
     }
@@ -110,6 +136,20 @@ Deno.serve(async (req) => {
         const originalDesc = rawJson.description || rawMarkdown.slice(0, 2000);
         const brand = rawJson.brand || '';
         const specs = rawJson.specifications || [];
+
+        // GUARD: Skip jobs with empty/missing raw data to prevent AI hallucinations
+        const hasContent = (rawMarkdown && rawMarkdown.trim().length > 50) || 
+                           (rawJson.product_name && rawJson.product_name !== 'Unknown Product');
+        if (!hasContent) {
+          console.log(`Skipping job ${job.id}: no meaningful scraped content`);
+          await supabase.from('scrape_jobs').update({
+            status: 'failed',
+            error_message: 'No scraped content available — skipped to prevent hallucination',
+            updated_at: new Date().toISOString(),
+          }).eq('id', job.id);
+          failed++;
+          continue;
+        }
 
         // Step 1: Try URL-based category matching first
         let matchedCategoryId: string | null = null;
@@ -241,7 +281,20 @@ TASKS:
         processedData.specifications = specs;
         processedData.source_url = job.source_url;
         processedData.description_original = originalDesc;
-        if (!processedData.brand && brand) processedData.brand = brand;
+        // Brand validation and normalization
+        const rawBrand = processedData.brand || brand || '';
+        const normalizedBrand = normalizeBrand(rawBrand);
+        if (!normalizedBrand) {
+          console.log(`Rejected job ${job.id}: invalid brand "${rawBrand}"`);
+          await supabase.from('scrape_jobs').update({
+            status: 'failed',
+            error_message: `Invalid brand "${rawBrand}" — not in allowed list`,
+            updated_at: new Date().toISOString(),
+          }).eq('id', job.id);
+          failed++;
+          continue;
+        }
+        processedData.brand = normalizedBrand;
         if (!processedData.product_code) processedData.product_code = rawJson.product_code || '';
 
         await supabase.from('scrape_jobs').update({
