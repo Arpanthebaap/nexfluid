@@ -41,7 +41,10 @@ export default function ProductImport() {
   const [logs, setLogs] = useState<string[]>([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
-  const [speed, setSpeed] = useState(0); // products imported per minute
+  const [speed, setSpeed] = useState(0);
+  const [scraping, setScraping] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const stopRef = useRef(false);
   const lastImportedRef = useRef(0);
   const speedCheckRef = useRef<number>(0);
@@ -157,9 +160,8 @@ export default function ProductImport() {
     }
   };
 
-  const runAiLoop = async () => {
-    // Wait for first scraped jobs
-    await new Promise(r => setTimeout(r, 10000));
+  const runAiLoop = async (skipDelay = false) => {
+    if (!skipDelay) await new Promise(r => setTimeout(r, 10000));
     let emptyRounds = 0;
     while (!stopRef.current) {
       try {
@@ -183,6 +185,7 @@ export default function ProductImport() {
         }
         emptyRounds = 0;
         addLog(`🤖 AI processed ${data.processed} products`);
+        await fetchCounts();
       } catch (err) {
         addLog(`❌ AI error: ${err}`);
         await new Promise(r => setTimeout(r, 5000));
@@ -190,9 +193,8 @@ export default function ProductImport() {
     }
   };
 
-  const runInsertLoop = async () => {
-    // Wait for first processed jobs
-    await new Promise(r => setTimeout(r, 20000));
+  const runInsertLoop = async (skipDelay = false) => {
+    if (!skipDelay) await new Promise(r => setTimeout(r, 20000));
     let emptyRounds = 0;
     while (!stopRef.current) {
       try {
@@ -207,6 +209,7 @@ export default function ProductImport() {
         }
         emptyRounds = 0;
         addLog(`📦 Imported ${data.imported} products`);
+        await fetchCounts();
       } catch (err) {
         addLog(`❌ Import error: ${err}`);
         await new Promise(r => setTimeout(r, 5000));
@@ -216,7 +219,37 @@ export default function ProductImport() {
 
   const stopPipeline = () => {
     stopRef.current = true;
-    addLog('⏸️ Stopping pipeline after current batch...');
+    addLog('⏸️ Stopping after current batch...');
+  };
+
+  const runStandaloneScrape = async () => {
+    stopRef.current = false;
+    setScraping(true);
+    addLog('🔍 Starting standalone scrape loop...');
+    await runScrapeLoop();
+    setScraping(false);
+    addLog(stopRef.current ? '⏸️ Scrape stopped.' : '✅ Scrape loop complete.');
+    await fetchCounts();
+  };
+
+  const runStandaloneProcess = async () => {
+    stopRef.current = false;
+    setProcessing(true);
+    addLog('🤖 Starting standalone AI process loop...');
+    await runAiLoop(true);
+    setProcessing(false);
+    addLog(stopRef.current ? '⏸️ AI processing stopped.' : '✅ AI processing complete.');
+    await fetchCounts();
+  };
+
+  const runStandaloneImport = async () => {
+    stopRef.current = false;
+    setImporting(true);
+    addLog('📦 Starting standalone import loop...');
+    await runInsertLoop(true);
+    setImporting(false);
+    addLog(stopRef.current ? '⏸️ Import stopped.' : '✅ Import complete.');
+    await fetchCounts();
   };
 
   const resumePipeline = async () => {
@@ -272,6 +305,7 @@ export default function ProductImport() {
     : null;
 
   const isRunning = phase === 'running' || phase === 'discovering';
+  const anyRunning = isRunning || scraping || processing || importing;
 
   return (
     <div className="space-y-6">
@@ -311,7 +345,7 @@ export default function ProductImport() {
           </div>
 
           {/* Speed & ETA */}
-          {isRunning && speed > 0 && (
+          {(isRunning || scraping || processing || importing) && speed > 0 && (
             <div className="flex gap-4 text-xs text-muted-foreground">
               <span>⚡ {speed} products/min</span>
               {eta && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> ~{eta} min remaining</span>}
@@ -319,13 +353,13 @@ export default function ProductImport() {
           )}
 
           {/* Main action buttons */}
-          <div className="flex gap-3">
-            {phase === 'idle' && (
+          <div className="flex flex-wrap gap-3">
+            {phase === 'idle' && !anyRunning && (
               <Button size="lg" onClick={runFullPipeline} className="gap-2">
                 <Rocket className="h-4 w-4" /> Start Full Pipeline
               </Button>
             )}
-            {phase === 'paused' && (
+            {phase === 'paused' && !anyRunning && (
               <Button size="lg" onClick={resumePipeline} className="gap-2">
                 <Play className="h-4 w-4" /> Resume Pipeline
               </Button>
@@ -336,12 +370,52 @@ export default function ProductImport() {
                 Stop Pipeline
               </Button>
             )}
-            {counts.failed > 0 && !isRunning && (
+          </div>
+
+          {/* Standalone loop buttons */}
+          <div className="flex flex-wrap gap-3">
+            {scraping ? (
+              <Button variant="outline" onClick={stopPipeline} className="gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Stop Scraping
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={runStandaloneScrape} disabled={counts.pending === 0 || anyRunning} className="gap-2">
+                <Globe className="h-4 w-4" /> Scrape All
+                {counts.pending > 0 && <Badge variant="secondary" className="ml-1 text-xs">{counts.pending.toLocaleString()}</Badge>}
+              </Button>
+            )}
+
+            {processing ? (
+              <Button variant="outline" onClick={stopPipeline} className="gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Stop Processing
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={runStandaloneProcess} disabled={counts.scraped === 0 || anyRunning} className="gap-2">
+                <Cpu className="h-4 w-4" /> Process All
+                {counts.scraped > 0 && <Badge variant="secondary" className="ml-1 text-xs">{counts.scraped.toLocaleString()}</Badge>}
+              </Button>
+            )}
+
+            {importing ? (
+              <Button variant="outline" onClick={stopPipeline} className="gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Stop Importing
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={runStandaloneImport} disabled={counts.processed === 0 || anyRunning} className="gap-2">
+                <Database className="h-4 w-4" /> Import All
+                {counts.processed > 0 && <Badge variant="secondary" className="ml-1 text-xs">{counts.processed.toLocaleString()}</Badge>}
+              </Button>
+            )}
+          </div>
+
+          {/* Utility buttons */}
+          <div className="flex flex-wrap gap-3">
+            {counts.failed > 0 && !anyRunning && (
               <Button variant="outline" onClick={retryFailed} className="gap-2">
                 <RotateCcw className="h-4 w-4" /> Retry {counts.failed} Failed
               </Button>
             )}
-            {!isRunning && counts.total > 0 && (
+            {!anyRunning && counts.total > 0 && (
               <Button variant="ghost" size="sm" onClick={clearAllJobs} className="gap-2 text-destructive ml-auto">
                 <Trash2 className="h-3 w-3" /> Clear All Jobs
               </Button>
