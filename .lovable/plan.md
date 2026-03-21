@@ -1,45 +1,39 @@
 
 
-# Pipeline Readiness Assessment & Fixes
+# Add 3 Standalone Auto-Loop Buttons
 
-## Current State
+## Rationale
 
-- **Your paid Firecrawl key** (100K credits) is already connected and being used — confirmed via "Firecrawl.Arpan" connection
-- **778 products** in DB (777 valid brands + 1 "Widget Co." to delete)
-- **13,062 pending** scrape jobs, **78 failed**, **784 imported**
-- Category assignment is mostly working: 547 products in correct leaf categories, but **231 stuck in "Directional Control Valves"** (a parent) and **21 with no category**
+This is a great idea. The full pipeline runs all 4 phases (discover + scrape + AI + import) together, but often you have jobs stuck at one stage and just want to drain that queue independently. Three dedicated buttons let you:
+- **Scrape All Pending**: runs the scrape loop until all pending jobs are scraped
+- **Process All Scraped**: runs the AI loop until all scraped jobs are processed  
+- **Import All Processed**: runs the import loop until all processed jobs are imported
 
-## Critical Issue: Discovery Will Timeout
+Each button runs its respective loop (reusing the existing `runScrapeLoop`, `runAiLoop`, `runInsertLoop` logic) independently, with its own stop capability.
 
-The `product-discover-categories` function tries to process all 11 category URLs in **one edge function call**, scraping each parent page → all subcategories → all pagination pages. This means potentially **hundreds of Firecrawl API calls** in a single invocation. Supabase edge functions have a **60-second hard timeout** — the function will crash before finishing even 2 categories.
+## Changes
 
-## Plan
+### `src/pages/admin/ProductImport.tsx`
 
-### Step 1: Delete the remaining fake product
-Delete the 1 "Widget Co." product still in the database.
+Add 3 new state trackers for which individual loop is running (`scraping`, `processing`, `importing`), then add 3 buttons next to "Start Full Pipeline":
 
-### Step 2: Clear failed jobs + fix mismatched products
-- Delete the 78 failed scrape jobs (most are hallucination rejects or timeouts from old code)
-- Fix 231 products stuck in "Directional Control Valves" parent category — re-match them to leaf categories by extracting the slug from their `source_url`
-- Fix 21 products with NULL category_id the same way
+- **"Scrape All" button** (Globe icon) — visible when `counts.pending > 0` and pipeline is idle. Runs `runScrapeLoop()` standalone, shows count badge, stoppable.
+- **"Process All" button** (Cpu icon) — visible when `counts.scraped > 0` and pipeline is idle. Runs `runAiLoop()` standalone (without the initial 10s delay), stoppable.
+- **"Import All" button** (Database icon) — visible when `counts.processed > 0` and pipeline is idle. Runs `runInsertLoop()` standalone (without the initial 20s delay), stoppable.
 
-### Step 3: Rewrite discovery to process ONE category per call
-Split the discovery function so it accepts a **single category URL** per invocation. The frontend `ProductImport.tsx` will call it in a loop — one category at a time — with progress updates between calls. This avoids the 60-second timeout.
+Each button toggles between "Start" and "Stop" state. The `stopRef` is shared so stopping any individual loop or the full pipeline stops everything. The `isRunning` check prevents running multiple things simultaneously.
 
-Additionally, for categories with many subcategories, the function should limit itself to discovering subcategory URLs first, then return them. A second pass discovers product URLs from each subcategory. This two-pass approach keeps each call under 60 seconds.
+Refactor `runAiLoop` and `runInsertLoop` to accept an optional `skipDelay` parameter so they skip the initial wait when run standalone.
 
-### Step 4: Keep existing 13K pending jobs
-The existing 13,062 pending jobs appear to be legitimate valves-direct product URLs (confirmed by sample check). They should stay — no need to re-discover them. The pipeline just needs to scrape → AI process → import them.
+### Button layout
 
-## Files to Modify
+```text
+[ Start Full Pipeline ]  [ Scrape All (13K) ]  [ Process All (5) ]  [ Import All (12) ]
+```
 
-| File | Change |
-|------|--------|
-| Database | Delete Widget Co. product; delete 78 failed jobs; re-assign 252 mismatched products |
-| `supabase/functions/product-discover-categories/index.ts` | Process ONE category URL per call; return partial results within 50s safety window |
-| `src/pages/admin/ProductImport.tsx` | Loop through category URLs calling discovery one at a time; show per-category progress |
+Buttons are disabled when their queue is empty or another operation is running. Each shows the current count as a badge.
 
-## After These Fixes
+## No other files change
 
-The pipeline will be ready to run. The existing 13K pending jobs will flow through scrape → AI → import. New discovery calls will find additional products from categories not yet covered. Each step respects the 60-second timeout.
+This is a UI-only change to `ProductImport.tsx`. The existing loop functions and edge functions stay the same.
 
