@@ -1,39 +1,35 @@
 
 
-# Add 3 Standalone Auto-Loop Buttons
+# Fix Product Detail Breadcrumbs + Add Brand Pages
 
-## Rationale
+## Two Changes
 
-This is a great idea. The full pipeline runs all 4 phases (discover + scrape + AI + import) together, but often you have jobs stuck at one stage and just want to drain that queue independently. Three dedicated buttons let you:
-- **Scrape All Pending**: runs the scrape loop until all pending jobs are scraped
-- **Process All Scraped**: runs the AI loop until all scraped jobs are processed  
-- **Import All Processed**: runs the import loop until all processed jobs are imported
+### 1. Product Detail Page — Full Category Chain Breadcrumbs
 
-Each button runs its respective loop (reusing the existing `runScrapeLoop`, `runAiLoop`, `runInsertLoop` logic) independently, with its own stop capability.
+**Current**: `Home > Valves > 97801393` (hardcoded "Valves", no real category hierarchy)
 
-## Changes
+**Fix**: Fetch all categories, walk the `parent_id` chain from the product's `category_id` to root, then render:
+`Home > Solenoid Valves > General Service > Series 437 > 97801393`
 
-### `src/pages/admin/ProductImport.tsx`
+Each category segment is a clickable link to `/categories/{slug}`. Product code at the end is plain text.
 
-Add 3 new state trackers for which individual loop is running (`scraping`, `processing`, `importing`), then add 3 buttons next to "Start Full Pipeline":
+### 2. Brand Pages — Dedicated Route
 
-- **"Scrape All" button** (Globe icon) — visible when `counts.pending > 0` and pipeline is idle. Runs `runScrapeLoop()` standalone, shows count badge, stoppable.
-- **"Process All" button** (Cpu icon) — visible when `counts.scraped > 0` and pipeline is idle. Runs `runAiLoop()` standalone (without the initial 10s delay), stoppable.
-- **"Import All" button** (Database icon) — visible when `counts.processed > 0` and pipeline is idle. Runs `runInsertLoop()` standalone (without the initial 20s delay), stoppable.
+**Current**: Brand links go to `/search?q=PARKER` (generic search, no structure)
 
-Each button toggles between "Start" and "Stop" state. The `stopRef` is shared so stopping any individual loop or the full pipeline stops everything. The `isRunning` check prevents running multiple things simultaneously.
+**Proposed flow**: Click "PARKER" → `/brands/PARKER` → shows categories that contain Parker products, grouped by parent → click a leaf category → goes to `/categories/{slug}` showing products
 
-Refactor `runAiLoop` and `runInsertLoop` to accept an optional `skipDelay` parameter so they skip the initial wait when run standalone.
+This gives brand-specific browsing with proper hierarchy. The brand page queries products grouped by `category_id` where `brand = X`, then displays those categories as cards.
 
-### Button layout
+Breadcrumb on brand page: `Home > Brands > PARKER`
 
-```text
-[ Start Full Pipeline ]  [ Scrape All (13K) ]  [ Process All (5) ]  [ Import All (12) ]
-```
+## Files to Modify/Create
 
-Buttons are disabled when their queue is empty or another operation is running. Each shows the current count as a badge.
-
-## No other files change
-
-This is a UI-only change to `ProductImport.tsx`. The existing loop functions and edge functions stay the same.
+| File | Change |
+|------|--------|
+| `src/pages/ProductDetail.tsx` | Fetch categories, build parent chain from `category_id`, render full breadcrumb with product code at end |
+| `src/pages/BrandPage.tsx` | **New** — brand landing page showing categories containing that brand's products, grouped by parent |
+| `src/App.tsx` | Add `/brands/:brandName` route |
+| `src/components/shared/BrandsSidebar.tsx` | Change brand links from `/search?q=X` to `/brands/X` |
+| `src/components/shared/OurBrands.tsx` | Change brand links from `/search?q=X` to `/brands/X` |
 
