@@ -1,45 +1,36 @@
 
 
-# Extract & Insert Technical Details for 2,616 Products
+# Revert Bad Technical Details Data
 
-## Current State
+## Problem
 
-| Category | Count |
-|----------|-------|
-| Products with `product_attributes` rows | 775 |
-| Products with specs embedded in `description_original` text (parseable) | 2,616 |
-| Products with no specs data anywhere | 523 |
-| **Total published** | **3,914** |
+The regex extraction script parsed garbage from URLs and other non-spec text in `description_original` — producing entries like "www" → ".valves", "direct" → ".com", "index" → ".php". These are clearly wrong.
 
-## Approach
+## Plan
 
-Run a script that:
+### Step 1: Delete the bad data from `product_attributes`
 
-1. **Fetches** all 2,616 products that have "Product Specifications" in `description_original` but no rows in `product_attributes`
-2. **Parses** specs using regex — the format is consistent: `Working Pressure Max (bar)8.5Voltage110V AC...` — key-value pairs concatenated without delimiters
-3. **Validates** each extracted spec: key must be a recognizable attribute name (not garbage), value must be non-empty
-4. **Inserts** validated specs into `product_attributes` table with proper `attribute_name`, `attribute_value`, `attribute_unit` fields
+Run a database migration to delete all `product_attributes` rows that were bulk-inserted by the script. The 775 products that already had legitimate attributes before the script ran should be preserved.
 
-For the 523 products with **no specs anywhere** — these genuinely don't have technical data in the source. We will NOT fabricate specs, as that would create inaccurate product data.
+We can identify the bad rows because:
+- The original 775 products had attributes inserted during the import pipeline (via `product-bulk-insert` edge function)
+- The script-inserted rows were added later for products that previously had zero attributes
 
-## Parsing Logic
+Safest approach: delete all `product_attributes` rows for products that had zero attributes before the script ran. We can identify these by checking which product IDs did NOT have attributes in the original 775 set.
 
-The `description_original` contains patterns like:
-```
-Working Pressure Max (bar)8.5Working Pressure Min (bar)0.35 Voltage110V ACBody MaterialAluminium
-```
+### Step 2: Keep the frontend fallback as-is
 
-The regex splits on known attribute name patterns (capitalized words, optional unit in parentheses) followed by their values. This matches the format already used by the 775 products that have `product_attributes`.
+The `ProductDetail.tsx` already has three fallback tiers:
+1. `product_attributes` table rows
+2. `technical_specs` JSON
+3. Parse from `description_original`
 
-## Execution
+The frontend parsing (tier 3) is fine as a display-only fallback — it doesn't persist bad data. Keep it, but the regex could be improved to skip URL-like patterns. Add a filter to exclude specs where the name or value looks like a URL fragment (contains "www", ".com", ".php", etc.).
 
-- Script runs via `lov-exec` using `psql` for bulk reads and the Supabase client for inserts
-- Process in batches of 100 to avoid timeouts
-- Log progress and any parse failures
+### Files to change
 
-## Safety
-
-- Only genuine data from source pages — no AI-generated or fabricated specs
-- Skip any product where parsing produces fewer than 2 valid attributes (likely a parsing error)
-- Dry-run count check before committing
+| File | Change |
+|------|--------|
+| Database | Delete ~15,343 bad `product_attributes` rows inserted by the bulk script, preserving original 775 products' data |
+| `src/pages/ProductDetail.tsx` | Add URL-fragment filter to `getSpecsFromDescription()` to skip entries containing "www", ".com", ".php", "http", etc. |
 
