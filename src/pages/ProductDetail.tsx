@@ -49,6 +49,7 @@ const ProductDetail = () => {
   const { toast } = useToast();
   const [product, setProduct] = useState<Product | null>(null);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
+  const [categoryChain, setCategoryChain] = useState<{ name: string; slug: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const [formLoading, setFormLoading] = useState(false);
@@ -59,27 +60,48 @@ const ProductDetail = () => {
       if (!slug) return;
       setLoading(true);
 
-      const { data: prod } = await supabase.
-      from('products').
-      select('*').
-      eq('slug', slug).
-      eq('is_active', true).
-      single();
+      const { data: prod } = await supabase
+        .from('products')
+        .select('*')
+        .eq('slug', slug)
+        .eq('is_active', true)
+        .single();
 
       setProduct(prod);
 
       if (prod) {
-        const { data: attrs } = await supabase.
-        from('product_attributes').
-        select('*').
-        eq('product_id', prod.id);
+        const { data: attrs } = await supabase
+          .from('product_attributes')
+          .select('*')
+          .eq('product_id', prod.id);
         setAttributes(attrs || []);
+
+        // Build category chain
+        if (prod.category_id) {
+          const { data: allCats } = await supabase
+            .from('categories')
+            .select('id, slug, name_it, name_en, parent_id');
+          if (allCats) {
+            const catMap = new Map<string, CategoryInfo>();
+            allCats.forEach(c => catMap.set(c.id, c));
+            const chain: { name: string; slug: string }[] = [];
+            let current = catMap.get(prod.category_id);
+            while (current) {
+              chain.unshift({
+                name: lang === 'it' ? current.name_it : current.name_en,
+                slug: current.slug,
+              });
+              current = current.parent_id ? catMap.get(current.parent_id) : undefined;
+            }
+            setCategoryChain(chain);
+          }
+        }
       }
 
       setLoading(false);
     };
     fetchProduct();
-  }, [slug]);
+  }, [slug, lang]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
