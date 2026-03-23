@@ -23,6 +23,7 @@ type Product = {
   images: any;
   description_it: string | null;
   description_en: string | null;
+  description_original: string | null;
   technical_specs: any;
   category_id: string | null;
 };
@@ -147,6 +148,28 @@ const ProductDetail = () => {
       .map(([k, v]) => ({ name: k, value: String(v) }));
   };
 
+  // Parse specs from description_original as last-resort fallback
+  const getSpecsFromDescription = (): { name: string; value: string }[] => {
+    if (!product?.description_original) return [];
+    const text = product.description_original;
+    // Find "Product Specifications" section
+    const specIdx = text.indexOf('Product Specifications');
+    if (specIdx === -1) return [];
+    const specText = text.slice(specIdx + 'Product Specifications'.length);
+    // Pattern: key with letters/spaces/parens followed by a value (number or short text)
+    const regex = /([A-Za-z][A-Za-z\s()\/°µ.,-]+?)\s*([\d.]+[A-Za-z%°]*(?:\s*(?:to|~|-)\s*[\d.]+[A-Za-z%°]*)?|Yes|No|TRUE|FALSE|N\/A)/g;
+    const results: { name: string; value: string }[] = [];
+    let match;
+    while ((match = regex.exec(specText)) !== null) {
+      const name = match[1].trim();
+      const value = match[2].trim();
+      if (name.length > 2 && name.length < 80) {
+        results.push({ name, value });
+      }
+    }
+    return results;
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -173,7 +196,8 @@ const ProductDetail = () => {
   const productName = lang === 'it' ? product.name_it : product.name_en;
   const productDesc = lang === 'it' ? product.description_it : product.description_en;
   const productImage = getProductImage();
-  const specsFallback = attributes.length === 0 ? getTechnicalSpecsFromJson() : [];
+  const jsonSpecs = attributes.length === 0 ? getTechnicalSpecsFromJson() : [];
+  const specsFallback = jsonSpecs.length > 0 ? jsonSpecs : (attributes.length === 0 ? getSpecsFromDescription() : []);
 
   return (
     <>

@@ -187,7 +187,8 @@ TASKS:
 3. Generate an SEO meta title (max 60 chars) in both English and Italian. Include the product code if available.
 4. Generate an SEO meta description (max 160 chars) in both English and Italian.
 5. ${categoryInstruction}
-6. Generate a clean product code/SKU if not available.`;
+6. Generate a clean product code/SKU if not available.
+7. Extract ALL technical specifications as an array of {name, value, unit} objects. Parse them from the description text if needed.`;
 
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
@@ -220,8 +221,9 @@ TASKS:
                     category_id: { type: 'string', description: 'Best matching category UUID' },
                     product_code: { type: 'string', description: 'Product code/SKU' },
                     brand: { type: 'string', description: 'Brand name' },
+                    specifications: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, value: { type: 'string' }, unit: { type: 'string' } }, required: ['name', 'value'] }, description: 'Technical specifications extracted from the product data' },
                   },
-                  required: ['name_en', 'name_it', 'description_en', 'description_it', 'meta_title_en', 'meta_title_it', 'meta_description_en', 'meta_description_it'],
+                  required: ['name_en', 'name_it', 'description_en', 'description_it', 'meta_title_en', 'meta_title_it', 'meta_description_en', 'meta_description_it', 'specifications'],
                   additionalProperties: false
                 }
               }
@@ -278,7 +280,8 @@ TASKS:
 
         // Merge with raw data
         processedData.images = rawJson.images || [];
-        processedData.specifications = specs;
+        // Use AI-extracted specs if available, fall back to raw scraped specs
+        processedData.specifications = (processedData.specifications?.length ? processedData.specifications : specs) || [];
         processedData.source_url = job.source_url;
         processedData.description_original = originalDesc;
         // Brand validation and normalization
