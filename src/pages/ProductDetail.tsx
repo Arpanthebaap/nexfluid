@@ -23,6 +23,7 @@ type Product = {
   images: any;
   description_it: string | null;
   description_en: string | null;
+  description_original: string | null;
   technical_specs: any;
   category_id: string | null;
 };
