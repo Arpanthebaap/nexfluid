@@ -158,12 +158,13 @@ const ProductDetail = () => {
     const specText = text.slice(specIdx + 'Product Specifications'.length);
     // Pattern: key with letters/spaces/parens followed by a value (number or short text)
     const regex = /([A-Za-z][A-Za-z\s()\/°µ.,-]+?)\s*([\d.]+[A-Za-z%°]*(?:\s*(?:to|~|-)\s*[\d.]+[A-Za-z%°]*)?|Yes|No|TRUE|FALSE|N\/A)/g;
+    const urlPatterns = /www|\.com|\.php|\.html|\.asp|http|\/\/|\.co\.|\.org|\.net/i;
     const results: { name: string; value: string }[] = [];
     let match;
     while ((match = regex.exec(specText)) !== null) {
       const name = match[1].trim();
       const value = match[2].trim();
-      if (name.length > 2 && name.length < 80) {
+      if (name.length > 2 && name.length < 80 && !urlPatterns.test(name) && !urlPatterns.test(value)) {
         results.push({ name, value });
       }
     }
