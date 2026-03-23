@@ -34,6 +34,14 @@ type Attribute = {
   attribute_unit: string | null;
 };
 
+type CategoryInfo = {
+  id: string;
+  slug: string;
+  name_it: string;
+  name_en: string;
+  parent_id: string | null;
+};
+
 const ProductDetail = () => {
   const { i18n } = useTranslation();
   const lang = i18n.language as 'it' | 'en';
