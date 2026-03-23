@@ -231,7 +231,7 @@ const Categories = () => {
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl font-display uppercase">
+                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl font-display uppercase text-primary">
                   {title}
                 </h1>
                 {isLeaf && !loading &&
