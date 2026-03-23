@@ -267,7 +267,7 @@ const ProductDetail = () => {
                     <p className="text-sm text-muted-foreground">{product.brand} {product.product_code}</p>
                     <h1 className="text-xl font-bold font-display mt-1 text-primary">{productName}</h1>
 
-                    <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-3 py-1 text-xs font-medium">
+                    <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-green-600 text-white px-3 py-1 text-xs font-medium">
                       <CheckCircle className="h-3.5 w-3.5" />
                       {lang === 'it' ? 'DISPONIBILE' : 'AVAILABLE'}
                     </span>
