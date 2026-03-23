@@ -196,7 +196,8 @@ const ProductDetail = () => {
   const productName = lang === 'it' ? product.name_it : product.name_en;
   const productDesc = lang === 'it' ? product.description_it : product.description_en;
   const productImage = getProductImage();
-  const specsFallback = attributes.length === 0 ? getTechnicalSpecsFromJson() : [];
+  const jsonSpecs = attributes.length === 0 ? getTechnicalSpecsFromJson() : [];
+  const specsFallback = jsonSpecs.length > 0 ? jsonSpecs : (attributes.length === 0 ? getSpecsFromDescription() : []);
 
   return (
     <>

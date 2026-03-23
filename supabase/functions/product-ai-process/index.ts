@@ -221,8 +221,9 @@ TASKS:
                     category_id: { type: 'string', description: 'Best matching category UUID' },
                     product_code: { type: 'string', description: 'Product code/SKU' },
                     brand: { type: 'string', description: 'Brand name' },
+                    specifications: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, value: { type: 'string' }, unit: { type: 'string' } }, required: ['name', 'value'] }, description: 'Technical specifications extracted from the product data' },
                   },
-                  required: ['name_en', 'name_it', 'description_en', 'description_it', 'meta_title_en', 'meta_title_it', 'meta_description_en', 'meta_description_it'],
+                  required: ['name_en', 'name_it', 'description_en', 'description_it', 'meta_title_en', 'meta_title_it', 'meta_description_en', 'meta_description_it', 'specifications'],
                   additionalProperties: false
                 }
               }
