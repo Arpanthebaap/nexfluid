@@ -280,7 +280,8 @@ TASKS:
 
         // Merge with raw data
         processedData.images = rawJson.images || [];
-        processedData.specifications = specs;
+        // Use AI-extracted specs if available, fall back to raw scraped specs
+        processedData.specifications = (processedData.specifications?.length ? processedData.specifications : specs) || [];
         processedData.source_url = job.source_url;
         processedData.description_original = originalDesc;
         // Brand validation and normalization
