@@ -1,35 +1,37 @@
 
 
-# Fix Product Detail Breadcrumbs + Add Brand Pages
+# Product Detail Page — Match Figma Design
 
-## Two Changes
+## Changes to `src/pages/ProductDetail.tsx`
 
-### 1. Product Detail Page — Full Category Chain Breadcrumbs
+### Styling updates (keep card borders as requested):
 
-**Current**: `Home > Valves > 97801393` (hardcoded "Valves", no real category hierarchy)
+1. **Product image**: Show actual image from `images` JSON array (first URL) with fallback to Package icon. Currently always shows icon.
 
-**Fix**: Fetch all categories, walk the `parent_id` chain from the product's `category_id` to root, then render:
-`Home > Solenoid Valves > General Service > Series 437 > 97801393`
+2. **AVAILABLE badge**: Change from green to primary color (navy) background with white text — matching Figma design.
 
-Each category segment is a clickable link to `/categories/{slug}`. Product code at the end is plain text.
+3. **Quantity selector buttons**: Style with primary color for `+`/`-` buttons. "AMOUNT" label in primary color.
 
-### 2. Brand Pages — Dedicated Route
+4. **Product Description heading**: Add primary color and a small accent underline (border-bottom).
 
-**Current**: Brand links go to `/search?q=PARKER` (generic search, no structure)
+5. **Technical Details heading**: Same primary color + accent underline treatment.
 
-**Proposed flow**: Click "PARKER" → `/brands/PARKER` → shows categories that contain Parker products, grouped by parent → click a leaf category → goes to `/categories/{slug}` showing products
+6. **Technical details fallback**: When `product_attributes` is empty, display `technical_specs` JSON data if available. This recovers specs for products that have data in `technical_specs` but no rows in `product_attributes`.
 
-This gives brand-specific browsing with proper hierarchy. The brand page queries products grouped by `category_id` where `brand = X`, then displays those categories as cards.
+7. **Quote form labels**: Bold primary color for Name, Email, Shipping Country, Message, Attachment labels.
 
-Breadcrumb on brand page: `Home > Brands > PARKER`
+8. **Attachment helper text**: Add "Upload any document (photos, datasheet, requisition form) you would like us to reference."
 
-## Files to Modify/Create
+9. **Keep card borders** on both the product info card and quote form card as they are.
+
+### Image approach
+- Do NOT copy/paste images from source websites
+- Show images from the `images` field in the database if they exist (these are product images already stored)
+- If no image exists, show the Package placeholder icon (as now)
+
+## Single file change
 
 | File | Change |
 |------|--------|
-| `src/pages/ProductDetail.tsx` | Fetch categories, build parent chain from `category_id`, render full breadcrumb with product code at end |
-| `src/pages/BrandPage.tsx` | **New** — brand landing page showing categories containing that brand's products, grouped by parent |
-| `src/App.tsx` | Add `/brands/:brandName` route |
-| `src/components/shared/BrandsSidebar.tsx` | Change brand links from `/search?q=X` to `/brands/X` |
-| `src/components/shared/OurBrands.tsx` | Change brand links from `/search?q=X` to `/brands/X` |
+| `src/pages/ProductDetail.tsx` | Restyle badge, quantity, headings, labels, show product images, add technical_specs fallback |
 
