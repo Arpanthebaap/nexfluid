@@ -1,36 +1,49 @@
 
 
-# Revert Bad Technical Details Data
+# Fix Technical Details — Remove Garbage, Keep Only Valid Specs
 
 ## Problem
 
-The regex extraction script parsed garbage from URLs and other non-spec text in `description_original` — producing entries like "www" → ".valves", "direct" → ".com", "index" → ".php". These are clearly wrong.
+The `getSpecsFromDescription()` fallback parser doesn't know where specs end. It continues parsing past the actual specifications into download links (e.g., "pro.770742.pdf - 915.82KB"), country dropdown lists, and form fields — producing garbage entries.
 
-## Plan
+Example from the current product's `description_original`:
+```
+Product Specifications
+Ambient Temperature Max (DegC)150
+Ambient Temperature Min (DegC)0
+Working Pressure Max (bar)10
+***
+[Download Technical Specifications](https://www.valves-direct.com/...pro.770742.pdf...)
+***
+Enquire About This Product
+Full Name Email Delivery Country Afghanistan Albania ...
+```
 
-### Step 1: Delete the bad data from `product_attributes`
+The regex happily matches country names and PDF filenames as "specs."
 
-Run a database migration to delete all `product_attributes` rows that were bulk-inserted by the script. The 775 products that already had legitimate attributes before the script ran should be preserved.
+## Fix
 
-We can identify the bad rows because:
-- The original 775 products had attributes inserted during the import pipeline (via `product-bulk-insert` edge function)
-- The script-inserted rows were added later for products that previously had zero attributes
+Single file change to `src/pages/ProductDetail.tsx` — improve `getSpecsFromDescription()`:
 
-Safest approach: delete all `product_attributes` rows for products that had zero attributes before the script ran. We can identify these by checking which product IDs did NOT have attributes in the original 775 set.
+1. **Truncate parsing at known boundaries**: Stop reading at the first occurrence of any of these markers after "Product Specifications":
+   - `Download Technical` 
+   - `Enquire About`
+   - `Add to Cart`
+   - `***` (markdown horizontal rule)
+   - `[` (markdown link start)
 
-### Step 2: Keep the frontend fallback as-is
+2. **Add additional garbage filters**: Skip any parsed entry where:
+   - Name or value contains `.pdf`, `.KB`, `.MB`, country names pattern
+   - Name is a single common word like "Full", "Name", "Email", "Country"
+   - Value looks like a filename (contains file extensions)
 
-The `ProductDetail.tsx` already has three fallback tiers:
-1. `product_attributes` table rows
-2. `technical_specs` JSON
-3. Parse from `description_original`
+3. **Also filter `getTechnicalSpecsFromJson()`**: Skip entries where the key or value contains URL/file patterns (same urlPatterns filter), since `technical_specs` JSON could also contain garbage from the scraping pipeline.
 
-The frontend parsing (tier 3) is fine as a display-only fallback — it doesn't persist bad data. Keep it, but the regex could be improved to skip URL-like patterns. Add a filter to exclude specs where the name or value looks like a URL fragment (contains "www", ".com", ".php", etc.).
+This ensures only genuine technical specifications like "Working Pressure Max (bar) → 10" are displayed, and garbage from download links, forms, and navigation is excluded.
 
-### Files to change
+## File
 
 | File | Change |
 |------|--------|
-| Database | Delete ~15,343 bad `product_attributes` rows inserted by the bulk script, preserving original 775 products' data |
-| `src/pages/ProductDetail.tsx` | Add URL-fragment filter to `getSpecsFromDescription()` to skip entries containing "www", ".com", ".php", "http", etc. |
+| `src/pages/ProductDetail.tsx` | Improve both spec-parsing fallback functions with boundary detection and stricter filtering |
 
