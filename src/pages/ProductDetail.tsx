@@ -160,8 +160,12 @@ const ProductDetail = () => {
         {/* Breadcrumb */}
         <div className="mb-4 text-xs text-muted-foreground">
           <Link to="/" className="hover:text-primary">Home</Link>
-          <span className="mx-1">{'>'}</span>
-          <Link to="/categories" className="hover:text-primary">{lang === 'it' ? 'Valvole' : 'Valves'}</Link>
+          {categoryChain.map((cat) => (
+            <span key={cat.slug}>
+              <span className="mx-1">{'>'}</span>
+              <Link to={`/categories/${cat.slug}`} className="hover:text-primary">{cat.name}</Link>
+            </span>
+          ))}
           <span className="mx-1">{'>'}</span>
           <span>{product.product_code}</span>
         </div>

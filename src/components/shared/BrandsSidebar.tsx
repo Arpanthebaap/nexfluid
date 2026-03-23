@@ -44,7 +44,7 @@ const BrandsSidebar = () => {
           {brands.map(b => (
             <li key={b}>
               <Link
-                to={`/search?q=${b}`}
+                to={`/brands/${b}`}
                 className="text-sm text-primary hover:underline flex items-center gap-1.5"
               >
                 <span className="text-primary text-xs">{'>'}</span> {b}

@@ -20,7 +20,7 @@ const OurBrands = () => {
         {brandLogos.map((brand) => (
           <Link
             key={brand.name}
-            to={`/search?q=${brand.name}`}
+            to={`/brands/${brand.name}`}
             className="flex items-center justify-center rounded-lg border bg-card p-4 sm:p-6 md:p-8 h-28 sm:h-36 md:h-40 lg:h-44 hover:shadow-lg transition-shadow"
           >
             <img
