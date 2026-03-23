@@ -138,13 +138,18 @@ const ProductDetail = () => {
     return null;
   };
 
+  const garbagePattern = /www|\.com|\.php|\.html|\.asp|http|\/\/|\.co\.|\.org|\.net|\.pdf|\.KB|\.MB|\.jpg|\.png|\.gif/i;
+  const garbageNames = /^(full name|email|name|country|delivery country|add to cart|submit|send|phone|message|quantity|enquire|download)$/i;
+
   // Build technical specs from JSON fallback when no attributes
   const getTechnicalSpecsFromJson = (): { name: string; value: string }[] => {
     if (!product?.technical_specs) return [];
     const specs = product.technical_specs as Record<string, any>;
     if (typeof specs !== 'object' || Array.isArray(specs)) return [];
     return Object.entries(specs)
-      .filter(([, v]) => v !== null && v !== undefined && v !== '')
+      .filter(([k, v]) => v !== null && v !== undefined && v !== '')
+      .filter(([k, v]) => !garbagePattern.test(k) && !garbagePattern.test(String(v)))
+      .filter(([k]) => !garbageNames.test(k.trim()))
       .map(([k, v]) => ({ name: k, value: String(v) }));
   };
 
@@ -152,19 +157,30 @@ const ProductDetail = () => {
   const getSpecsFromDescription = (): { name: string; value: string }[] => {
     if (!product?.description_original) return [];
     const text = product.description_original;
-    // Find "Product Specifications" section
     const specIdx = text.indexOf('Product Specifications');
     if (specIdx === -1) return [];
-    const specText = text.slice(specIdx + 'Product Specifications'.length);
-    // Pattern: key with letters/spaces/parens followed by a value (number or short text)
+    let specText = text.slice(specIdx + 'Product Specifications'.length);
+    
+    // Truncate at known boundary markers
+    const boundaries = ['Download Technical', 'Enquire About', 'Add to Cart', '***', '['];
+    for (const boundary of boundaries) {
+      const bIdx = specText.indexOf(boundary);
+      if (bIdx !== -1) {
+        specText = specText.slice(0, bIdx);
+      }
+    }
+    
     const regex = /([A-Za-z][A-Za-z\s()\/°µ.,-]+?)\s*([\d.]+[A-Za-z%°]*(?:\s*(?:to|~|-)\s*[\d.]+[A-Za-z%°]*)?|Yes|No|TRUE|FALSE|N\/A)/g;
-    const urlPatterns = /www|\.com|\.php|\.html|\.asp|http|\/\/|\.co\.|\.org|\.net/i;
     const results: { name: string; value: string }[] = [];
     let match;
     while ((match = regex.exec(specText)) !== null) {
       const name = match[1].trim();
       const value = match[2].trim();
-      if (name.length > 2 && name.length < 80 && !urlPatterns.test(name) && !urlPatterns.test(value)) {
+      if (
+        name.length > 2 && name.length < 80 &&
+        !garbagePattern.test(name) && !garbagePattern.test(value) &&
+        !garbageNames.test(name)
+      ) {
         results.push({ name, value });
       }
     }
