@@ -76,7 +76,6 @@ const ProductDetail = () => {
           .eq('product_id', prod.id);
         setAttributes(attrs || []);
 
-        // Build category chain
         if (prod.category_id) {
           const { data: allCats } = await supabase
             .from('categories')
@@ -128,6 +127,26 @@ const ProductDetail = () => {
     }
   };
 
+  // Get first product image URL from images JSON
+  const getProductImage = (): string | null => {
+    if (!product?.images) return null;
+    const imgs = product.images as any;
+    if (Array.isArray(imgs) && imgs.length > 0) {
+      return typeof imgs[0] === 'string' ? imgs[0] : imgs[0]?.url || null;
+    }
+    return null;
+  };
+
+  // Build technical specs from JSON fallback when no attributes
+  const getTechnicalSpecsFromJson = (): { name: string; value: string }[] => {
+    if (!product?.technical_specs) return [];
+    const specs = product.technical_specs as Record<string, any>;
+    if (typeof specs !== 'object' || Array.isArray(specs)) return [];
+    return Object.entries(specs)
+      .filter(([, v]) => v !== null && v !== undefined && v !== '')
+      .map(([k, v]) => ({ name: k, value: String(v) }));
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -138,8 +157,8 @@ const ProductDetail = () => {
             <div className="h-96 animate-pulse bg-muted rounded-lg" />
           </div>
         </div>
-      </div>);
-
+      </div>
+    );
   }
 
   if (!product) {
@@ -147,12 +166,14 @@ const ProductDetail = () => {
       <div className="container mx-auto px-4 py-16 text-center">
         <Package className="mx-auto h-12 w-12 text-muted-foreground/50" />
         <p className="mt-4 text-muted-foreground">{lang === 'it' ? 'Prodotto non trovato.' : 'Product not found.'}</p>
-      </div>);
-
+      </div>
+    );
   }
 
   const productName = lang === 'it' ? product.name_it : product.name_en;
   const productDesc = lang === 'it' ? product.description_it : product.description_en;
+  const productImage = getProductImage();
+  const specsFallback = attributes.length === 0 ? getTechnicalSpecsFromJson() : [];
 
   return (
     <>
@@ -178,38 +199,64 @@ const ProductDetail = () => {
               {/* Left: Image + Details */}
               <div>
                 {/* Product image */}
-                <div className="aspect-square rounded-lg border bg-muted flex items-center justify-center mb-6">
-                  <Package className="h-20 w-20 text-muted-foreground/30" />
+                <div className="aspect-square rounded-lg border bg-muted flex items-center justify-center mb-6 overflow-hidden">
+                  {productImage ? (
+                    <img src={productImage} alt={productName} className="w-full h-full object-contain p-4" />
+                  ) : (
+                    <Package className="h-20 w-20 text-muted-foreground/30" />
+                  )}
                 </div>
 
                 {/* Product description */}
-                {productDesc &&
-                <div className="mt-6">
-                    <h2 className="text-lg font-bold font-display mb-3 text-primary">
+                {productDesc && (
+                  <div className="mt-6">
+                    <h2 className="text-lg font-bold font-display mb-1 text-primary">
                       {lang === 'it' ? 'Descrizione Prodotto' : 'Product Description'}
                     </h2>
+                    <div className="w-16 h-0.5 bg-primary mb-3" />
                     <p className="text-sm text-muted-foreground leading-relaxed">{productDesc}</p>
                   </div>
-                }
+                )}
 
-                {/* Technical details */}
-                {attributes.length > 0 &&
-                <div className="mt-6">
-                    <h2 className="text-lg font-bold font-display mb-3">
-                      {lang === 'it' ? 'Dettagli Tecnici' : 'Technical details'}
+                {/* Technical details from product_attributes */}
+                {attributes.length > 0 && (
+                  <div className="mt-6">
+                    <h2 className="text-lg font-bold font-display mb-1 text-primary">
+                      {lang === 'it' ? 'Dettagli Tecnici' : 'Technical Details'}
                     </h2>
+                    <div className="w-16 h-0.5 bg-primary mb-3" />
                     <table className="w-full text-sm">
                       <tbody>
-                        {attributes.map((attr) =>
-                      <tr key={attr.id} className="border-b">
+                        {attributes.map((attr) => (
+                          <tr key={attr.id} className="border-b">
                             <td className="py-2 text-muted-foreground">{attr.attribute_name}</td>
                             <td className="py-2 text-right font-medium">{attr.attribute_value}{attr.attribute_unit ? ` ${attr.attribute_unit}` : ''}</td>
                           </tr>
-                      )}
+                        ))}
                       </tbody>
                     </table>
                   </div>
-                }
+                )}
+
+                {/* Technical specs fallback from JSON */}
+                {specsFallback.length > 0 && (
+                  <div className="mt-6">
+                    <h2 className="text-lg font-bold font-display mb-1 text-primary">
+                      {lang === 'it' ? 'Dettagli Tecnici' : 'Technical Details'}
+                    </h2>
+                    <div className="w-16 h-0.5 bg-primary mb-3" />
+                    <table className="w-full text-sm">
+                      <tbody>
+                        {specsFallback.map((spec, i) => (
+                          <tr key={i} className="border-b">
+                            <td className="py-2 text-muted-foreground">{spec.name}</td>
+                            <td className="py-2 text-right font-medium">{spec.value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
               {/* Right: Product info + Quote form */}
@@ -220,18 +267,18 @@ const ProductDetail = () => {
                     <p className="text-sm text-muted-foreground">{product.brand} {product.product_code}</p>
                     <h1 className="text-xl font-bold font-display mt-1 text-primary">{productName}</h1>
 
-                    <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-green-100 text-green-700 px-3 py-1 text-xs font-medium">
+                    <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-3 py-1 text-xs font-medium">
                       <CheckCircle className="h-3.5 w-3.5" />
                       {lang === 'it' ? 'DISPONIBILE' : 'AVAILABLE'}
                     </span>
 
                     <div className="mt-4 flex items-center gap-3">
                       <div className="flex items-center border rounded">
-                        <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="px-3 py-1.5 text-sm hover:bg-muted">−</button>
+                        <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="px-3 py-1.5 text-sm font-bold text-primary hover:bg-muted">−</button>
                         <span className="px-4 py-1.5 text-sm font-medium border-x">{qty}</span>
-                        <button onClick={() => setQty((q) => q + 1)} className="px-3 py-1.5 text-sm hover:bg-muted">+</button>
+                        <button onClick={() => setQty((q) => q + 1)} className="px-3 py-1.5 text-sm font-bold text-primary hover:bg-muted">+</button>
                       </div>
-                      <span className="text-sm text-muted-foreground">AMOUNT</span>
+                      <span className="text-sm font-medium text-primary">AMOUNT</span>
                     </div>
 
                     <div className="mt-4 space-y-1 text-sm text-muted-foreground">
@@ -240,7 +287,7 @@ const ProductDetail = () => {
                       <p><span className="font-medium text-foreground">Shipping:</span> Express Courier</p>
                     </div>
 
-                    <Button className="mt-4 w-full bg-primary hover:bg-primary/90 uppercase font-bold tracking-wide">
+                    <Button className="mt-4 w-full uppercase font-bold tracking-wide">
                       Request a Quote
                     </Button>
                   </div>
@@ -248,15 +295,15 @@ const ProductDetail = () => {
                   {/* Quote form */}
                   <form onSubmit={handleSubmit} className="rounded-lg border bg-card p-6 space-y-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="pdp-name">Name</Label>
+                      <Label htmlFor="pdp-name" className="font-bold text-primary">Name</Label>
                       <Input id="pdp-name" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="pdp-email">Email</Label>
+                      <Label htmlFor="pdp-email" className="font-bold text-primary">Email</Label>
                       <Input id="pdp-email" type="email" required value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="pdp-country">Shipping Country</Label>
+                      <Label htmlFor="pdp-country" className="font-bold text-primary">Shipping Country</Label>
                       <Select value={form.country} onValueChange={(v) => setForm((f) => ({ ...f, country: v }))}>
                         <SelectTrigger id="pdp-country">
                           <SelectValue placeholder="Select country" />
@@ -272,14 +319,15 @@ const ProductDetail = () => {
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="pdp-message">Message</Label>
+                      <Label htmlFor="pdp-message" className="font-bold text-primary">Message</Label>
                       <Textarea id="pdp-message" rows={3} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Attachment</Label>
+                      <Label className="font-bold text-primary">Attachment</Label>
                       <Input type="file" className="text-sm" />
+                      <p className="text-xs text-muted-foreground">Upload any document (photos, datasheet, requisition form) you would like us to reference.</p>
                     </div>
-                    <Button type="submit" disabled={formLoading} className="w-full bg-primary hover:bg-primary/90 uppercase font-bold tracking-wide gap-2">
+                    <Button type="submit" disabled={formLoading} className="w-full uppercase font-bold tracking-wide gap-2">
                       <Send className="h-4 w-4" />
                       {formLoading ? '...' : 'Send'}
                     </Button>
@@ -293,8 +341,8 @@ const ProductDetail = () => {
 
       <SpeakWithUs />
       <ShippingSecurity />
-    </>);
-
+    </>
+  );
 };
 
 export default ProductDetail;
