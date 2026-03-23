@@ -13,6 +13,7 @@ import About from "./pages/About";
 import Categories from "./pages/Categories";
 import ProductListing from "./pages/ProductListing";
 import ProductDetail from "./pages/ProductDetail";
+import BrandPage from "./pages/BrandPage";
 import SearchResults from "./pages/SearchResults";
 import NotFound from "./pages/NotFound";
 
