@@ -1,37 +1,32 @@
 
 
-# Product Detail Page — Match Figma Design
+# Fix Missing Technical Details
 
-## Changes to `src/pages/ProductDetail.tsx`
+## Root Cause
 
-### Styling updates (keep card borders as requested):
+The product data confirms the issue. For this product (and likely most others):
+- `product_attributes` table: empty (no rows)
+- `technical_specs` JSON: `{}` (empty object)
+- BUT `description_original` contains the specs inline: `"Ambient Temperature Max (DegC)90Ambient Temperature Min (DegC)-30Working Pressure Max (bar)8..."`
 
-1. **Product image**: Show actual image from `images` JSON array (first URL) with fallback to Package icon. Currently always shows icon.
+The scraping pipeline extracts raw markdown but doesn't parse specs into structured data. The AI process step passes through `rawJson.specifications` which is also empty. So specs exist in the raw text but never get structured.
 
-2. **AVAILABLE badge**: Change from green to primary color (navy) background with white text — matching Figma design.
+## Fix: Two-Part Approach
 
-3. **Quantity selector buttons**: Style with primary color for `+`/`-` buttons. "AMOUNT" label in primary color.
+### Part 1: Frontend — Parse specs from `description_original` (immediate fix)
 
-4. **Product Description heading**: Add primary color and a small accent underline (border-bottom).
+In `src/pages/ProductDetail.tsx`, add a third fallback: when both `product_attributes` and `technical_specs` are empty, parse the "Product Specifications" section from `description_original`. The pattern is consistent — key-value pairs like `"Ambient Temperature Max (DegC)90"`.
 
-5. **Technical Details heading**: Same primary color + accent underline treatment.
+Parsing logic: find the text after "Product Specifications", then use regex to extract pairs where the key contains words/parens and the value is a number or short text.
 
-6. **Technical details fallback**: When `product_attributes` is empty, display `technical_specs` JSON data if available. This recovers specs for products that have data in `technical_specs` but no rows in `product_attributes`.
+### Part 2: AI Pipeline — Extract specs during processing (future products)
 
-7. **Quote form labels**: Bold primary color for Name, Email, Shipping Country, Message, Attachment labels.
+In `supabase/functions/product-ai-process/index.ts`, add a `specifications` field to the AI tool schema so the AI extracts structured specs from the raw content. This ensures future products get proper `specifications` arrays that flow into `product_attributes` during import.
 
-8. **Attachment helper text**: Add "Upload any document (photos, datasheet, requisition form) you would like us to reference."
-
-9. **Keep card borders** on both the product info card and quote form card as they are.
-
-### Image approach
-- Do NOT copy/paste images from source websites
-- Show images from the `images` field in the database if they exist (these are product images already stored)
-- If no image exists, show the Package placeholder icon (as now)
-
-## Single file change
+## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/pages/ProductDetail.tsx` | Restyle badge, quantity, headings, labels, show product images, add technical_specs fallback |
+| `src/pages/ProductDetail.tsx` | Add `description_original` spec parsing as third fallback when both `product_attributes` and `technical_specs` are empty |
+| `supabase/functions/product-ai-process/index.ts` | Add `specifications` array to AI tool schema so specs get extracted for future products |
 
