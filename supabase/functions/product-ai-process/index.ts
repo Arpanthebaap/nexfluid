@@ -187,7 +187,8 @@ TASKS:
 3. Generate an SEO meta title (max 60 chars) in both English and Italian. Include the product code if available.
 4. Generate an SEO meta description (max 160 chars) in both English and Italian.
 5. ${categoryInstruction}
-6. Generate a clean product code/SKU if not available.`;
+6. Generate a clean product code/SKU if not available.
+7. Extract ALL technical specifications as an array of {name, value, unit} objects. Parse them from the description text if needed.`;
 
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
