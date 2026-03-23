@@ -151,7 +151,7 @@ const ProductDetail = () => {
                 {/* Product description */}
                 {productDesc &&
                 <div className="mt-6">
-                    <h2 className="text-lg font-bold font-display mb-3">
+                    <h2 className="text-lg font-bold font-display mb-3 text-primary">
                       {lang === 'it' ? 'Descrizione Prodotto' : 'Product Description'}
                     </h2>
                     <p className="text-sm text-muted-foreground leading-relaxed">{productDesc}</p>
