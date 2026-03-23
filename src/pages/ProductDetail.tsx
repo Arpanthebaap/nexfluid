@@ -51,20 +51,20 @@ const ProductDetail = () => {
       if (!slug) return;
       setLoading(true);
 
-      const { data: prod } = await supabase
-        .from('products')
-        .select('*')
-        .eq('slug', slug)
-        .eq('is_active', true)
-        .single();
+      const { data: prod } = await supabase.
+      from('products').
+      select('*').
+      eq('slug', slug).
+      eq('is_active', true).
+      single();
 
       setProduct(prod);
 
       if (prod) {
-        const { data: attrs } = await supabase
-          .from('product_attributes')
-          .select('*')
-          .eq('product_id', prod.id);
+        const { data: attrs } = await supabase.
+        from('product_attributes').
+        select('*').
+        eq('product_id', prod.id);
         setAttributes(attrs || []);
       }
 
@@ -86,7 +86,7 @@ const ProductDetail = () => {
         product_id: product.id,
         product_code: product.product_code,
         product_name: lang === 'it' ? product.name_it : product.name_en,
-        language: lang,
+        language: lang
       });
       if (error) throw error;
       toast({ title: lang === 'it' ? 'Richiesta inviata!' : 'Request sent!', description: lang === 'it' ? 'Ti contatteremo presto.' : 'We will contact you soon.' });
@@ -108,8 +108,8 @@ const ProductDetail = () => {
             <div className="h-96 animate-pulse bg-muted rounded-lg" />
           </div>
         </div>
-      </div>
-    );
+      </div>);
+
   }
 
   if (!product) {
@@ -117,8 +117,8 @@ const ProductDetail = () => {
       <div className="container mx-auto px-4 py-16 text-center">
         <Package className="mx-auto h-12 w-12 text-muted-foreground/50" />
         <p className="mt-4 text-muted-foreground">{lang === 'it' ? 'Prodotto non trovato.' : 'Product not found.'}</p>
-      </div>
-    );
+      </div>);
+
   }
 
   const productName = lang === 'it' ? product.name_it : product.name_en;
@@ -149,33 +149,33 @@ const ProductDetail = () => {
                 </div>
 
                 {/* Product description */}
-                {productDesc && (
-                  <div className="mt-6">
+                {productDesc &&
+                <div className="mt-6">
                     <h2 className="text-lg font-bold font-display mb-3">
                       {lang === 'it' ? 'Descrizione Prodotto' : 'Product Description'}
                     </h2>
                     <p className="text-sm text-muted-foreground leading-relaxed">{productDesc}</p>
                   </div>
-                )}
+                }
 
                 {/* Technical details */}
-                {attributes.length > 0 && (
-                  <div className="mt-6">
+                {attributes.length > 0 &&
+                <div className="mt-6">
                     <h2 className="text-lg font-bold font-display mb-3">
                       {lang === 'it' ? 'Dettagli Tecnici' : 'Technical details'}
                     </h2>
                     <table className="w-full text-sm">
                       <tbody>
-                        {attributes.map((attr) => (
-                          <tr key={attr.id} className="border-b">
+                        {attributes.map((attr) =>
+                      <tr key={attr.id} className="border-b">
                             <td className="py-2 text-muted-foreground">{attr.attribute_name}</td>
                             <td className="py-2 text-right font-medium">{attr.attribute_value}{attr.attribute_unit ? ` ${attr.attribute_unit}` : ''}</td>
                           </tr>
-                        ))}
+                      )}
                       </tbody>
                     </table>
                   </div>
-                )}
+                }
               </div>
 
               {/* Right: Product info + Quote form */}
@@ -184,7 +184,7 @@ const ProductDetail = () => {
                   {/* Product info card */}
                   <div className="rounded-lg border bg-card p-6 mb-6">
                     <p className="text-sm text-muted-foreground">{product.brand} {product.product_code}</p>
-                    <h1 className="text-xl font-bold font-display mt-1">{productName}</h1>
+                    <h1 className="text-xl font-bold font-display mt-1 text-primary">{productName}</h1>
 
                     <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-green-100 text-green-700 px-3 py-1 text-xs font-medium">
                       <CheckCircle className="h-3.5 w-3.5" />
@@ -193,9 +193,9 @@ const ProductDetail = () => {
 
                     <div className="mt-4 flex items-center gap-3">
                       <div className="flex items-center border rounded">
-                        <button onClick={() => setQty(q => Math.max(1, q - 1))} className="px-3 py-1.5 text-sm hover:bg-muted">−</button>
+                        <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="px-3 py-1.5 text-sm hover:bg-muted">−</button>
                         <span className="px-4 py-1.5 text-sm font-medium border-x">{qty}</span>
-                        <button onClick={() => setQty(q => q + 1)} className="px-3 py-1.5 text-sm hover:bg-muted">+</button>
+                        <button onClick={() => setQty((q) => q + 1)} className="px-3 py-1.5 text-sm hover:bg-muted">+</button>
                       </div>
                       <span className="text-sm text-muted-foreground">AMOUNT</span>
                     </div>
@@ -215,15 +215,15 @@ const ProductDetail = () => {
                   <form onSubmit={handleSubmit} className="rounded-lg border bg-card p-6 space-y-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="pdp-name">Name</Label>
-                      <Input id="pdp-name" required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                      <Input id="pdp-name" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="pdp-email">Email</Label>
-                      <Input id="pdp-email" type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+                      <Input id="pdp-email" type="email" required value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="pdp-country">Shipping Country</Label>
-                      <Select value={form.country} onValueChange={v => setForm(f => ({ ...f, country: v }))}>
+                      <Select value={form.country} onValueChange={(v) => setForm((f) => ({ ...f, country: v }))}>
                         <SelectTrigger id="pdp-country">
                           <SelectValue placeholder="Select country" />
                         </SelectTrigger>
@@ -239,7 +239,7 @@ const ProductDetail = () => {
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="pdp-message">Message</Label>
-                      <Textarea id="pdp-message" rows={3} value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} />
+                      <Textarea id="pdp-message" rows={3} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
                       <Label>Attachment</Label>
@@ -259,8 +259,8 @@ const ProductDetail = () => {
 
       <SpeakWithUs />
       <ShippingSecurity />
-    </>
-  );
+    </>);
+
 };
 
 export default ProductDetail;
