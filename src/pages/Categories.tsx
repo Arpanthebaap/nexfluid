@@ -348,7 +348,7 @@ const Categories = () => {
                             <Button
                           asChild
                           size="sm"
-                          className="bg-nexfluid-navy hover:bg-nexfluid-navy/90 text-primary-foreground uppercase text-xs font-bold tracking-wider px-4">
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground uppercase text-xs font-bold tracking-wider px-4">
                           
                               <Link to={`/contact?product=${product.product_code}&qty=${qty}`}>
                                 {lang === 'it' ? 'Richiedi Preventivo' : 'Request a Quote'}
