@@ -19,10 +19,10 @@ async function sendSmtpEmail(
   textBody: string,
   htmlBody: string
 ): Promise<void> {
+  // Connect to the shellrent hostname so TLS cert validates (cert CN = *.shellrent.com)
   const conn = await Deno.connectTls({
-    hostname: SMTP_IP,
+    hostname: SMTP_TLS_HOSTNAME,
     port,
-    // SNI hostname must match the certificate CN
   });
 
   const encoder = new TextEncoder();
