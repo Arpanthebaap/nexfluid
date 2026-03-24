@@ -16,7 +16,6 @@ Deno.serve(async (req) => {
     const { name, email, company, phone, product_code, product_name, message, language } = await req.json();
 
     console.log("📧 Quote request:", { name, email, product_code, product_name });
-    console.log("SMTP config:", { host: Deno.env.get("SMTP_HOST"), user: Deno.env.get("SMTP_USERNAME"), hasPass: !!Deno.env.get("SMTP_PASSWORD"), passLen: Deno.env.get("SMTP_PASSWORD")?.length });
 
     const smtpHost = Deno.env.get("SMTP_HOST") || "smtp.nexfluid.it";
     const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "465");
