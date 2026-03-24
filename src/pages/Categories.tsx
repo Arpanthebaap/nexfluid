@@ -247,8 +247,23 @@ const Categories = () => {
     return pages;
   };
 
+  const handleFilterChange = (filters: Record<string, string[]>) => {
+    setActiveFilters(filters);
+    setPage(0);
+  };
+
+  const metaTitle = currentCategory
+    ? `${catName(currentCategory)} | Nexfluid`
+    : (lang === 'it' ? 'Categorie Prodotti | Nexfluid' : 'Product Categories | Nexfluid');
+
   return (
     <>
+      <Helmet>
+        <title>{metaTitle}</title>
+        {currentCategory && (
+          <meta name="description" content={catDesc(currentCategory) || `${catName(currentCategory)} — ${lang === 'it' ? 'Prodotti industriali su Nexfluid' : 'Industrial products at Nexfluid'}`} />
+        )}
+      </Helmet>
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumbs */}
         <nav className="mb-4 flex items-center gap-1 text-xs text-muted-foreground overflow-x-auto">
@@ -260,7 +275,6 @@ const Categories = () => {
             <Link to={`/categories/${bc.slug}`} className="hover:text-primary">
                   {catName(bc)}
                 </Link> :
-
             <span className="text-foreground font-medium">{catName(bc)}</span>
             }
             </span>
@@ -274,7 +288,15 @@ const Categories = () => {
         </nav>
 
         <div className="flex gap-8">
-          <BrandsSidebar />
+          {isLeaf && currentCategory ? (
+            <CategoryFilters
+              categoryId={currentCategory.id}
+              selectedFilters={activeFilters}
+              onFilterChange={handleFilterChange}
+            />
+          ) : (
+            <BrandsSidebar />
+          )}
 
           <div className="flex-1 min-w-0">
             {/* Header */}
