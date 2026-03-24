@@ -8,6 +8,10 @@ import { supabase } from '@/integrations/supabase/client';
 import BrandsSidebar from '@/components/shared/BrandsSidebar';
 import SpeakWithUs from '@/components/shared/SpeakWithUs';
 import ShippingSecurity from '@/components/shared/ShippingSecurity';
+import ProductPlaceholder from '@/components/shared/ProductPlaceholder';
+import {
+  Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage
+} from '@/components/ui/breadcrumb';
 
 type Product = {
   id: string;
@@ -92,14 +96,21 @@ const ProductListing = () => {
   return (
     <>
       <div className="container mx-auto px-4 py-8">
-        {/* Breadcrumb */}
-        <div className="mb-2 text-xs text-muted-foreground">
-          <Link to="/" className="hover:text-primary">Home</Link>
-          <span className="mx-1">{'>'}</span>
-          <Link to="/categories" className="hover:text-primary">{lang === 'it' ? 'Valvole' : 'Valves'}</Link>
-          <span className="mx-1">{'>'}</span>
-          <span>{categoryName}</span>
-        </div>
+        <Breadcrumb className="mb-2">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild><Link to="/">Home</Link></BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbLink asChild><Link to="/categories">{lang === 'it' ? 'Categorie' : 'Categories'}</Link></BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbPage>{categoryName}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
         <div className="flex gap-8">
           <BrandsSidebar />
@@ -154,8 +165,8 @@ const ProductListing = () => {
                       >
                         {/* Product image */}
                         <Link to={`/products/${product.slug}`} className="shrink-0">
-                          <div className="h-24 w-24 rounded bg-muted flex items-center justify-center">
-                            <Package className="h-8 w-8 text-muted-foreground/40" />
+                          <div className="h-24 w-24 rounded bg-muted flex items-center justify-center overflow-hidden">
+                            <ProductPlaceholder size="sm" productCode={product.product_code} brand={product.brand} />
                           </div>
                         </Link>
 
