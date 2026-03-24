@@ -13,7 +13,7 @@ const Footer = () => {
           {/* Brand + Contact */}
           <div className="space-y-4">
             <div>
-              <img src="/lovable-uploads/3b276182-22a5-49bb-852f-bf18412ca038.png" alt="Nexfluid - Automation in Stock" className="h-10 w-auto" />
+              <img src="/lovable-uploads/5d7c37b3-80df-4e68-9231-7f227b905709.png" alt="Nexfluid - Automation in Stock" className="h-10 w-auto" />
             </div>
             <div className="space-y-2 text-sm text-primary-foreground/60">
               <a href="tel:+390498016529" className="flex items-center gap-2 hover:text-primary-foreground transition-colors">
