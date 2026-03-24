@@ -105,13 +105,7 @@ const Index = () => {
                 topCategories.map((parent, idx) => {
                   const children = getChildren(parent.id);
                   return (
-                    <motion.div
-                      key={parent.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: idx * 0.08 }}
-                    >
+                    <div key={parent.id}>
                       <div className="flex items-center gap-3 mb-4">
                         <h2 className="text-lg font-bold sm:text-xl font-display uppercase tracking-tight text-foreground">
                           {catName(parent)}
