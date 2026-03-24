@@ -52,7 +52,7 @@ const Categories = () => {
   const [sortBy, setSortBy] = useState('relevance');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [productsLoading, setProductsLoading] = useState(false);
-
+  const [activeFilters, setActiveFilters] = useState<Record<string, string[]>>({});
   // Build breadcrumb hierarchy
   const buildBreadcrumbs = async (cat: Category) => {
     const chain: Category[] = [];
