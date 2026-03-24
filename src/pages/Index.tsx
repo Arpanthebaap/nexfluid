@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Truck, ShieldCheck, Headphones } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import OurBrands from '@/components/shared/OurBrands';
 import SpeakWithUs from '@/components/shared/SpeakWithUs';
 import ShippingSecurity from '@/components/shared/ShippingSecurity';
 import BrandsSidebar from '@/components/shared/BrandsSidebar';
+import SearchAutocomplete from '@/components/shared/SearchAutocomplete';
 
 type Category = {
   id: string;
@@ -28,7 +30,6 @@ const Index = () => {
 
   useEffect(() => {
     const fetchCategories = async () => {
-      // Fetch all active categories (top-level + level-1)
       const { data } = await supabase
         .from('categories')
         .select('*')
@@ -46,14 +47,69 @@ const Index = () => {
   const topCategories = categories.filter(c => !c.parent_id);
   const getChildren = (parentId: string) => categories.filter(c => c.parent_id === parentId);
 
+  const trustItems = [
+    { icon: Truck, label: lang === 'it' ? 'Spedizione Express' : 'Express Shipping' },
+    { icon: ShieldCheck, label: lang === 'it' ? 'Prodotti Originali' : 'Original Parts' },
+    { icon: Headphones, label: lang === 'it' ? 'Supporto Tecnico' : 'Technical Support' },
+  ];
+
   return (
     <>
+      <Helmet>
+        <title>{lang === 'it' ? 'Nexfluid — Automazione in Stock' : 'Nexfluid — Automation in Stock'}</title>
+        <meta name="description" content={lang === 'it'
+          ? 'Oltre 85.000 componenti industriali: valvole, pneumatica, idraulica, automazione. Preventivi rapidi, ricambi originali, spedizione express in Italia e UE.'
+          : '85,000+ industrial components: valves, pneumatics, hydraulics, automation. Fast quotes, original parts, express shipping across Italy and EU.'
+        } />
+        <link rel="canonical" href="https://nexfluid.it" />
+        <link rel="alternate" hrefLang="it" href="https://nexfluid.it" />
+        <link rel="alternate" hrefLang="en" href="https://nexfluid.it" />
+      </Helmet>
+
+      {/* Hero Section */}
+      <section className="relative overflow-hidden" style={{ background: 'var(--gradient-hero)' }}>
+        <div className="container mx-auto px-4 py-14 md:py-20">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mx-auto max-w-2xl text-center"
+          >
+            <h1 className="text-3xl font-bold sm:text-4xl md:text-5xl font-display uppercase tracking-tight text-white leading-tight">
+              {lang === 'it' ? 'Automazione in Stock' : 'Automation in Stock'}
+            </h1>
+            <p className="mt-3 text-base sm:text-lg text-white/80">
+              {lang === 'it'
+                ? '85.000+ componenti industriali — Valvole, Pneumatica, Idraulica'
+                : '85,000+ Industrial Components — Valves, Pneumatics, Hydraulics'}
+            </p>
+
+            <div className="mt-6 mx-auto max-w-xl">
+              <SearchAutocomplete
+                className="w-full"
+                inputClassName="h-12 text-base rounded-md shadow-lg"
+                placeholder={lang === 'it' ? 'Cerca per codice, modello o keyword...' : 'Search by code, model or keyword...'}
+              />
+            </div>
+
+            {/* Trust badges */}
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
+              {trustItems.map((item, i) => (
+                <div key={i} className="flex items-center gap-2 text-white/90">
+                  <item.icon className="h-4 w-4" />
+                  <span className="text-xs font-medium">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
       <div className="container mx-auto px-4 py-6">
         <div className="flex gap-8">
           <BrandsSidebar />
 
           <div className="flex-1 min-w-0">
-            {/* Our Brands */}
             <OurBrands />
 
             {/* Category Sections */}
@@ -85,7 +141,6 @@ const Index = () => {
                       viewport={{ once: true }}
                       transition={{ delay: idx * 0.08 }}
                     >
-                      {/* Section Header */}
                       <div className="flex items-center gap-3 mb-4">
                         <h2 className="text-lg font-bold sm:text-xl font-display uppercase tracking-tight text-foreground">
                           {catName(parent)}
@@ -99,9 +154,7 @@ const Index = () => {
                         </Link>
                       </div>
 
-                      {/* Hero image + sub-category grid */}
                       <div className="flex gap-5">
-                        {/* Hero image — desktop only */}
                         {parent.image_url && (
                           <Link
                             to={`/categories/${parent.slug}`}
@@ -111,11 +164,11 @@ const Index = () => {
                               src={parent.image_url}
                               alt={catName(parent)}
                               className="w-full h-full object-cover aspect-[4/3]"
+                              loading="lazy"
                             />
                           </Link>
                         )}
 
-                        {/* Sub-category grid */}
                         <div className="flex-1 min-w-0">
                           {children.length > 0 ? (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -130,6 +183,7 @@ const Index = () => {
                                       src={child.image_url}
                                       alt={catName(child)}
                                       className="w-10 h-10 rounded object-cover shrink-0"
+                                      loading="lazy"
                                     />
                                   )}
                                   <span className="text-xs sm:text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">

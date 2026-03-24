@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import { CheckCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,8 @@ type Product = {
   description_original: string | null;
   technical_specs: any;
   category_id: string | null;
+  meta_description_it: string | null;
+  meta_description_en: string | null;
 };
 
 type Attribute = {
@@ -266,14 +269,19 @@ const ProductDetail = () => {
     ],
   };
 
-  return (
+    return (
     <>
       {/* Structured data */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrg) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
 
-      {/* SEO meta tags */}
-      <title>{`${product.product_code} ${product.brand || ''} - ${productName} | Nexfluid`}</title>
+      <Helmet>
+        <title>{`${product.product_code} ${product.brand || ''} — ${productName} | Nexfluid`}</title>
+        <meta name="description" content={
+          (lang === 'it' ? product.meta_description_it : product.meta_description_en)
+          || `${product.product_code} ${product.brand || ''} — ${productName}. ${lang === 'it' ? 'Disponibile su Nexfluid.' : 'Available at Nexfluid.'}`
+        } />
+      </Helmet>
 
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}

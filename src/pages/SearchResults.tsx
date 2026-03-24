@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import { Search, Package } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -41,10 +42,14 @@ const SearchResults = () => {
     search();
   }, [query]);
 
-  return (
+    return (
     <div className="py-12 md:py-16">
+      <Helmet>
+        <title>{`"${query}" — ${lang === 'it' ? 'Risultati ricerca' : 'Search results'} | Nexfluid`}</title>
+        <meta name="robots" content="noindex" />
+      </Helmet>
       <div className="container mx-auto px-4">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl font-['Space_Grotesk']">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl font-display uppercase text-primary">
           {t('search.results')}: "{query}"
         </h1>
 

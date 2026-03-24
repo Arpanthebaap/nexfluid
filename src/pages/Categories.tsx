@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { ArrowRight, FolderOpen, Package, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import BrandsSidebar from '@/components/shared/BrandsSidebar';
+import CategoryFilters from '@/components/shared/CategoryFilters';
 import SpeakWithUs from '@/components/shared/SpeakWithUs';
 import ShippingSecurity from '@/components/shared/ShippingSecurity';
 
@@ -50,7 +52,7 @@ const Categories = () => {
   const [sortBy, setSortBy] = useState('relevance');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [productsLoading, setProductsLoading] = useState(false);
-
+  const [activeFilters, setActiveFilters] = useState<Record<string, string[]>>({});
   // Build breadcrumb hierarchy
   const buildBreadcrumbs = async (cat: Category) => {
     const chain: Category[] = [];
@@ -72,30 +74,76 @@ const Categories = () => {
     setBreadcrumbs(chain);
   };
 
-  // Fetch products for leaf category
-  const fetchProducts = async (categoryId: string) => {
+  // Fetch products for leaf category (with filter support)
+  const fetchProducts = async (categoryId: string, filters: Record<string, string[]> = {}) => {
     setProductsLoading(true);
 
-    const { count } = await supabase.
-    from('products').
-    select('id', { count: 'exact', head: true }).
-    eq('category_id', categoryId).
-    eq('is_active', true).
-    eq('status', 'published');
+    // If filters active, first get matching product IDs from product_attributes
+    let filteredProductIds: string[] | null = null;
+    const filterEntries = Object.entries(filters);
 
+    if (filterEntries.length > 0) {
+      // Get products in this category first
+      const { data: catProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('category_id', categoryId)
+        .eq('is_active', true)
+        .eq('status', 'published');
+
+      const allIds = (catProducts || []).map(p => p.id);
+      if (allIds.length === 0) {
+        setTotalCount(0);
+        setProducts([]);
+        setProductsLoading(false);
+        return;
+      }
+
+      // For each filter, get matching product IDs and intersect
+      let matchingIds = new Set(allIds);
+      for (const [attrName, values] of filterEntries) {
+        const { data: attrs } = await supabase
+          .from('product_attributes')
+          .select('product_id')
+          .in('product_id', Array.from(matchingIds))
+          .eq('attribute_name', attrName)
+          .in('attribute_value', values);
+        const attrIds = new Set((attrs || []).map(a => a.product_id));
+        matchingIds = new Set([...matchingIds].filter(id => attrIds.has(id)));
+      }
+      filteredProductIds = Array.from(matchingIds);
+      if (filteredProductIds.length === 0) {
+        setTotalCount(0);
+        setProducts([]);
+        setProductsLoading(false);
+        return;
+      }
+    }
+
+    // Count query
+    let countQuery = supabase
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('category_id', categoryId)
+      .eq('is_active', true)
+      .eq('status', 'published');
+    if (filteredProductIds) countQuery = countQuery.in('id', filteredProductIds);
+    const { count } = await countQuery;
     setTotalCount(count || 0);
 
-    let query = supabase.
-    from('products').
-    select('id, product_code, name_it, name_en, slug, brand, images').
-    eq('category_id', categoryId).
-    eq('is_active', true).
-    eq('status', 'published').
-    range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    // Data query
+    let query = supabase
+      .from('products')
+      .select('id, product_code, name_it, name_en, slug, brand, images')
+      .eq('category_id', categoryId)
+      .eq('is_active', true)
+      .eq('status', 'published')
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    if (filteredProductIds) query = query.in('id', filteredProductIds);
 
-    if (sortBy === 'name') query = query.order('name_en');else
-    if (sortBy === 'code') query = query.order('product_code');else
-    query = query.order('created_at', { ascending: false });
+    if (sortBy === 'name') query = query.order('name_en');
+    else if (sortBy === 'code') query = query.order('product_code');
+    else query = query.order('created_at', { ascending: false });
 
     const { data } = await query;
     setProducts(data || []);
@@ -108,6 +156,7 @@ const Categories = () => {
       setIsLeaf(false);
       setProducts([]);
       setPage(0);
+      setActiveFilters({});
 
       if (slug) {
         const { data: cat } = await supabase.
@@ -154,12 +203,12 @@ const Categories = () => {
     fetchData();
   }, [slug]);
 
-  // Re-fetch products when page or sort changes (only for leaf categories)
+  // Re-fetch products when page, sort, or filters change
   useEffect(() => {
     if (isLeaf && currentCategory) {
-      fetchProducts(currentCategory.id);
+      fetchProducts(currentCategory.id, activeFilters);
     }
-  }, [page, sortBy]);
+  }, [page, sortBy, activeFilters]);
 
   const catName = (cat: Category) => lang === 'it' ? cat.name_it : cat.name_en;
   const catDesc = (cat: Category) => lang === 'it' ? cat.description_it : cat.description_en;
@@ -198,8 +247,23 @@ const Categories = () => {
     return pages;
   };
 
+  const handleFilterChange = (filters: Record<string, string[]>) => {
+    setActiveFilters(filters);
+    setPage(0);
+  };
+
+  const metaTitle = currentCategory
+    ? `${catName(currentCategory)} | Nexfluid`
+    : (lang === 'it' ? 'Categorie Prodotti | Nexfluid' : 'Product Categories | Nexfluid');
+
   return (
     <>
+      <Helmet>
+        <title>{metaTitle}</title>
+        {currentCategory && (
+          <meta name="description" content={catDesc(currentCategory) || `${catName(currentCategory)} — ${lang === 'it' ? 'Prodotti industriali su Nexfluid' : 'Industrial products at Nexfluid'}`} />
+        )}
+      </Helmet>
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumbs */}
         <nav className="mb-4 flex items-center gap-1 text-xs text-muted-foreground overflow-x-auto">
@@ -211,7 +275,6 @@ const Categories = () => {
             <Link to={`/categories/${bc.slug}`} className="hover:text-primary">
                   {catName(bc)}
                 </Link> :
-
             <span className="text-foreground font-medium">{catName(bc)}</span>
             }
             </span>
@@ -225,7 +288,15 @@ const Categories = () => {
         </nav>
 
         <div className="flex gap-8">
-          <BrandsSidebar />
+          {isLeaf && currentCategory ? (
+            <CategoryFilters
+              categoryId={currentCategory.id}
+              selectedFilters={activeFilters}
+              onFilterChange={handleFilterChange}
+            />
+          ) : (
+            <BrandsSidebar />
+          )}
 
           <div className="flex-1 min-w-0">
             {/* Header */}

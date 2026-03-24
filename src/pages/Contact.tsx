@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -46,11 +47,18 @@ const Contact = () => {
 
   const update = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  return (
+    return (
     <div className="py-12 md:py-16">
+      <Helmet>
+        <title>{lang === 'it' ? 'Contatti — Richiedi Preventivo | Nexfluid' : 'Contact — Request a Quote | Nexfluid'}</title>
+        <meta name="description" content={lang === 'it'
+          ? 'Contattaci per un preventivo su valvole, pneumatica, idraulica e automazione industriale. Risposta entro 24 ore.'
+          : 'Contact us for a quote on valves, pneumatics, hydraulics and industrial automation. Response within 24 hours.'
+        } />
+      </Helmet>
       <div className="container mx-auto px-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-4xl">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl font-['Space_Grotesk']">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl font-display uppercase text-primary">
             {t('quote.title')}
           </h1>
           <p className="mt-2 text-muted-foreground">
