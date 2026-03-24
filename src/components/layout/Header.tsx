@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Menu, X, User, Phone, Mail } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
+import SearchAutocomplete from '@/components/shared/SearchAutocomplete';
 
 type Category = {
   id: string;
@@ -18,7 +18,6 @@ const brands = ['PARKER', 'ASCO', 'AVENTICS', 'JOUCOMATIC', 'NUMATICS', 'EMERSON
 const Header = () => {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const lang = i18n.language as 'it' | 'en';
@@ -82,19 +81,8 @@ const Header = () => {
               <img src="/lovable-uploads/04244b88-7e59-4987-9f7a-81be85561eac.png" alt="Nexfluid - Automation in Stock" className="h-8 md:h-10 w-auto" />
             </Link>
 
-            {/* Search bar */}
-            <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-lg mx-6">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder={lang === 'it' ? 'Cerca per Modello, Part Number, Keyword...' : 'Search by Model, Part Number, Keyword...'}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 bg-white border-0 rounded-sm h-10 text-sm text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
-            </form>
+            {/* Search bar with autocomplete */}
+            <SearchAutocomplete className="hidden md:block flex-1 max-w-lg mx-6" />
 
             {/* Sign in */}
             <div className="flex items-center gap-3">
@@ -115,18 +103,12 @@ const Header = () => {
           </div>
 
           {/* Mobile search bar */}
-          <form onSubmit={handleSearch} className="md:hidden px-4 pb-3">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder={lang === 'it' ? 'Cerca per Modello, Part Number...' : 'Search by Model, Part Number...'}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 bg-white border-0 rounded-sm h-9 text-sm text-foreground placeholder:text-muted-foreground"
-              />
-            </div>
-          </form>
+          <div className="md:hidden px-4 pb-3">
+            <SearchAutocomplete
+              inputClassName="h-9"
+              placeholder={lang === 'it' ? 'Cerca per Modello, Part Number...' : 'Search by Model, Part Number...'}
+            />
+          </div>
         </div>
       </header>
 
