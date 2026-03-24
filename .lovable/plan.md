@@ -1,49 +1,26 @@
 
 
-# Fix Technical Details — Remove Garbage, Keep Only Valid Specs
+# Fix Missing Logo & Brand Images
 
 ## Problem
 
-The `getSpecsFromDescription()` fallback parser doesn't know where specs end. It continues parsing past the actual specifications into download links (e.g., "pro.770742.pdf - 915.82KB"), country dropdown lists, and form fields — producing garbage entries.
-
-Example from the current product's `description_original`:
-```
-Product Specifications
-Ambient Temperature Max (DegC)150
-Ambient Temperature Min (DegC)0
-Working Pressure Max (bar)10
-***
-[Download Technical Specifications](https://www.valves-direct.com/...pro.770742.pdf...)
-***
-Enquire About This Product
-Full Name Email Delivery Country Afghanistan Albania ...
-```
-
-The regex happily matches country names and PDF filenames as "specs."
+All image paths reference `/lovable-uploads/...` but the actual files don't exist in `public/lovable-uploads/`. The directory is empty, so every `<img>` tag shows a broken image icon.
 
 ## Fix
 
-Single file change to `src/pages/ProductDetail.tsx` — improve `getSpecsFromDescription()`:
+Copy all 9 uploaded image files into `public/lovable-uploads/`:
 
-1. **Truncate parsing at known boundaries**: Stop reading at the first occurrence of any of these markers after "Product Specifications":
-   - `Download Technical` 
-   - `Enquire About`
-   - `Add to Cart`
-   - `***` (markdown horizontal rule)
-   - `[` (markdown link start)
+| File | Used In |
+|------|---------|
+| `e1dc6237-9b39-4782-9376-28d0f7dcc073.png` | Header logo |
+| `3b276182-22a5-49bb-852f-bf18412ca038.png` | Footer logo |
+| `d79eb4f8-72e7-4b40-be99-9757c23801d9.png` | Parker brand logo |
+| `d9635bac-3b56-47aa-94e6-ea6f9646ce32.png` | ASCO brand logo |
+| `7aefcd0b-457b-4058-b902-488481e5f1a8.png` | AVENTICS brand logo |
+| `34983170-1e8d-43d7-8804-0224e46a0ccc.png` | JOUCOMATIC brand logo |
+| `0a2a1dc5-ad03-4e61-866c-9a7ee87c083e.png` | NUMATICS brand logo |
+| `311b84b0-11a7-4247-b05f-a11579048289.png` | EMERSON brand logo |
+| `a7e8aff3-0897-4d14-89aa-cc4f53facadd.png` | SIRAI brand logo |
 
-2. **Add additional garbage filters**: Skip any parsed entry where:
-   - Name or value contains `.pdf`, `.KB`, `.MB`, country names pattern
-   - Name is a single common word like "Full", "Name", "Email", "Country"
-   - Value looks like a filename (contains file extensions)
-
-3. **Also filter `getTechnicalSpecsFromJson()`**: Skip entries where the key or value contains URL/file patterns (same urlPatterns filter), since `technical_specs` JSON could also contain garbage from the scraping pipeline.
-
-This ensures only genuine technical specifications like "Working Pressure Max (bar) → 10" are displayed, and garbage from download links, forms, and navigation is excluded.
-
-## File
-
-| File | Change |
-|------|--------|
-| `src/pages/ProductDetail.tsx` | Improve both spec-parsing fallback functions with boundary detection and stricter filtering |
+No code changes needed — just copy the files so the existing paths resolve correctly.
 
