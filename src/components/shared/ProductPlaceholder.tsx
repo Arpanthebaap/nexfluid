@@ -34,7 +34,7 @@ const ProductPlaceholder = ({
       className={`flex flex-col items-center justify-center gap-2 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/10 ${sizeClasses[size]} ${className}`}
     >
       <img
-        src="/lovable-uploads/log_blu_con_sfondo_bianco.png"
+        src="/lovable-uploads/04244b88-7e59-4987-9f7a-81be85561eac.png"
         alt="Nexfluid"
         className={size === 'sm' ? 'h-5 w-auto opacity-40' : size === 'md' ? 'h-7 w-auto opacity-40' : 'h-10 w-auto opacity-40'}
       />
