@@ -36,6 +36,19 @@ const Contact = () => {
 
       if (error) throw error;
 
+      // Send email notification
+      supabase.functions.invoke('quote-notify', {
+        body: {
+          name: form.name,
+          email: form.email,
+          company: form.company || null,
+          phone: form.phone || null,
+          product_name: form.product || null,
+          message: form.message || null,
+          language: lang,
+        },
+      }).catch(console.error);
+
       toast({ title: t('quote.success'), description: t('quote.successDesc') });
       setForm({ name: '', company: '', email: '', phone: '', product: '', message: '' });
     } catch {

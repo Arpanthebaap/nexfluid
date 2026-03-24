@@ -150,6 +150,19 @@ const ProductDetail = () => {
         language: lang
       });
       if (error) throw error;
+
+      // Send email notification
+      supabase.functions.invoke('quote-notify', {
+        body: {
+          name: form.name,
+          email: form.email,
+          product_code: product.product_code,
+          product_name: lang === 'it' ? product.name_it : product.name_en,
+          message: form.message || null,
+          language: lang,
+        },
+      }).catch(console.error);
+
       toast({ title: lang === 'it' ? 'Richiesta inviata!' : 'Request sent!', description: lang === 'it' ? 'Ti contatteremo presto.' : 'We will contact you soon.' });
       setForm({ name: '', email: '', country: '', message: '' });
     } catch {
