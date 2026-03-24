@@ -31,6 +31,8 @@ type Product = {
   description_original: string | null;
   technical_specs: any;
   category_id: string | null;
+  meta_description_it: string | null;
+  meta_description_en: string | null;
 };
 
 type Attribute = {
