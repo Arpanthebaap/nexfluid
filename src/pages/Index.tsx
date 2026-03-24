@@ -2,14 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet-async';
-import { motion } from 'framer-motion';
 import { ArrowRight, Truck, ShieldCheck, Headphones } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import OurBrands from '@/components/shared/OurBrands';
 import SpeakWithUs from '@/components/shared/SpeakWithUs';
 import ShippingSecurity from '@/components/shared/ShippingSecurity';
 import BrandsSidebar from '@/components/shared/BrandsSidebar';
-import SearchAutocomplete from '@/components/shared/SearchAutocomplete';
 
 type Category = {
   id: string;
@@ -66,44 +64,17 @@ const Index = () => {
         <link rel="alternate" hrefLang="en" href="https://nexfluid.it" />
       </Helmet>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden" style={{ background: 'var(--gradient-hero)' }}>
-        <div className="container mx-auto px-4 py-14 md:py-20">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mx-auto max-w-2xl text-center"
-          >
-            <h1 className="text-3xl font-bold sm:text-4xl md:text-5xl font-display uppercase tracking-tight text-white leading-tight">
-              {lang === 'it' ? 'Automazione in Stock' : 'Automation in Stock'}
-            </h1>
-            <p className="mt-3 text-base sm:text-lg text-white/80">
-              {lang === 'it'
-                ? '85.000+ componenti industriali — Valvole, Pneumatica, Idraulica'
-                : '85,000+ Industrial Components — Valves, Pneumatics, Hydraulics'}
-            </p>
-
-            <div className="mt-6 mx-auto max-w-xl">
-              <SearchAutocomplete
-                className="w-full"
-                inputClassName="h-12 text-base rounded-md shadow-lg"
-                placeholder={lang === 'it' ? 'Cerca per codice, modello o keyword...' : 'Search by code, model or keyword...'}
-              />
+      {/* Trust Strip */}
+      <div className="border-b bg-muted/50">
+        <div className="container mx-auto px-4 py-2.5 flex flex-wrap items-center justify-center gap-6 sm:gap-10">
+          {trustItems.map((item, i) => (
+            <div key={i} className="flex items-center gap-2 text-muted-foreground">
+              <item.icon className="h-4 w-4 text-primary" />
+              <span className="text-xs font-medium">{item.label}</span>
             </div>
-
-            {/* Trust badges */}
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
-              {trustItems.map((item, i) => (
-                <div key={i} className="flex items-center gap-2 text-white/90">
-                  <item.icon className="h-4 w-4" />
-                  <span className="text-xs font-medium">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
+          ))}
         </div>
-      </section>
+      </div>
 
       <div className="container mx-auto px-4 py-6">
         <div className="flex gap-8">
@@ -134,13 +105,7 @@ const Index = () => {
                 topCategories.map((parent, idx) => {
                   const children = getChildren(parent.id);
                   return (
-                    <motion.div
-                      key={parent.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: idx * 0.08 }}
-                    >
+                    <div key={parent.id}>
                       <div className="flex items-center gap-3 mb-4">
                         <h2 className="text-lg font-bold sm:text-xl font-display uppercase tracking-tight text-foreground">
                           {catName(parent)}
@@ -199,7 +164,7 @@ const Index = () => {
                           )}
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })
               )}
