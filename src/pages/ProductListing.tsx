@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import BrandsSidebar from '@/components/shared/BrandsSidebar';
 import SpeakWithUs from '@/components/shared/SpeakWithUs';
 import ShippingSecurity from '@/components/shared/ShippingSecurity';
-import ProductPlaceholder from '@/components/shared/ProductPlaceholder';
+import BrandedProductImage from '@/components/shared/BrandedProductImage';
 import {
   Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage
 } from '@/components/ui/breadcrumb';
@@ -165,9 +165,15 @@ const ProductListing = () => {
                       >
                         {/* Product image */}
                         <Link to={`/products/${product.slug}`} className="shrink-0">
-                          <div className="h-24 w-24 rounded bg-muted flex items-center justify-center overflow-hidden">
-                            <ProductPlaceholder size="sm" productCode={product.product_code} brand={product.brand} />
-                          </div>
+                          <BrandedProductImage
+                            src={Array.isArray(product.images) && product.images.length > 0
+                              ? (typeof product.images[0] === 'string' ? product.images[0] : (product.images[0] as any)?.url)
+                              : null}
+                            alt={`${product.product_code} ${lang === 'it' ? product.name_it : product.name_en}`}
+                            productCode={product.product_code}
+                            brand={product.brand}
+                            size="sm"
+                          />
                         </Link>
 
                         {/* Product info */}

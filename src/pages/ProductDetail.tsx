@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import BrandsSidebar from '@/components/shared/BrandsSidebar';
 import SpeakWithUs from '@/components/shared/SpeakWithUs';
 import ShippingSecurity from '@/components/shared/ShippingSecurity';
-import ProductPlaceholder from '@/components/shared/ProductPlaceholder';
+import BrandedProductImage from '@/components/shared/BrandedProductImage';
 import {
   Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage
 } from '@/components/ui/breadcrumb';
@@ -303,22 +303,15 @@ const ProductDetail = () => {
               {/* Left: Image + Details */}
               <div>
                 {/* Product image */}
-                <div className="aspect-square rounded-lg border bg-muted flex items-center justify-center mb-6 overflow-hidden">
-                  {productImage ? (
-                    <img
-                      src={productImage}
-                      alt={`${product.product_code} ${productName}`}
-                      className="w-full h-full object-contain p-4"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <ProductPlaceholder
-                      size="lg"
-                      productCode={product.product_code}
-                      brand={product.brand}
-                      categoryName={categoryLastName}
-                    />
-                  )}
+                <div className="mb-6">
+                  <BrandedProductImage
+                    src={productImage}
+                    alt={`${product.product_code} ${productName}`}
+                    productCode={product.product_code}
+                    brand={product.brand}
+                    categoryName={categoryLastName}
+                    size="lg"
+                  />
                 </div>
 
                 {/* Product description */}
