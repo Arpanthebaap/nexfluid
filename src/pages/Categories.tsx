@@ -74,30 +74,76 @@ const Categories = () => {
     setBreadcrumbs(chain);
   };
 
-  // Fetch products for leaf category
-  const fetchProducts = async (categoryId: string) => {
+  // Fetch products for leaf category (with filter support)
+  const fetchProducts = async (categoryId: string, filters: Record<string, string[]> = {}) => {
     setProductsLoading(true);
 
-    const { count } = await supabase.
-    from('products').
-    select('id', { count: 'exact', head: true }).
-    eq('category_id', categoryId).
-    eq('is_active', true).
-    eq('status', 'published');
+    // If filters active, first get matching product IDs from product_attributes
+    let filteredProductIds: string[] | null = null;
+    const filterEntries = Object.entries(filters);
 
+    if (filterEntries.length > 0) {
+      // Get products in this category first
+      const { data: catProducts } = await supabase
+        .from('products')
+        .select('id')
+        .eq('category_id', categoryId)
+        .eq('is_active', true)
+        .eq('status', 'published');
+
+      const allIds = (catProducts || []).map(p => p.id);
+      if (allIds.length === 0) {
+        setTotalCount(0);
+        setProducts([]);
+        setProductsLoading(false);
+        return;
+      }
+
+      // For each filter, get matching product IDs and intersect
+      let matchingIds = new Set(allIds);
+      for (const [attrName, values] of filterEntries) {
+        const { data: attrs } = await supabase
+          .from('product_attributes')
+          .select('product_id')
+          .in('product_id', Array.from(matchingIds))
+          .eq('attribute_name', attrName)
+          .in('attribute_value', values);
+        const attrIds = new Set((attrs || []).map(a => a.product_id));
+        matchingIds = new Set([...matchingIds].filter(id => attrIds.has(id)));
+      }
+      filteredProductIds = Array.from(matchingIds);
+      if (filteredProductIds.length === 0) {
+        setTotalCount(0);
+        setProducts([]);
+        setProductsLoading(false);
+        return;
+      }
+    }
+
+    // Count query
+    let countQuery = supabase
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('category_id', categoryId)
+      .eq('is_active', true)
+      .eq('status', 'published');
+    if (filteredProductIds) countQuery = countQuery.in('id', filteredProductIds);
+    const { count } = await countQuery;
     setTotalCount(count || 0);
 
-    let query = supabase.
-    from('products').
-    select('id, product_code, name_it, name_en, slug, brand, images').
-    eq('category_id', categoryId).
-    eq('is_active', true).
-    eq('status', 'published').
-    range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    // Data query
+    let query = supabase
+      .from('products')
+      .select('id, product_code, name_it, name_en, slug, brand, images')
+      .eq('category_id', categoryId)
+      .eq('is_active', true)
+      .eq('status', 'published')
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    if (filteredProductIds) query = query.in('id', filteredProductIds);
 
-    if (sortBy === 'name') query = query.order('name_en');else
-    if (sortBy === 'code') query = query.order('product_code');else
-    query = query.order('created_at', { ascending: false });
+    if (sortBy === 'name') query = query.order('name_en');
+    else if (sortBy === 'code') query = query.order('product_code');
+    else query = query.order('created_at', { ascending: false });
 
     const { data } = await query;
     setProducts(data || []);
