@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import { Package } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import BrandsSidebar from '@/components/shared/BrandsSidebar';
@@ -72,8 +73,12 @@ const BrandPage = () => {
 
   const catName = (cat: CategoryWithCount) => lang === 'it' ? cat.name_it : cat.name_en;
 
-  return (
+    return (
     <>
+      <Helmet>
+        <title>{`${brand} — ${lang === 'it' ? 'Prodotti' : 'Products'} | Nexfluid`}</title>
+        <meta name="description" content={`${lang === 'it' ? 'Scopri i prodotti' : 'Discover products from'} ${brand} ${lang === 'it' ? 'disponibili su Nexfluid' : 'available at Nexfluid'}.`} />
+      </Helmet>
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
         <div className="mb-4 text-xs text-muted-foreground">

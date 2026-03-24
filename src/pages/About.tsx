@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Package, Users, Award, Globe } from 'lucide-react';
 
@@ -13,11 +14,18 @@ const About = () => {
     { icon: Globe, value: '2', label: lang === 'it' ? 'Mercati' : 'Markets' },
   ];
 
-  return (
+    return (
     <div className="py-12 md:py-16">
+      <Helmet>
+        <title>{lang === 'it' ? 'Chi Siamo | Nexfluid' : 'About Us | Nexfluid'}</title>
+        <meta name="description" content={lang === 'it'
+          ? 'Nexfluid: il tuo partner per soluzioni industriali di precisione. Oltre 85.000 prodotti, 50+ brand, spedizione express.'
+          : 'Nexfluid: your partner for precision industrial solutions. 85,000+ products, 50+ brands, express shipping.'
+        } />
+      </Helmet>
       <div className="container mx-auto px-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-3xl">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl font-['Space_Grotesk']">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl font-display uppercase text-primary">
             {lang === 'it' ? 'Chi Siamo' : 'About Us'}
           </h1>
           <div className="mt-6 space-y-4 text-muted-foreground leading-relaxed">
