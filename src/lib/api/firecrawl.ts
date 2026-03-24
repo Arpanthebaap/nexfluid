@@ -110,10 +110,4 @@ export const firecrawlApi = {
     if (error) return { success: false, error: error.message };
     return data;
   },
-    const { data, error } = await supabase.functions.invoke('product-discover-categories', {
-      body: { categoryUrl },
-    });
-    if (error) return { success: false, error: error.message };
-    return data;
-  },
 };
