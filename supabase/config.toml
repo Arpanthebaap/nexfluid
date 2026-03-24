@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.firecrawl-map]
 verify_jwt = false
+
+[functions.product-image-scrape]
+verify_jwt = false

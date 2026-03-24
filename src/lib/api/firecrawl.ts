@@ -95,6 +95,14 @@ export const firecrawlApi = {
     return data;
   },
 
+  async scrapeImages(batchSize = 5): Promise<FirecrawlResponse> {
+    const { data, error } = await supabase.functions.invoke('product-image-scrape', {
+      body: { batchSize },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
+
   async discoverCategory(categoryUrl: string): Promise<FirecrawlResponse> {
     const { data, error } = await supabase.functions.invoke('product-discover-categories', {
       body: { categoryUrl },

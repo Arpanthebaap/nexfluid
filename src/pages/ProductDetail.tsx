@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import BrandsSidebar from '@/components/shared/BrandsSidebar';
 import SpeakWithUs from '@/components/shared/SpeakWithUs';
 import ShippingSecurity from '@/components/shared/ShippingSecurity';
-import ProductPlaceholder from '@/components/shared/ProductPlaceholder';
+import BrandedProductImage from '@/components/shared/BrandedProductImage';
 import {
   Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage
 } from '@/components/ui/breadcrumb';
@@ -220,7 +220,7 @@ const ProductDetail = () => {
   if (!product) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <ProductPlaceholder size="md" className="mx-auto" />
+        <BrandedProductImage size="md" alt="Product not found" className="mx-auto" />
         <p className="mt-4 text-muted-foreground">{lang === 'it' ? 'Prodotto non trovato.' : 'Product not found.'}</p>
       </div>
     );
@@ -303,22 +303,15 @@ const ProductDetail = () => {
               {/* Left: Image + Details */}
               <div>
                 {/* Product image */}
-                <div className="aspect-square rounded-lg border bg-muted flex items-center justify-center mb-6 overflow-hidden">
-                  {productImage ? (
-                    <img
-                      src={productImage}
-                      alt={`${product.product_code} ${productName}`}
-                      className="w-full h-full object-contain p-4"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <ProductPlaceholder
-                      size="lg"
-                      productCode={product.product_code}
-                      brand={product.brand}
-                      categoryName={categoryLastName}
-                    />
-                  )}
+                <div className="mb-6">
+                  <BrandedProductImage
+                    src={productImage}
+                    alt={`${product.product_code} ${productName}`}
+                    productCode={product.product_code}
+                    brand={product.brand}
+                    categoryName={categoryLastName}
+                    size="lg"
+                  />
                 </div>
 
                 {/* Product description */}
@@ -467,13 +460,13 @@ const ProductDetail = () => {
                         to={`/products/${rp.slug}`}
                         className="group rounded-lg border bg-card p-3 hover:shadow-sm hover:border-primary/30 transition-all"
                       >
-                        <div className="aspect-square rounded bg-muted flex items-center justify-center overflow-hidden mb-2">
-                          {rpImg ? (
-                            <img src={rpImg} alt={`${rp.product_code} ${rpName}`} className="w-full h-full object-contain p-2" loading="lazy" />
-                          ) : (
-                            <ProductPlaceholder size="lg" productCode={rp.product_code} brand={rp.brand} />
-                          )}
-                        </div>
+                        <BrandedProductImage
+                          src={rpImg}
+                          alt={`${rp.product_code} ${rpName}`}
+                          productCode={rp.product_code}
+                          brand={rp.brand}
+                          size="lg"
+                        />
                         <p className="font-mono text-xs font-semibold text-primary">{rp.product_code}</p>
                         <p className="text-xs text-muted-foreground truncate group-hover:text-primary transition-colors">{rpName}</p>
                       </Link>
