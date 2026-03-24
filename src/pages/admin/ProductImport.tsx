@@ -56,22 +56,29 @@ export default function ProductImport() {
   }, []);
 
   const fetchCounts = useCallback(async () => {
-    const statuses = ['pending', 'scraped', 'processed', 'imported', 'failed'] as const;
-    const results: any = {};
-    let total = 0;
-    for (const s of statuses) {
-      const { count } = await supabase.from('scrape_jobs').select('*', { count: 'exact', head: true }).eq('status', s);
-      results[s] = count || 0;
-      total += count || 0;
+    try {
+      const { data, error } = await supabase.rpc('get_scrape_job_counts');
+      if (error) { console.error('Count fetch error:', error); return; }
+      const d = data as any;
+      const results: StatusCounts = {
+        pending: Number(d.pending) || 0,
+        scraped: Number(d.scraped) || 0,
+        processed: Number(d.processed) || 0,
+        imported: Number(d.imported) || 0,
+        failed: Number(d.failed) || 0,
+        total: 0,
+      };
+      results.total = results.pending + results.scraped + results.processed + results.imported + results.failed;
+      setCounts(results);
+      return results;
+    } catch (err) {
+      console.error('Count fetch error:', err);
     }
-    results.total = total;
-    setCounts(results);
-    return results as StatusCounts;
   }, []);
 
   useEffect(() => {
     fetchCounts();
-    const interval = setInterval(fetchCounts, 3000);
+    const interval = setInterval(fetchCounts, 10000);
     return () => clearInterval(interval);
   }, [fetchCounts]);
 
