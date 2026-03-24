@@ -1,26 +1,50 @@
 
 
-# Master Plan: Status Update
+# Update Favicon & Browser Tab Branding
 
-## COMPLETED
+## Changes
 
-| Phase | Items |
-|-------|-------|
-| Phase 1 | Database schema, tables, RLS, enums |
-| Phase 2 | Admin CMS — auth, CRUD, CSV import, quotes, filters |
-| Phase 3 | Scraping pipeline — Firecrawl, batch processing, AI extraction |
-| Phase 4 | AI content rewriting — IT/EN, SEO meta, edge functions |
-| Phase 5 | Trust strip, breadcrumbs, category filters, SEO meta tags, schema.org, related products, search autocomplete, branded product images, search pagination, quote notification edge function |
-| Phase 6 | i18n — IT/EN translations, language detector |
-| Phase 7 | Sitemap generation, robots.txt, meta tags on all pages |
-| Performance | Route code-splitting with React.lazy, image lazy loading |
+### 1. Set Nexfluid Logo as Favicon
+- Copy the existing Nexfluid logo (`public/lovable-uploads/04244b88-7e59-4987-9f7a-81be85561eac.png`) to `public/favicon.png`
+- Add `<link rel="icon">` tag in `index.html`
+- Add Apple touch icon for iOS bookmarks
 
-## REMAINING
+### 2. Fix Title & SEO in `index.html`
+- Remove the `<!-- TODO -->` comment
+- Title is already "Nexfluid — Automation in Stock" (good, includes brand + tagline)
+- Add `<link rel="canonical">` 
+- Add structured data (Organization schema) for Google Knowledge Panel
+- Add `hreflang` tags for IT/EN
 
-| Item | Status | Notes |
-|------|--------|-------|
-| Email domain setup | BLOCKED | Need user to configure email domain so quote notifications actually send |
-| Image scraping pipeline | READY | Edge function exists, needs batch execution |
-| Performance audit | TODO | PageSpeed 90+ target |
-| GDPR / Cookie banner | TODO | Client handles separately per spec |
-| Google Analytics / GTM | TODO | Client handles separately per spec |
+### 3. Google Algorithm Best Practices
+- Title format: `Brand — Tagline` (already correct, under 60 chars)
+- Meta description under 160 chars with keywords (already good)
+- Add `robots` meta tag allowing indexing
+- Add Organization JSON-LD schema markup
+
+### File: `index.html`
+
+```html
+<!-- Remove TODO comment -->
+<!-- Add favicon link -->
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/favicon.png">
+<link rel="canonical" href="https://nexfluid.it">
+<link rel="alternate" hreflang="it" href="https://nexfluid.it">
+<link rel="alternate" hreflang="en" href="https://nexfluid.it">
+<meta name="robots" content="index, follow">
+
+<!-- Organization structured data for Google -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Nexfluid",
+  "url": "https://nexfluid.it",
+  "description": "Industrial automation components distributor"
+}
+</script>
+```
+
+Single file edit + one file copy.
+
