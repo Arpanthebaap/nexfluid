@@ -220,7 +220,7 @@ const ProductDetail = () => {
   if (!product) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <ProductPlaceholder size="md" className="mx-auto" />
+        <BrandedProductImage size="md" alt="Product not found" className="mx-auto" />
         <p className="mt-4 text-muted-foreground">{lang === 'it' ? 'Prodotto non trovato.' : 'Product not found.'}</p>
       </div>
     );
