@@ -30,12 +30,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Use port 587 with STARTTLS — Shellrent's cert is *.shellrent.com, not smtp.nexfluid.it
+    // servername tells nodemailer/TLS to validate against the actual cert CN
     const transporter = nodemailer.createTransport({
       host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
+      port: 587,
+      secure: false, // STARTTLS
       auth: { user: smtpUsername, pass: smtpPassword },
-      tls: { rejectUnauthorized: false }, // Shellrent cert is for *.shellrent.com, not smtp.nexfluid.it
+      tls: { servername: "shellrent.com" },
     });
 
     const subject = `Nuova Richiesta Preventivo${product_code ? ` — ${product_code}` : ""}${product_name ? ` (${product_name})` : ""}`;
