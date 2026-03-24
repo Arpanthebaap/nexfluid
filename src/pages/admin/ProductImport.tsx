@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Globe, Map, Cpu, Database, Loader2, Play, Square, RotateCcw, ChevronDown, Rocket, Trash2, Clock } from 'lucide-react';
+import { Globe, Map, Cpu, Database, Loader2, Play, Square, RotateCcw, ChevronDown, Rocket, Trash2, Clock, ImageIcon } from 'lucide-react';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
 

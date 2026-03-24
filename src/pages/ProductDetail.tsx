@@ -460,13 +460,13 @@ const ProductDetail = () => {
                         to={`/products/${rp.slug}`}
                         className="group rounded-lg border bg-card p-3 hover:shadow-sm hover:border-primary/30 transition-all"
                       >
-                        <div className="aspect-square rounded bg-muted flex items-center justify-center overflow-hidden mb-2">
-                          {rpImg ? (
-                            <img src={rpImg} alt={`${rp.product_code} ${rpName}`} className="w-full h-full object-contain p-2" loading="lazy" />
-                          ) : (
-                            <ProductPlaceholder size="lg" productCode={rp.product_code} brand={rp.brand} />
-                          )}
-                        </div>
+                        <BrandedProductImage
+                          src={rpImg}
+                          alt={`${rp.product_code} ${rpName}`}
+                          productCode={rp.product_code}
+                          brand={rp.brand}
+                          size="lg"
+                        />
                         <p className="font-mono text-xs font-semibold text-primary">{rp.product_code}</p>
                         <p className="text-xs text-muted-foreground truncate group-hover:text-primary transition-colors">{rpName}</p>
                       </Link>
