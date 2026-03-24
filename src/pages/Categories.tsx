@@ -156,6 +156,7 @@ const Categories = () => {
       setIsLeaf(false);
       setProducts([]);
       setPage(0);
+      setActiveFilters({});
 
       if (slug) {
         const { data: cat } = await supabase.
@@ -202,12 +203,12 @@ const Categories = () => {
     fetchData();
   }, [slug]);
 
-  // Re-fetch products when page or sort changes (only for leaf categories)
+  // Re-fetch products when page, sort, or filters change
   useEffect(() => {
     if (isLeaf && currentCategory) {
-      fetchProducts(currentCategory.id);
+      fetchProducts(currentCategory.id, activeFilters);
     }
-  }, [page, sortBy]);
+  }, [page, sortBy, activeFilters]);
 
   const catName = (cat: Category) => lang === 'it' ? cat.name_it : cat.name_en;
   const catDesc = (cat: Category) => lang === 'it' ? cat.description_it : cat.description_en;
