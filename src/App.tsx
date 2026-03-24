@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,26 +10,35 @@ import { AuthProvider } from "@/hooks/useAuth";
 
 import PublicLayout from "./components/layout/PublicLayout";
 import Index from "./pages/Index";
-import Contact from "./pages/Contact";
-import About from "./pages/About";
-import Categories from "./pages/Categories";
-import ProductListing from "./pages/ProductListing";
-import ProductDetail from "./pages/ProductDetail";
-import BrandPage from "./pages/BrandPage";
-import SearchResults from "./pages/SearchResults";
-import NotFound from "./pages/NotFound";
 
-import AdminLogin from "./pages/admin/AdminLogin";
-import ProtectedRoute from "./components/admin/ProtectedRoute";
-import AdminLayout from "./components/admin/AdminLayout";
-import Dashboard from "./pages/admin/Dashboard";
-import Products from "./pages/admin/Products";
-import ProductForm from "./pages/admin/ProductForm";
-import AdminCategories from "./pages/admin/Categories";
-import QuoteRequests from "./pages/admin/QuoteRequests";
-import ProductImport from "./pages/admin/ProductImport";
+// Lazy-loaded public pages
+const Contact = lazy(() => import("./pages/Contact"));
+const About = lazy(() => import("./pages/About"));
+const Categories = lazy(() => import("./pages/Categories"));
+const ProductListing = lazy(() => import("./pages/ProductListing"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const BrandPage = lazy(() => import("./pages/BrandPage"));
+const SearchResults = lazy(() => import("./pages/SearchResults"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Lazy-loaded admin pages
+const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
+const ProtectedRoute = lazy(() => import("./components/admin/ProtectedRoute"));
+const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
+const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
+const Products = lazy(() => import("./pages/admin/Products"));
+const ProductForm = lazy(() => import("./pages/admin/ProductForm"));
+const AdminCategories = lazy(() => import("./pages/admin/Categories"));
+const QuoteRequests = lazy(() => import("./pages/admin/QuoteRequests"));
+const ProductImport = lazy(() => import("./pages/admin/ProductImport"));
 
 const queryClient = new QueryClient();
+
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[40vh]">
+    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+  </div>
+);
 
 const App = () => (
   <HelmetProvider>
@@ -38,34 +48,36 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            <Route element={<PublicLayout />}>
-              <Route path="/" element={<Index />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/categories" element={<Categories />} />
-              <Route path="/categories/:slug" element={<Categories />} />
-              <Route path="/products/listing/:slug" element={<ProductListing />} />
-              <Route path="/products/:slug" element={<ProductDetail />} />
-              <Route path="/brands/:brandName" element={<BrandPage />} />
-              <Route path="/search" element={<SearchResults />} />
-            </Route>
-
-            {/* Admin routes */}
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route element={<ProtectedRoute />}>
-              <Route element={<AdminLayout />}>
-                <Route path="/admin" element={<Dashboard />} />
-                <Route path="/admin/products" element={<Products />} />
-                <Route path="/admin/products/:id" element={<ProductForm />} />
-                <Route path="/admin/categories" element={<AdminCategories />} />
-                <Route path="/admin/quotes" element={<QuoteRequests />} />
-                <Route path="/admin/import" element={<ProductImport />} />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route element={<PublicLayout />}>
+                <Route path="/" element={<Index />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/categories" element={<Categories />} />
+                <Route path="/categories/:slug" element={<Categories />} />
+                <Route path="/products/listing/:slug" element={<ProductListing />} />
+                <Route path="/products/:slug" element={<ProductDetail />} />
+                <Route path="/brands/:brandName" element={<BrandPage />} />
+                <Route path="/search" element={<SearchResults />} />
               </Route>
-            </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              {/* Admin routes */}
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AdminLayout />}>
+                  <Route path="/admin" element={<Dashboard />} />
+                  <Route path="/admin/products" element={<Products />} />
+                  <Route path="/admin/products/:id" element={<ProductForm />} />
+                  <Route path="/admin/categories" element={<AdminCategories />} />
+                  <Route path="/admin/quotes" element={<QuoteRequests />} />
+                  <Route path="/admin/import" element={<ProductImport />} />
+                </Route>
+              </Route>
+
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
