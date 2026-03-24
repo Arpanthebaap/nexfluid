@@ -45,6 +45,7 @@ export default function ProductImport() {
   const [scraping, setScraping] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [scrapingImages, setScrapingImages] = useState(false);
   const stopRef = useRef(false);
   const lastImportedRef = useRef(0);
   const speedCheckRef = useRef<number>(0);
@@ -305,7 +306,36 @@ export default function ProductImport() {
     : null;
 
   const isRunning = phase === 'running' || phase === 'discovering';
-  const anyRunning = isRunning || scraping || processing || importing;
+  const anyRunning = isRunning || scraping || processing || importing || scrapingImages;
+
+  const runImageScrape = async () => {
+    stopRef.current = false;
+    setScrapingImages(true);
+    addLog('🖼️ Starting image scrape for products without images...');
+    let totalProcessed = 0;
+    let emptyRounds = 0;
+    while (!stopRef.current) {
+      try {
+        const res = await firecrawlApi.scrapeImages(5);
+        const data = res as any;
+        if (!res.success) { addLog(`❌ Image scrape error: ${res.error}`); break; }
+        if (data.processed === 0) {
+          emptyRounds++;
+          if (emptyRounds > 3) break;
+          await new Promise(r => setTimeout(r, 3000));
+          continue;
+        }
+        emptyRounds = 0;
+        totalProcessed += data.processed;
+        addLog(`🖼️ Scraped images for ${data.processed} products (${data.failed || 0} failed) — Total: ${totalProcessed}`);
+      } catch (err) {
+        addLog(`❌ Image scrape error: ${err}`);
+        break;
+      }
+    }
+    setScrapingImages(false);
+    addLog(stopRef.current ? '⏸️ Image scrape stopped.' : `✅ Image scrape complete: ${totalProcessed} products updated.`);
+  };
 
   return (
     <div className="space-y-6">
