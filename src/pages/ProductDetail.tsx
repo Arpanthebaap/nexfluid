@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Package, CheckCircle, Send } from 'lucide-react';
+import { CheckCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,6 +12,10 @@ import { supabase } from '@/integrations/supabase/client';
 import BrandsSidebar from '@/components/shared/BrandsSidebar';
 import SpeakWithUs from '@/components/shared/SpeakWithUs';
 import ShippingSecurity from '@/components/shared/ShippingSecurity';
+import ProductPlaceholder from '@/components/shared/ProductPlaceholder';
+import {
+  Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator, BreadcrumbPage
+} from '@/components/ui/breadcrumb';
 
 type Product = {
   id: string;
@@ -43,6 +47,16 @@ type CategoryInfo = {
   parent_id: string | null;
 };
 
+type RelatedProduct = {
+  id: string;
+  product_code: string;
+  name_it: string;
+  name_en: string;
+  slug: string;
+  brand: string | null;
+  images: any;
+};
+
 const ProductDetail = () => {
   const { i18n } = useTranslation();
   const lang = i18n.language as 'it' | 'en';
@@ -51,6 +65,7 @@ const ProductDetail = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [categoryChain, setCategoryChain] = useState<{ name: string; slug: string }[]>([]);
+  const [relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const [formLoading, setFormLoading] = useState(false);
@@ -71,12 +86,14 @@ const ProductDetail = () => {
       setProduct(prod);
 
       if (prod) {
+        // Fetch attributes
         const { data: attrs } = await supabase
           .from('product_attributes')
           .select('*')
           .eq('product_id', prod.id);
         setAttributes(attrs || []);
 
+        // Build category breadcrumb chain
         if (prod.category_id) {
           const { data: allCats } = await supabase
             .from('categories')
@@ -95,6 +112,17 @@ const ProductDetail = () => {
             }
             setCategoryChain(chain);
           }
+
+          // Fetch related products from same category
+          const { data: related } = await supabase
+            .from('products')
+            .select('id, product_code, name_it, name_en, slug, brand, images')
+            .eq('category_id', prod.category_id)
+            .eq('is_active', true)
+            .eq('status', 'published')
+            .neq('id', prod.id)
+            .limit(4);
+          setRelatedProducts(related || []);
         }
       }
 
@@ -128,7 +156,6 @@ const ProductDetail = () => {
     }
   };
 
-  // Get first product image URL from images JSON
   const getProductImage = (): string | null => {
     if (!product?.images) return null;
     const imgs = product.images as any;
@@ -141,7 +168,6 @@ const ProductDetail = () => {
   const garbagePattern = /www|\.com|\.php|\.html|\.asp|http|\/\/|\.co\.|\.org|\.net|\.pdf|\.KB|\.MB|\.jpg|\.png|\.gif/i;
   const garbageNames = /^(full name|email|name|country|delivery country|add to cart|submit|send|phone|message|quantity|enquire|download)$/i;
 
-  // Build technical specs from JSON fallback when no attributes
   const getTechnicalSpecsFromJson = (): { name: string; value: string }[] => {
     if (!product?.technical_specs) return [];
     const specs = product.technical_specs as Record<string, any>;
@@ -153,34 +179,24 @@ const ProductDetail = () => {
       .map(([k, v]) => ({ name: k, value: String(v) }));
   };
 
-  // Parse specs from description_original as last-resort fallback
   const getSpecsFromDescription = (): { name: string; value: string }[] => {
     if (!product?.description_original) return [];
     const text = product.description_original;
     const specIdx = text.indexOf('Product Specifications');
     if (specIdx === -1) return [];
     let specText = text.slice(specIdx + 'Product Specifications'.length);
-    
-    // Truncate at known boundary markers
     const boundaries = ['Download Technical', 'Enquire About', 'Add to Cart', '***', '['];
     for (const boundary of boundaries) {
       const bIdx = specText.indexOf(boundary);
-      if (bIdx !== -1) {
-        specText = specText.slice(0, bIdx);
-      }
+      if (bIdx !== -1) specText = specText.slice(0, bIdx);
     }
-    
     const regex = /([A-Za-z][A-Za-z\s()\/°µ.,-]+?)\s*([\d.]+[A-Za-z%°]*(?:\s*(?:to|~|-)\s*[\d.]+[A-Za-z%°]*)?|Yes|No|TRUE|FALSE|N\/A)/g;
     const results: { name: string; value: string }[] = [];
     let match;
     while ((match = regex.exec(specText)) !== null) {
       const name = match[1].trim();
       const value = match[2].trim();
-      if (
-        name.length > 2 && name.length < 80 &&
-        !garbagePattern.test(name) && !garbagePattern.test(value) &&
-        !garbageNames.test(name)
-      ) {
+      if (name.length > 2 && name.length < 80 && !garbagePattern.test(name) && !garbagePattern.test(value) && !garbageNames.test(name)) {
         results.push({ name, value });
       }
     }
@@ -204,7 +220,7 @@ const ProductDetail = () => {
   if (!product) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <Package className="mx-auto h-12 w-12 text-muted-foreground/50" />
+        <ProductPlaceholder size="md" className="mx-auto" />
         <p className="mt-4 text-muted-foreground">{lang === 'it' ? 'Prodotto non trovato.' : 'Product not found.'}</p>
       </div>
     );
@@ -215,22 +231,69 @@ const ProductDetail = () => {
   const productImage = getProductImage();
   const jsonSpecs = attributes.length === 0 ? getTechnicalSpecsFromJson() : [];
   const specsFallback = jsonSpecs.length > 0 ? jsonSpecs : (attributes.length === 0 ? getSpecsFromDescription() : []);
+  const categoryLastName = categoryChain.length > 0 ? categoryChain[categoryChain.length - 1].name : undefined;
+
+  // Schema.org Product structured data
+  const schemaOrg = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: productName,
+    description: productDesc || undefined,
+    sku: product.product_code,
+    brand: product.brand ? { '@type': 'Brand', name: product.brand } : undefined,
+    image: productImage || undefined,
+    url: window.location.href,
+    offers: {
+      '@type': 'Offer',
+      availability: 'https://schema.org/InStock',
+      seller: { '@type': 'Organization', name: 'Nexfluid' },
+    },
+  };
+
+  // Breadcrumb structured data
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: window.location.origin },
+      ...categoryChain.map((cat, i) => ({
+        '@type': 'ListItem',
+        position: i + 2,
+        name: cat.name,
+        item: `${window.location.origin}/categories/${cat.slug}`,
+      })),
+      { '@type': 'ListItem', position: categoryChain.length + 2, name: product.product_code },
+    ],
+  };
 
   return (
     <>
+      {/* Structured data */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrg) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+
+      {/* SEO meta tags */}
+      <title>{`${product.product_code} ${product.brand || ''} - ${productName} | Nexfluid`}</title>
+
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
-        <div className="mb-4 text-xs text-muted-foreground">
-          <Link to="/" className="hover:text-primary">Home</Link>
-          {categoryChain.map((cat) => (
-            <span key={cat.slug}>
-              <span className="mx-1">{'>'}</span>
-              <Link to={`/categories/${cat.slug}`} className="hover:text-primary">{cat.name}</Link>
-            </span>
-          ))}
-          <span className="mx-1">{'>'}</span>
-          <span>{product.product_code}</span>
-        </div>
+        <Breadcrumb className="mb-4">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild><Link to="/">Home</Link></BreadcrumbLink>
+            </BreadcrumbItem>
+            {categoryChain.map((cat) => (
+              <BreadcrumbItem key={cat.slug}>
+                <BreadcrumbSeparator />
+                <BreadcrumbLink asChild><Link to={`/categories/${cat.slug}`}>{cat.name}</Link></BreadcrumbLink>
+              </BreadcrumbItem>
+            ))}
+            <BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbPage>{product.product_code}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
         <div className="flex gap-8">
           <BrandsSidebar />
@@ -242,9 +305,19 @@ const ProductDetail = () => {
                 {/* Product image */}
                 <div className="aspect-square rounded-lg border bg-muted flex items-center justify-center mb-6 overflow-hidden">
                   {productImage ? (
-                    <img src={productImage} alt={productName} className="w-full h-full object-contain p-4" />
+                    <img
+                      src={productImage}
+                      alt={`${product.product_code} ${productName}`}
+                      className="w-full h-full object-contain p-4"
+                      loading="lazy"
+                    />
                   ) : (
-                    <Package className="h-20 w-20 text-muted-foreground/30" />
+                    <ProductPlaceholder
+                      size="lg"
+                      productCode={product.product_code}
+                      brand={product.brand}
+                      categoryName={categoryLastName}
+                    />
                   )}
                 </div>
 
@@ -279,7 +352,7 @@ const ProductDetail = () => {
                   </div>
                 )}
 
-                {/* Technical specs fallback from JSON */}
+                {/* Technical specs fallback */}
                 {specsFallback.length > 0 && (
                   <div className="mt-6">
                     <h2 className="text-lg font-bold font-display mb-1 text-primary">
@@ -346,9 +419,7 @@ const ProductDetail = () => {
                     <div className="space-y-1.5">
                       <Label htmlFor="pdp-country" className="font-bold text-primary">Shipping Country</Label>
                       <Select value={form.country} onValueChange={(v) => setForm((f) => ({ ...f, country: v }))}>
-                        <SelectTrigger id="pdp-country">
-                          <SelectValue placeholder="Select country" />
-                        </SelectTrigger>
+                        <SelectTrigger id="pdp-country"><SelectValue placeholder="Select country" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="IT">Italy</SelectItem>
                           <SelectItem value="DE">Germany</SelectItem>
@@ -376,6 +447,41 @@ const ProductDetail = () => {
                 </div>
               </div>
             </div>
+
+            {/* Related Products */}
+            {relatedProducts.length > 0 && (
+              <div className="mt-12">
+                <h2 className="text-lg font-bold font-display mb-1 text-primary">
+                  {lang === 'it' ? 'Prodotti Correlati' : 'Related Products'}
+                </h2>
+                <div className="w-16 h-0.5 bg-primary mb-4" />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {relatedProducts.map((rp) => {
+                    const rpName = lang === 'it' ? rp.name_it : rp.name_en;
+                    const rpImg = Array.isArray(rp.images) && rp.images.length > 0
+                      ? (typeof rp.images[0] === 'string' ? rp.images[0] : (rp.images[0] as any)?.url)
+                      : null;
+                    return (
+                      <Link
+                        key={rp.id}
+                        to={`/products/${rp.slug}`}
+                        className="group rounded-lg border bg-card p-3 hover:shadow-sm hover:border-primary/30 transition-all"
+                      >
+                        <div className="aspect-square rounded bg-muted flex items-center justify-center overflow-hidden mb-2">
+                          {rpImg ? (
+                            <img src={rpImg} alt={`${rp.product_code} ${rpName}`} className="w-full h-full object-contain p-2" loading="lazy" />
+                          ) : (
+                            <ProductPlaceholder size="lg" productCode={rp.product_code} brand={rp.brand} />
+                          )}
+                        </div>
+                        <p className="font-mono text-xs font-semibold text-primary">{rp.product_code}</p>
+                        <p className="text-xs text-muted-foreground truncate group-hover:text-primary transition-colors">{rpName}</p>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
