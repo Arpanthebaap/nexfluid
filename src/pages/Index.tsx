@@ -2,14 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet-async';
-import { motion } from 'framer-motion';
 import { ArrowRight, Truck, ShieldCheck, Headphones } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import OurBrands from '@/components/shared/OurBrands';
 import SpeakWithUs from '@/components/shared/SpeakWithUs';
 import ShippingSecurity from '@/components/shared/ShippingSecurity';
 import BrandsSidebar from '@/components/shared/BrandsSidebar';
-import SearchAutocomplete from '@/components/shared/SearchAutocomplete';
 
 type Category = {
   id: string;
