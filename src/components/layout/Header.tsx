@@ -79,7 +79,7 @@ const Header = () => {
 
             {/* Logo */}
             <Link to="/" className="shrink-0">
-              <img src="/lovable-uploads/e1dc6237-9b39-4782-9376-28d0f7dcc073.png" alt="Nexfluid - Automation in Stock" className="h-8 md:h-10 w-auto" />
+              <img src="/lovable-uploads/04244b88-7e59-4987-9f7a-81be85561eac.png" alt="Nexfluid - Automation in Stock" className="h-8 md:h-10 w-auto" />
             </Link>
 
             {/* Search bar */}
