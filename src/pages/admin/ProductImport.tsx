@@ -438,7 +438,19 @@ export default function ProductImport() {
             )}
           </div>
 
-          {/* Utility buttons */}
+          {/* Image scrape button */}
+          <div className="flex flex-wrap gap-3">
+            {scrapingImages ? (
+              <Button variant="outline" onClick={stopPipeline} className="gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Stop Image Scrape
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={runImageScrape} disabled={anyRunning} className="gap-2">
+                <ImageIcon className="h-4 w-4" /> Scrape Product Images
+              </Button>
+            )}
+          </div>
+
           <div className="flex flex-wrap gap-3">
             {counts.failed > 0 && !anyRunning && (
               <Button variant="outline" onClick={retryFailed} className="gap-2">
