@@ -1,71 +1,52 @@
 
 
-# Image Strategy: Branded Placeholders + Scraped Images with Nexfluid Overlay
+# Phase 5 Continued: Dynamic Filters, Homepage Hero, SEO Meta Tags
 
-## Overview
+## 1. Dynamic Category Filters (Category pages)
 
-Two-layer approach that works for all existing products AND future pipeline imports:
+**What**: When viewing a leaf category with products, show a sidebar with filter checkboxes auto-generated from `product_attributes` and `category_filters` tables.
 
-1. **Option 1 (already done)**: The `ProductPlaceholder` component is already live — shows Nexfluid logo, category, brand, product code
-2. **Option 2 (new)**: Build an edge function that scrapes product images from `source_url`, stores them in cloud storage with a Nexfluid watermark overlay, and updates the product's `images` field
+**How**:
+- Query `category_filters` for the current category to get which attributes to show
+- Query `product_attributes` for all products in that category to get available values
+- Render a collapsible filter sidebar with checkboxes for each attribute value
+- Apply filters by adding `.in()` conditions to the product query
+- Add to `Categories.tsx` as a left sidebar panel (replacing or alongside `BrandsSidebar` on leaf pages)
 
-## How It Works
+## 2. Homepage Hero Section
 
-### New Edge Function: `product-image-scrape`
+**What**: Add a prominent hero banner above the category grid with a large search bar, value proposition, and trust signals.
 
-Processes products that have a `source_url` but empty/missing `images`:
+**How**:
+- Add a full-width hero section at the top of `Index.tsx` with the Nexfluid gradient background
+- Large centered search bar using the existing `SearchAutocomplete` component
+- Tagline: "Automation in Stock — 85,000+ Industrial Components"
+- Trust badges: fast shipping, original parts, technical support
+- Clean, professional B2B industrial look
 
-1. Fetch the source page using Firecrawl with `formats: ['html']`
-2. Extract `<img>` URLs from the product page HTML (product images typically in main content area)
-3. Download each image, apply a Nexfluid watermark overlay using Canvas API (Deno has `ImageScript` library for this)
-4. Upload the watermarked image to cloud storage bucket
-5. Update the product's `images` JSON array with the storage URLs
+## 3. SEO Meta Tags (react-helmet-async)
 
-**Watermark approach**: Semi-transparent Nexfluid text overlay in the bottom-right corner + subtle border/frame. This makes every image visually unique and branded.
+**What**: Add page-specific `<title>`, `<meta description>`, `<link rel="canonical">`, and hreflang tags to every public page.
 
-**Alternative (simpler, no Canvas needed)**: Skip server-side watermarking. Instead, store the raw scraped images in cloud storage and apply a CSS-based Nexfluid overlay on the frontend. This is faster to implement, uses fewer resources, and achieves the same visual result.
+**How**:
+- Install `react-helmet-async` and wrap `App` with `HelmetProvider`
+- Add `<Helmet>` to: Index, Categories, ProductDetail, SearchResults, Contact, About, BrandPage
+- ProductDetail already has schema.org JSON-LD — add `<title>` and meta description from product SEO fields
+- Category pages: title = category name, description from category meta fields
+- Homepage: static branded title and description
+- Update `index.html` title to "Nexfluid — Automation in Stock"
 
-### Pipeline Integration
+## Files to Create/Edit
 
-- Modify `product-bulk-insert` to also extract image URLs from the scraped raw data (already available in `raw_data.links` and `raw_data.markdown`) and store them
-- Future products automatically get images during import
-
-### Admin UI Addition
-
-- Add "Scrape Images" button to the ProductImport page that runs the image scrape in batches
-- Progress tracking similar to existing pipeline
-
-## Technical Plan
-
-### Step 1: Create Storage Bucket
-- Create a `product-images` storage bucket with public read access
-
-### Step 2: Edge Function `product-image-scrape`
-- Fetch products with `source_url` and empty `images` array
-- Use Firecrawl to scrape the source page for image URLs
-- Download images, upload to storage bucket
-- Update product `images` field with public storage URLs
-
-### Step 3: CSS Overlay on Frontend
-- Add a Nexfluid watermark/branding overlay via CSS on all product images displayed on the site
-- This applies to both scraped images and any future manually uploaded images
-- Semi-transparent logo in corner + subtle branded frame
-
-### Step 4: Pipeline Integration
-- Update `product-bulk-insert` to extract image URLs from `raw_data` during import
-- New products automatically get source images stored
-
-### Step 5: Admin "Scrape Images" Button
-- Add batch image scraping to the import dashboard
-- Process existing products that have `source_url` but no images
-
-## Cost Estimate
-- Firecrawl credits: ~1 credit per product page (already scraped data may contain image URLs, reducing need for re-scraping)
-- Storage: Cloud storage for images (included in plan)
-- Processing: Edge function compute time
-
-## Fallback Chain
-For any product image display:
-1. Show stored/scraped image with CSS branding overlay
-2. If no image exists, show `ProductPlaceholder` component (already working)
+| File | Change |
+|------|--------|
+| `index.html` | Update default title to "Nexfluid" |
+| `src/App.tsx` | Wrap with `HelmetProvider` |
+| `src/pages/Index.tsx` | Add hero section + `<Helmet>` |
+| `src/pages/Categories.tsx` | Add dynamic filter sidebar + `<Helmet>` |
+| `src/pages/ProductDetail.tsx` | Add `<Helmet>` with product SEO fields |
+| `src/pages/SearchResults.tsx` | Add `<Helmet>` |
+| `src/pages/Contact.tsx` | Add `<Helmet>` |
+| `src/pages/About.tsx` | Add `<Helmet>` |
+| `src/components/shared/CategoryFilters.tsx` | NEW — reusable filter sidebar component |
 
