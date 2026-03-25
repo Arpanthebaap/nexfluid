@@ -22,6 +22,9 @@ const About = () => {
           ? 'Nexfluid: il tuo partner per soluzioni industriali di precisione. Oltre 85.000 prodotti, 50+ brand, spedizione express.'
           : 'Nexfluid: your partner for precision industrial solutions. 85,000+ products, 50+ brands, express shipping.'
         } />
+        <link rel="alternate" hrefLang="it" href="https://nexfluid.it/about" />
+        <link rel="alternate" hrefLang="en" href="https://nexfluid.com/about" />
+        <link rel="alternate" hrefLang="x-default" href="https://nexfluid.it/about" />
       </Helmet>
       <div className="container mx-auto px-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-3xl">

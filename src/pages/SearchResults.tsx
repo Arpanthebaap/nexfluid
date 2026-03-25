@@ -67,6 +67,8 @@ const SearchResults = () => {
       <Helmet>
         <title>{`"${query}" — ${lang === 'it' ? 'Risultati ricerca' : 'Search results'} | Nexfluid`}</title>
         <meta name="robots" content="noindex" />
+        <link rel="alternate" hrefLang="it" href={`https://nexfluid.it/search?q=${encodeURIComponent(query)}`} />
+        <link rel="alternate" hrefLang="en" href={`https://nexfluid.com/search?q=${encodeURIComponent(query)}`} />
       </Helmet>
       <div className="container mx-auto px-4">
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl font-display uppercase text-primary">
