@@ -399,8 +399,11 @@ export default function ProductImport() {
           {/* Main action buttons */}
           <div className="flex flex-wrap gap-3">
             {phase === 'idle' && !anyRunning && (
-              <Button size="lg" onClick={runFullPipeline} className="gap-2">
+              <Button size="lg" onClick={() => runFullPipeline(false)} className="gap-2">
                 <Rocket className="h-4 w-4" /> Start Full Pipeline
+              </Button>
+              <Button size="lg" variant="outline" onClick={() => runFullPipeline(true)} className="gap-2">
+                <Map className="h-4 w-4" /> Force Discovery + Pipeline
               </Button>
             )}
             {phase === 'paused' && !anyRunning && (
