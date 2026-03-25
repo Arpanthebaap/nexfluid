@@ -106,8 +106,15 @@ Deno.serve(async (req) => {
     let scraped = 0;
     let failed = 0;
     let skippedBrand = 0;
+    const startTime = Date.now();
+    const SAFETY_MS = 120000; // Return before 150s edge function timeout
 
     for (const job of jobs) {
+      // Check safety timer before each job
+      if (Date.now() - startTime > SAFETY_MS) {
+        console.log('Safety timeout reached, returning partial results');
+        break;
+      }
       try {
         // ── URL-based brand pre-filter: skip scraping entirely ──
         const rejectedBrand = isRejectedByUrl(job.source_url);
