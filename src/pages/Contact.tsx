@@ -68,6 +68,9 @@ const Contact = () => {
           ? 'Contattaci per un preventivo su valvole, pneumatica, idraulica e automazione industriale. Risposta entro 24 ore.'
           : 'Contact us for a quote on valves, pneumatics, hydraulics and industrial automation. Response within 24 hours.'
         } />
+        <link rel="alternate" hrefLang="it" href="https://nexfluid.it/contact" />
+        <link rel="alternate" hrefLang="en" href="https://nexfluid.com/contact" />
+        <link rel="alternate" hrefLang="x-default" href="https://nexfluid.it/contact" />
       </Helmet>
       <div className="container mx-auto px-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-4xl">

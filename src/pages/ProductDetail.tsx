@@ -294,6 +294,9 @@ const ProductDetail = () => {
           (lang === 'it' ? product.meta_description_it : product.meta_description_en)
           || `${product.product_code} ${product.brand || ''} — ${productName}. ${lang === 'it' ? 'Disponibile su Nexfluid.' : 'Available at Nexfluid.'}`
         } />
+        <link rel="alternate" hrefLang="it" href={`https://nexfluid.it/products/${product.slug}`} />
+        <link rel="alternate" hrefLang="en" href={`https://nexfluid.com/products/${product.slug}`} />
+        <link rel="alternate" hrefLang="x-default" href={`https://nexfluid.it/products/${product.slug}`} />
       </Helmet>
 
       <div className="container mx-auto px-4 py-8">

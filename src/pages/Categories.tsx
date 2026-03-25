@@ -263,6 +263,9 @@ const Categories = () => {
         {currentCategory && (
           <meta name="description" content={catDesc(currentCategory) || `${catName(currentCategory)} — ${lang === 'it' ? 'Prodotti industriali su Nexfluid' : 'Industrial products at Nexfluid'}`} />
         )}
+        <link rel="alternate" hrefLang="it" href={`https://nexfluid.it${slug ? `/categories/${slug}` : '/categories'}`} />
+        <link rel="alternate" hrefLang="en" href={`https://nexfluid.com${slug ? `/categories/${slug}` : '/categories'}`} />
+        <link rel="alternate" hrefLang="x-default" href={`https://nexfluid.it${slug ? `/categories/${slug}` : '/categories'}`} />
       </Helmet>
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumbs */}
@@ -373,7 +376,7 @@ const Categories = () => {
                               {imgUrl ?
                           <img
                             src={imgUrl}
-                            alt={lang === 'it' ? product.name_it : product.name_en}
+                            alt={`${product.product_code} ${lang === 'it' ? product.name_it : product.name_en}`}
                             className="h-full w-full object-contain p-2"
                             loading="lazy" /> :
 
