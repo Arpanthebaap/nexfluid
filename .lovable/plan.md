@@ -1,116 +1,77 @@
 
+Goal
+Stabilize the full and standalone import pipeline so valid products stop failing, duplicates stop accumulating, and reruns become safe/idempotent.
 
-# Master Plan Status Analysis
+What I found (from code + live data)
+1) False brand rejections in AI stage:
+- `product-ai-process` rejects by substring (`MAC`, `UNIVER`, `ROSS`) against full markdown text.
+- This is causing valid ASCO/AVENTICS/SIRAI products to be marked failed.
 
-## Phase-by-Phase Status
+2) Massive duplicate job creation:
+- `product-discover-categories` tries to dedupe by reading existing URLs, but the query only effectively covers a limited slice.
+- No unique constraint on `scrape_jobs.source_url`, so repeated discovery keeps inserting the same URLs (many with 50+ duplicates).
 
-### Phase 2: Admin Panel -- COMPLETE
-- Login with admin role check via `has_role` RPC
-- Category management (CRUD, hierarchy)
-- Product management (CRUD, relational category columns)
-- CSV import with field mapping, preview, error handling
-- Quote request inbox with status management
-- Product form with SEO fields, descriptions, translations
-- Filter attribute management (`category_filters` table + admin UI)
+3) Import stage is not idempotent:
+- `product-bulk-insert` does plain insert into `products`.
+- Existing `product_code` conflicts are treated as failures, so reruns push many records to failed.
 
-### Phase 3: Web Scraping Pipeline -- COMPLETE (running)
-- Firecrawl connected with your own API key
-- URL discovery via `firecrawl-map`
-- Batch scraping via `product-scrape-batch`
-- AI attribute extraction in `product-ai-process`
-- Progress dashboard in admin (`ProductImport.tsx`)
-- Brand pre-filtering (just deployed) to save credits
-- Pipeline running in parallel -- no need to wait
+4) Full pipeline orchestration can worsen backlog:
+- “Start Full Pipeline” always runs discovery first, even when there is already a huge pending queue.
+- This amplifies duplicate risk and workload.
 
-### Phase 4: AI Content Rewriting -- COMPLETE (running)
-- Gemini-based rewriting via Lovable AI gateway
-- Italian + English descriptions generated
-- SEO meta titles/descriptions generated
-- Batch processing with progress tracking
-- Raw data fix just deployed to improve success rate
+Implementation plan
+Step 1 — Database hardening migration
+- Deduplicate existing `scrape_jobs` by `source_url` (keep best/latest row, delete the rest).
+- Add unique index/constraint on `scrape_jobs.source_url`.
+- Keep existing RLS/policies unchanged.
 
-### Phase 5: Public Frontend -- COMPLETE
-- Header with search autocomplete, mega menu, language switcher, contact CTA
-- Homepage with hero, category grid, trust signals, brands section
-- Category pages with breadcrumbs, pagination, dynamic sidebar filters
-- Product pages with schema.org markup, breadcrumbs, image gallery, specs table, related products, quote form
-- Quote request form saving to DB + email notification via `quote-notify` edge function
-- About/Contact pages (placeholder content ready for SocialVision)
-- Search with trigram similarity, autocomplete, paginated results
+Step 2 — Discovery function fix (`product-discover-categories`)
+- Remove full-table “existing URLs” prefetch.
+- Insert discovered URLs via upsert on `source_url` with ignore-duplicates behavior.
+- Move timeout start timestamp inside request scope (not module scope) for safe per-run timing.
 
-### Phase 6: Multilingual -- COMPLETE
-- i18n with `react-i18next` + language detector
-- All UI strings in IT and EN
-- Product content generated in both languages by AI pipeline
-- Language switcher in header
-- Domain strategy defined: nexfluid.it (IT), nexfluid.com (EN)
+Step 3 — AI processing brand filter fix (`product-ai-process`)
+- Replace loose substring matching with strict token/word-boundary matching.
+- Remove/handle ambiguous short tokens (`MAC`, `ROSS`, `UNIVER`) with safer rules.
+- Prefer explicit brand signals from URL/title before rejecting.
+- Keep credit-saving prefilter, but reduce false positives.
 
-### Phase 7: SEO & Performance -- MOSTLY COMPLETE
-- Meta title/description on every page with product code
-- H1-H3 heading structure
-- SEO-friendly URLs (`/products/:slug`, `/categories/:slug`)
-- Breadcrumb + Product schema.org structured data
-- `generate-sitemap` edge function exists
-- `robots.txt` present
-- Lazy loading, code splitting (Vite)
-- Database indexes (trigram, full-text search vectors)
+Step 4 — Import function idempotency (`product-bulk-insert`)
+- Convert product insert to upsert by `product_code` (update existing product fields on conflict).
+- For attributes: clear-and-replace (or dedupe) for the target product to avoid duplicates on rerun.
+- Mark job as imported after successful upsert instead of failed-on-duplicate.
 
-**Missing/incomplete items:**
-- hreflang tags not yet on pages (needed for IT/EN domain separation)
-- Image alt tags may not be consistently auto-generated
-- sitemap.xml not wired to a public route (edge function exists but needs to be callable)
-- PageSpeed audit not yet done
+Step 5 — Admin pipeline behavior (`ProductImport.tsx`)
+- If pending jobs already exist, skip discovery by default in “Start Full Pipeline”.
+- Add explicit “Force Discovery” action for when you intentionally want new URL discovery.
+- Keep standalone actions, but adjust loop stop conditions to avoid unnecessary import retries when no processed items exist.
 
-### Phase 8: Hybrid Filters -- COMPLETE
-- AI auto-extraction of attributes during pipeline
-- `category_filters` table for admin configuration
-- Dynamic filter sidebar auto-generated per category
-- Intersection filtering logic implemented
+Step 6 — Recovery of wrongly failed jobs
+- Requeue only false-failed rows from recent bad filter patterns (e.g., MAC/UNIVER/ROSS false positives and duplicate-insert failures).
+- Do not requeue true blocked brands (camozzi, burkert, etc.).
+- Resume pipeline.
 
-### Phase 9: Testing & Launch -- NOT STARTED
+Step 7 — Verification checklist (full + standalone)
+- Standalone Scrape: pending decreases, scraped increases.
+- Standalone Process: scraped decreases, processed increases, false brand failures near zero.
+- Standalone Import: processed decreases, imported increases, duplicate-key failures zero.
+- Full Pipeline: all three stages advance continuously; no duplicate job explosion.
+- Confirm failure reasons are mostly genuine source/brand exclusions.
 
----
+Technical details
+- Files to update:
+  - `supabase/functions/product-discover-categories/index.ts`
+  - `supabase/functions/product-ai-process/index.ts`
+  - `supabase/functions/product-bulk-insert/index.ts`
+  - `src/pages/admin/ProductImport.tsx`
+  - new DB migration in `supabase/migrations/*`
+- Primary root-cause fixes:
+  - enforce unique URL jobs at DB level
+  - safer brand detection logic
+  - idempotent import by `product_code`
+  - avoid unnecessary rediscovery while backlog exists
 
-## What to Do Next
-
-The pipeline is running and will continue importing products in the background. Meanwhile, the best use of time is to close the remaining gaps before launch:
-
-### Recommended next steps (in priority order):
-
-**1. Add hreflang tags to all pages**
-Add `<link rel="alternate" hreflang="it" href="https://nexfluid.it/..." />` and `hreflang="en"` variant to every page via the existing `<Helmet>` components. This is critical for the dual-domain IT/EN SEO strategy.
-
-**2. Wire sitemap.xml to a public endpoint**
-The `generate-sitemap` edge function exists but needs a route or mechanism to serve it at `/sitemap.xml`. Options: generate and store in storage bucket, or serve via edge function URL referenced in `robots.txt`.
-
-**3. Auto-generate image alt tags**
-Ensure all product images have alt text derived from `product_code + name`. Check `BrandedProductImage.tsx` and product listing components.
-
-**4. PageSpeed audit and fixes**
-Run PageSpeed Insights on key pages (homepage, category, product detail) and fix any issues found.
-
-**5. Remaining institutional content**
-About/Contact pages have placeholder content -- SocialVision will provide final copy. No action needed from us now.
-
----
-
-## Regarding Multilingual Domains
-
-The i18n system is already fully functional. The dual-domain setup (nexfluid.it for Italian, nexfluid.com for English) will work once:
-1. Both domains are connected (you mentioned domains are added)
-2. hreflang tags are added (Step 1 above)
-3. Language detection routes users to the correct domain
-
-This can be finalized now -- it doesn't depend on product import completion.
-
----
-
-## Technical Details
-
-| Task | Files to modify |
-|------|----------------|
-| hreflang tags | `src/pages/Index.tsx`, `ProductDetail.tsx`, `ProductListing.tsx`, `Categories.tsx`, `SearchResults.tsx` -- add hreflang `<link>` tags inside existing `<Helmet>` |
-| Sitemap public route | `robots.txt` -- add sitemap URL; possibly create a storage-based approach or direct edge function URL |
-| Image alt tags | `src/components/shared/BrandedProductImage.tsx`, product grid components |
-| PageSpeed | Audit-driven -- may involve image optimization, font loading, critical CSS |
-
+Expected outcome
+- Failure rate drops significantly for valid products.
+- Pipeline can be safely resumed/restarted without creating duplicate jobs or duplicate-key failures.
+- Full pipeline and standalone modes both become predictable and stable again.
