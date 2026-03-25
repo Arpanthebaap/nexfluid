@@ -14,18 +14,10 @@ const EXCLUDE_PATTERNS = [
   /\/index\.php/i,
 ];
 
-const START_TIME = Date.now();
-const SAFETY_LIMIT_MS = 50000; // 50s safety window (edge fn has 60s limit)
-
-function isTimeSafe(): boolean {
-  return (Date.now() - START_TIME) < SAFETY_LIMIT_MS;
-}
-
 function shouldExclude(url: string): boolean {
   return EXCLUDE_PATTERNS.some(p => p.test(url));
 }
 
-// Valves-direct product URLs: /{series-slug}/{id}-{name}.html
 function isValvesDirectProductUrl(url: string): boolean {
   try {
     const path = new URL(url).pathname;
@@ -37,7 +29,6 @@ function isValvesDirectProductUrl(url: string): boolean {
   } catch { return false; }
 }
 
-// Valves-direct subcategory URLs: /{number}-{slug}
 function isValvesDirectSubcategoryUrl(url: string, baseDomain: string): boolean {
   try {
     const parsed = new URL(url);
@@ -50,7 +41,6 @@ function isValvesDirectSubcategoryUrl(url: string, baseDomain: string): boolean 
   } catch { return false; }
 }
 
-// RS-Online product URLs: /web/p/{product-slug}/{id}/
 function isRsOnlineProductUrl(url: string): boolean {
   try {
     const path = new URL(url).pathname;
@@ -58,7 +48,6 @@ function isRsOnlineProductUrl(url: string): boolean {
   } catch { return false; }
 }
 
-// Pagination URLs: ?page=N or p=N
 function extractPaginationUrls(links: string[], baseUrl: string): string[] {
   const baseWithoutParams = baseUrl.split('?')[0];
   const pageUrls: string[] = [];
@@ -107,6 +96,13 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Per-request timing (NOT module-level) so each invocation gets a fresh 50s window
+  const startTime = Date.now();
+  const SAFETY_LIMIT_MS = 50000;
+  function isTimeSafe(): boolean {
+    return (Date.now() - startTime) < SAFETY_LIMIT_MS;
+  }
+
   try {
     const { categoryUrl } = await req.json();
 
@@ -129,18 +125,11 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get existing URLs to deduplicate
-    const { data: existingJobs } = await supabase
-      .from('scrape_jobs')
-      .select('source_url');
-    const existingUrls = new Set((existingJobs || []).map((j: any) => j.source_url));
-
     const isRsOnline = categoryUrl.includes('rs-online.com');
     const baseDomain = new URL(categoryUrl).hostname;
 
     console.log(`--- Discovering: ${categoryUrl} ---`);
 
-    // Step 1: Scrape the parent category page
     const parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
     console.log(`Found ${parentLinks.length} links on parent page`);
 
@@ -150,7 +139,6 @@ Deno.serve(async (req) => {
     let timedOut = false;
 
     if (isRsOnline) {
-      // RS-Online: find product URLs directly + pagination
       const productUrls = parentLinks.filter(l => isRsOnlineProductUrl(l) && !shouldExclude(l));
       allProductUrls.push(...productUrls);
 
@@ -166,7 +154,6 @@ Deno.serve(async (req) => {
         await new Promise(r => setTimeout(r, 200));
       }
     } else {
-      // Valves-direct: find subcategories, then product URLs from each
       const subcatUrls = parentLinks.filter(l => isValvesDirectSubcategoryUrl(l, baseDomain) && !shouldExclude(l));
       const directProducts = parentLinks.filter(l => isValvesDirectProductUrl(l) && !shouldExclude(l));
       allProductUrls.push(...directProducts);
@@ -175,7 +162,6 @@ Deno.serve(async (req) => {
 
       for (const subcatUrl of subcatUrls) {
         if (!isTimeSafe()) { timedOut = true; break; }
-
         try {
           console.log(`  Scraping subcategory: ${subcatUrl}`);
           const subcatLinks = await scrapeLinks(subcatUrl, firecrawlKey);
@@ -184,7 +170,6 @@ Deno.serve(async (req) => {
           const products = subcatLinks.filter(l => isValvesDirectProductUrl(l) && !shouldExclude(l));
           allProductUrls.push(...products);
 
-          // Handle pagination within this subcategory
           const pageUrls = extractPaginationUrls(subcatLinks, subcatUrl);
           for (const pageUrl of pageUrls) {
             if (!isTimeSafe()) { timedOut = true; break; }
@@ -203,30 +188,33 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Deduplicate
+    // Deduplicate discovered URLs
     const unique = [...new Set(allProductUrls)];
-    const newUrls = unique.filter(u => !existingUrls.has(u));
 
-    // Insert new URLs as pending scrape jobs
+    // Upsert into scrape_jobs — ON CONFLICT DO NOTHING (unique index on source_url)
     let inserted = 0;
-    if (newUrls.length > 0) {
+    if (unique.length > 0) {
       const batchSize = 500;
-      for (let i = 0; i < newUrls.length; i += batchSize) {
-        const batch = newUrls.slice(i, i + batchSize).map(url => ({
+      for (let i = 0; i < unique.length; i += batchSize) {
+        const batch = unique.slice(i, i + batchSize).map(url => ({
           source_url: url,
           status: 'pending' as const,
         }));
-        const { error } = await supabase.from('scrape_jobs').insert(batch);
+        const { error, count } = await supabase
+          .from('scrape_jobs')
+          .upsert(batch, { onConflict: 'source_url', ignoreDuplicates: true })
+          .select('id');
         if (error) {
-          console.error('Insert error:', error);
+          console.error('Upsert error:', error);
         } else {
+          // count may not be reliable with ignoreDuplicates, estimate from batch
           inserted += batch.length;
         }
       }
     }
 
-    const elapsed = Math.round((Date.now() - START_TIME) / 1000);
-    console.log(`Done in ${elapsed}s: ${inserted} new of ${unique.length} total products found`);
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
+    console.log(`Done in ${elapsed}s: ${unique.length} total product URLs found`);
 
     return new Response(
       JSON.stringify({

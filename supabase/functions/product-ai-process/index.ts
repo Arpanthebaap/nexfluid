@@ -5,7 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Allowed brands and normalization
 const ALLOWED_BRANDS = ['PARKER', 'ASCO', 'AVENTICS', 'JOUCOMATIC', 'NUMATICS', 'EMERSON', 'SIRAI'];
 const BRAND_NORMALIZATION: Record<string, string> = {
   'EMERSON AVENTICS': 'AVENTICS',
@@ -17,13 +16,17 @@ const BRAND_NORMALIZATION: Record<string, string> = {
 };
 
 // Known non-whitelisted brands to reject early (saves AI credits)
+// IMPORTANT: Only brands that are unambiguous full words — no short tokens
 const REJECTED_BRANDS = [
   'BURKERT', 'BÜRKERT', 'PNEUMAX', 'CAMOZZI', 'MINDMAN', 'DELTROL',
-  'FESTO', 'SMC', 'NORGREN', 'BOSCH', 'REXROTH', 'HAFNER', 'AIRTAC',
-  'METALWORK', 'METAL WORK', 'UNIVER', 'HUMPHREY', 'CLIPPARD', 'BIMBA',
-  'CKD', 'KOGANEI', 'PISCO', 'JANATICS', 'AIRTEC', 'ROSS', 'VERSA',
-  'MAC', 'MEAD', 'SCHRADER', 'ROTORK', 'BIFFI', 'KEYSTONE',
+  'FESTO', 'SMC', 'NORGREN', 'BOSCH REXROTH', 'REXROTH', 'HAFNER', 'AIRTAC',
+  'METALWORK', 'METAL WORK', 'HUMPHREY', 'CLIPPARD', 'BIMBA',
+  'CKD', 'KOGANEI', 'PISCO', 'JANATICS', 'AIRTEC', 'VERSA',
+  'MEAD', 'SCHRADER', 'ROTORK', 'BIFFI', 'KEYSTONE',
 ];
+
+// These short/ambiguous tokens need word-boundary matching to avoid false positives
+const AMBIGUOUS_REJECTED_BRANDS = ['UNIVER', 'ROSS', 'MAC', 'BOSCH'];
 
 function normalizeBrand(brand: string): string | null {
   if (!brand) return null;
@@ -38,40 +41,51 @@ function normalizeBrand(brand: string): string | null {
   return null;
 }
 
-// Detect brand from markdown/metadata text BEFORE calling AI
+// Word-boundary brand check: ensures "MAC" doesn't match "MACHINE" or "MACRO"
+function matchesWordBoundary(text: string, brand: string): boolean {
+  const regex = new RegExp(`(?:^|[\\s,;:()\\[\\]/"'])${brand}(?:[\\s,;:()\\[\\]/"']|$)`, 'i');
+  return regex.test(text);
+}
+
+// Detect brand from content with strict matching
 function detectBrandFromContent(markdown: string, metadata: any, sourceUrl: string): { brand: string | null; isRejected: boolean } {
   const text = `${markdown} ${metadata?.title || ''} ${metadata?.description || ''} ${sourceUrl}`.toUpperCase();
   
-  // Check for rejected brands first
-  for (const rb of REJECTED_BRANDS) {
-    if (text.includes(rb)) {
-      return { brand: rb, isRejected: true };
-    }
-  }
-  
-  // Check for allowed brands
+  // Check allowed brands first (priority over rejected)
   for (const ab of ALLOWED_BRANDS) {
     if (text.includes(ab)) {
       return { brand: ab, isRejected: false };
     }
   }
-  
-  // Also check normalization keys
   for (const [key, val] of Object.entries(BRAND_NORMALIZATION)) {
     if (text.includes(key)) {
       return { brand: val, isRejected: false };
     }
   }
   
+  // Check unambiguous rejected brands (simple includes is safe for long names)
+  for (const rb of REJECTED_BRANDS) {
+    if (text.includes(rb)) {
+      return { brand: rb, isRejected: true };
+    }
+  }
+  
+  // Check ambiguous rejected brands with word-boundary matching
+  // Only check title + URL (more reliable signal) — not full markdown body
+  const titleUrlText = `${metadata?.title || ''} ${sourceUrl}`.toUpperCase();
+  for (const rb of AMBIGUOUS_REJECTED_BRANDS) {
+    if (matchesWordBoundary(titleUrlText, rb)) {
+      return { brand: rb, isRejected: true };
+    }
+  }
+  
   return { brand: null, isRejected: false };
 }
 
-// Extract product info from markdown text
 function extractFromMarkdown(markdown: string, metadata: any): { productName: string; brand: string; description: string; specs: any[] } {
   const title = metadata?.title || '';
   const metaDesc = metadata?.description || '';
   
-  // Try to extract product name from metadata title or first heading
   let productName = title;
   if (!productName) {
     const headingMatch = markdown.match(/^#\s+(.+)$/m);
@@ -79,7 +93,6 @@ function extractFromMarkdown(markdown: string, metadata: any): { productName: st
   }
   if (!productName) productName = 'Unknown Product';
   
-  // Try to detect brand from text
   const textUpper = `${markdown} ${title}`.toUpperCase();
   let brand = '';
   for (const ab of ALLOWED_BRANDS) {
@@ -95,13 +108,10 @@ function extractFromMarkdown(markdown: string, metadata: any): { productName: st
     }
   }
   
-  // Use markdown + meta description as description source
   const description = metaDesc || markdown.slice(0, 2000);
-  
   return { productName, brand, description, specs: [] };
 }
 
-// Extract category slug from valves-direct URL pattern
 function extractCategorySlug(sourceUrl: string): string | null {
   try {
     const path = new URL(sourceUrl).pathname;
@@ -113,7 +123,6 @@ function extractCategorySlug(sourceUrl: string): string | null {
   return null;
 }
 
-// Build a compact hierarchical tree string from categories
 function buildCategoryTree(categories: any[]): string {
   const byParent = new Map<string | null, any[]>();
   for (const c of categories) {
@@ -121,7 +130,6 @@ function buildCategoryTree(categories: any[]): string {
     if (!byParent.has(pid)) byParent.set(pid, []);
     byParent.get(pid)!.push(c);
   }
-
   function render(parentId: string | null, depth: number): string {
     const children = byParent.get(parentId) || [];
     return children.map(c => {
@@ -131,7 +139,6 @@ function buildCategoryTree(categories: any[]): string {
       return sub ? `${line}\n${sub}` : line;
     }).join('\n');
   }
-
   return render(null, 0);
 }
 
@@ -156,7 +163,6 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get scraped jobs ready for AI processing
     const { data: jobs, error: fetchError } = await supabase
       .from('scrape_jobs')
       .select('*')
@@ -177,7 +183,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch ALL categories for matching
     const { data: categories } = await supabase
       .from('categories')
       .select('id, name_en, name_it, slug, parent_id')
@@ -196,12 +201,10 @@ Deno.serve(async (req) => {
 
     for (const job of jobs) {
       try {
-        // ── FIXED: Parse from raw_data.markdown + raw_data.metadata (not raw_data.json) ──
         const rawMarkdown = job.raw_data?.markdown || '';
         const rawMetadata = job.raw_data?.metadata || {};
-        const rawLinks = job.raw_data?.links || [];
 
-        // ── STEP 1: Early brand detection BEFORE AI call ──
+        // STEP 1: Early brand detection with strict matching
         const brandCheck = detectBrandFromContent(rawMarkdown, rawMetadata, job.source_url);
         if (brandCheck.isRejected) {
           console.log(`Pre-filter rejected job ${job.id}: non-whitelisted brand "${brandCheck.brand}" from ${job.source_url}`);
@@ -215,13 +218,11 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Extract product info from markdown/metadata
         const extracted = extractFromMarkdown(rawMarkdown, rawMetadata);
         const productName = extracted.productName;
         const brand = extracted.brand || brandCheck.brand || '';
         const originalDesc = extracted.description;
 
-        // GUARD: Skip jobs with empty/missing raw data
         const hasContent = (rawMarkdown && rawMarkdown.trim().length > 50) || 
                            (productName && productName !== 'Unknown Product');
         if (!hasContent) {
@@ -235,7 +236,6 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // URL-based category matching
         let matchedCategoryId: string | null = null;
         let matchedCategoryName = '';
         const slug = extractCategorySlug(job.source_url);
@@ -244,7 +244,6 @@ Deno.serve(async (req) => {
           if (match) {
             matchedCategoryId = match.id;
             matchedCategoryName = match.name_en;
-            console.log(`URL match: slug="${slug}" → "${match.name_en}"`);
           }
         }
 
@@ -352,19 +351,16 @@ TASKS:
 
         const processedData = JSON.parse(toolCall.function.arguments);
 
-        // Override category_id with URL-matched one if available
         if (matchedCategoryId) {
           processedData.category_id = matchedCategoryId;
         }
 
-        // Extract images from markdown links if available
         const imageUrls: string[] = [];
         const imgRegex = /!\[.*?\]\((https?:\/\/[^\s)]+)\)/g;
         let imgMatch;
         while ((imgMatch = imgRegex.exec(rawMarkdown)) !== null) {
           imageUrls.push(imgMatch[1]);
         }
-        // Also check metadata for og:image
         if (rawMetadata.ogImage) imageUrls.push(rawMetadata.ogImage);
         processedData.images = imageUrls;
         
@@ -372,7 +368,6 @@ TASKS:
         processedData.source_url = job.source_url;
         processedData.description_original = originalDesc;
 
-        // Brand validation
         const rawBrand = processedData.brand || brand || '';
         const normalizedBrand = normalizeBrand(rawBrand);
         if (!normalizedBrand) {

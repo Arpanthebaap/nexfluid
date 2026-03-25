@@ -92,40 +92,47 @@ export default function ProductImport() {
     }
   }, [counts.imported, phase, startTime]);
 
-  const runFullPipeline = async () => {
+  const runFullPipeline = async (forceDiscovery = false) => {
     stopRef.current = false;
-    setPhase('discovering');
     setStartTime(Date.now());
     setLogs([]);
     lastImportedRef.current = 0;
 
-    // Phase 1: Discovery — one category at a time to avoid 60s timeout
-    addLog('🚀 Starting URL discovery from category pages...');
-    let totalNewUrls = 0;
-    for (let i = 0; i < SOURCE_CATEGORY_URLS.length; i++) {
-      if (stopRef.current) break;
-      const catUrl = SOURCE_CATEGORY_URLS[i];
-      addLog(`🔍 [${i + 1}/${SOURCE_CATEGORY_URLS.length}] Discovering: ${catUrl}`);
-      try {
-        const res = await firecrawlApi.discoverCategory(catUrl);
-        const data = res as any;
-        if (res.success) {
-          totalNewUrls += data.totalNew || 0;
-          addLog(`✅ Found ${data.totalFound || 0} products, ${data.totalNew || 0} new${data.timedOut ? ' (partial — timed out)' : ''}`);
-        } else {
-          addLog(`⚠️ ${catUrl}: ${res.error}`);
+    // Check if there's already a backlog — skip discovery unless forced
+    const currentCounts = await fetchCounts();
+    const backlog = (currentCounts?.pending || 0) + (currentCounts?.scraped || 0) + (currentCounts?.processed || 0);
+
+    if (backlog > 0 && !forceDiscovery) {
+      addLog(`⏩ Skipping discovery — ${backlog} jobs already in queue. Use "Force Discovery" to add more.`);
+    } else {
+      setPhase('discovering');
+      addLog('🚀 Starting URL discovery from category pages...');
+      let totalNewUrls = 0;
+      for (let i = 0; i < SOURCE_CATEGORY_URLS.length; i++) {
+        if (stopRef.current) break;
+        const catUrl = SOURCE_CATEGORY_URLS[i];
+        addLog(`🔍 [${i + 1}/${SOURCE_CATEGORY_URLS.length}] Discovering: ${catUrl}`);
+        try {
+          const res = await firecrawlApi.discoverCategory(catUrl);
+          const data = res as any;
+          if (res.success) {
+            totalNewUrls += data.totalNew || 0;
+            addLog(`✅ Found ${data.totalFound || 0} products, ${data.totalNew || 0} new${data.timedOut ? ' (partial — timed out)' : ''}`);
+          } else {
+            addLog(`⚠️ ${catUrl}: ${res.error}`);
+          }
+        } catch (err) {
+          addLog(`❌ ${catUrl}: ${err}`);
         }
-      } catch (err) {
-        addLog(`❌ ${catUrl}: ${err}`);
+        await fetchCounts();
       }
-      await fetchCounts();
+      addLog(`📊 Discovery complete: ${totalNewUrls} total new URLs discovered`);
     }
-    addLog(`📊 Discovery complete: ${totalNewUrls} total new URLs discovered`);
 
     await fetchCounts();
     if (stopRef.current) { setPhase('paused'); return; }
 
-    // Phase 2-4: Parallel loops
+    // Parallel loops
     setPhase('running');
     addLog('⚡ Starting parallel scrape → AI → import pipeline...');
 
@@ -392,9 +399,14 @@ export default function ProductImport() {
           {/* Main action buttons */}
           <div className="flex flex-wrap gap-3">
             {phase === 'idle' && !anyRunning && (
-              <Button size="lg" onClick={runFullPipeline} className="gap-2">
-                <Rocket className="h-4 w-4" /> Start Full Pipeline
-              </Button>
+              <>
+                <Button size="lg" onClick={() => runFullPipeline(false)} className="gap-2">
+                  <Rocket className="h-4 w-4" /> Start Full Pipeline
+                </Button>
+                <Button size="lg" variant="outline" onClick={() => runFullPipeline(true)} className="gap-2">
+                  <Map className="h-4 w-4" /> Force Discovery + Pipeline
+                </Button>
+              </>
             )}
             {phase === 'paused' && !anyRunning && (
               <Button size="lg" onClick={resumePipeline} className="gap-2">
