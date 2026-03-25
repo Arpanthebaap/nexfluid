@@ -39,15 +39,23 @@ async function scrapeWithRetry(url: string, firecrawlKey: string): Promise<{ ok:
         timeout,
       }),
     });
-    return { response, data: await response.json() };
+    // Safely parse response - handle non-JSON (e.g. "Bad Gateway")
+    const text = await response.text();
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { error: text.substring(0, 200), code: `HTTP_${response.status}` };
+    }
+    return { response, data };
   };
 
-  let result = await attempt(60000);
+  let result = await attempt(30000);
   if (result.response.ok) return { ok: true, data: result.data };
 
   if (result.data?.code === 'SCRAPE_TIMEOUT') {
-    console.log(`Retrying ${url} with 90s timeout...`);
-    result = await attempt(90000);
+    console.log(`Retrying ${url} with 45s timeout...`);
+    result = await attempt(45000);
     if (result.response.ok) return { ok: true, data: result.data };
   }
 
