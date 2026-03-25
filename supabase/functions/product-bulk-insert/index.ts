@@ -27,7 +27,6 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get processed jobs ready for import
     const { data: jobs, error: fetchError } = await supabase
       .from('scrape_jobs')
       .select('*')
@@ -64,7 +63,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Category verification: if no category_id or it's invalid, try URL-based matching
+        // Category verification
         let categoryId = job.category_id || pd.category_id || null;
         if (!categoryId && job.source_url) {
           try {
@@ -85,67 +84,124 @@ Deno.serve(async (req) => {
         const baseSlug = slugify(pd.name_en);
         const uniqueSlug = `${baseSlug}-${Date.now().toString(36)}`;
 
-        // Insert product
-        const { data: product, error: insertError } = await supabase
+        // Check if product with same product_code already exists
+        const { data: existing } = await supabase
           .from('products')
-          .insert({
-            name_en: pd.name_en,
-            name_it: pd.name_it || pd.name_en,
-            slug: uniqueSlug,
-            product_code: pd.product_code,
-            brand: pd.brand || null,
-            category_id: categoryId,
-            description_en: pd.description_en || null,
-            description_it: pd.description_it || null,
-            description_original: pd.description_original || null,
-            meta_title_en: pd.meta_title_en || null,
-            meta_title_it: pd.meta_title_it || null,
-            meta_description_en: pd.meta_description_en || null,
-            meta_description_it: pd.meta_description_it || null,
-            images: pd.images || [],
-            source_url: pd.source_url || job.source_url,
-            status: 'published',
-            is_active: true,
-          })
-          .select('id')
-          .single();
+          .select('id, slug')
+          .eq('product_code', pd.product_code)
+          .maybeSingle();
 
-        if (insertError) {
-          console.error(`Insert error for job ${job.id}:`, insertError);
+        if (existing) {
+          // UPDATE existing product (idempotent)
+          const { error: updateError } = await supabase
+            .from('products')
+            .update({
+              name_en: pd.name_en,
+              name_it: pd.name_it || pd.name_en,
+              brand: pd.brand || null,
+              category_id: categoryId,
+              description_en: pd.description_en || null,
+              description_it: pd.description_it || null,
+              description_original: pd.description_original || null,
+              meta_title_en: pd.meta_title_en || null,
+              meta_title_it: pd.meta_title_it || null,
+              meta_description_en: pd.meta_description_en || null,
+              meta_description_it: pd.meta_description_it || null,
+              images: pd.images || [],
+              source_url: pd.source_url || job.source_url,
+              status: 'published',
+              is_active: true,
+            })
+            .eq('id', existing.id);
+
+          if (updateError) {
+            console.error(`Update error for job ${job.id}:`, updateError);
+            await supabase.from('scrape_jobs').update({
+              status: 'failed',
+              error_message: `Update failed: ${updateError.message}`,
+              updated_at: new Date().toISOString(),
+            }).eq('id', job.id);
+            failed++;
+            continue;
+          }
+
+          // Replace attributes for existing product
+          if (pd.specifications?.length) {
+            await supabase.from('product_attributes').delete().eq('product_id', existing.id);
+            const attrs = pd.specifications.map((s: any) => ({
+              product_id: existing.id,
+              attribute_name: s.name,
+              attribute_value: s.value,
+              attribute_unit: s.unit || null,
+            }));
+            await supabase.from('product_attributes').insert(attrs);
+          }
+
           await supabase.from('scrape_jobs').update({
-            status: 'failed',
-            error_message: `Insert failed: ${insertError.message}`,
+            status: 'imported',
             updated_at: new Date().toISOString(),
           }).eq('id', job.id);
-          failed++;
-          continue;
-        }
 
-        // Insert product attributes/specs
-        if (pd.specifications?.length && product?.id) {
-          const attrs = pd.specifications.map((s: any) => ({
-            product_id: product.id,
-            attribute_name: s.name,
-            attribute_value: s.value,
-            attribute_unit: s.unit || null,
-          }));
+          imported++;
+        } else {
+          // INSERT new product
+          const { data: product, error: insertError } = await supabase
+            .from('products')
+            .insert({
+              name_en: pd.name_en,
+              name_it: pd.name_it || pd.name_en,
+              slug: uniqueSlug,
+              product_code: pd.product_code,
+              brand: pd.brand || null,
+              category_id: categoryId,
+              description_en: pd.description_en || null,
+              description_it: pd.description_it || null,
+              description_original: pd.description_original || null,
+              meta_title_en: pd.meta_title_en || null,
+              meta_title_it: pd.meta_title_it || null,
+              meta_description_en: pd.meta_description_en || null,
+              meta_description_it: pd.meta_description_it || null,
+              images: pd.images || [],
+              source_url: pd.source_url || job.source_url,
+              status: 'published',
+              is_active: true,
+            })
+            .select('id')
+            .single();
 
-          const { error: attrError } = await supabase
-            .from('product_attributes')
-            .insert(attrs);
-
-          if (attrError) {
-            console.error(`Attribute insert error for product ${product.id}:`, attrError);
+          if (insertError) {
+            console.error(`Insert error for job ${job.id}:`, insertError);
+            await supabase.from('scrape_jobs').update({
+              status: 'failed',
+              error_message: `Insert failed: ${insertError.message}`,
+              updated_at: new Date().toISOString(),
+            }).eq('id', job.id);
+            failed++;
+            continue;
           }
+
+          if (pd.specifications?.length && product?.id) {
+            const attrs = pd.specifications.map((s: any) => ({
+              product_id: product.id,
+              attribute_name: s.name,
+              attribute_value: s.value,
+              attribute_unit: s.unit || null,
+            }));
+            const { error: attrError } = await supabase
+              .from('product_attributes')
+              .insert(attrs);
+            if (attrError) {
+              console.error(`Attribute insert error for product ${product.id}:`, attrError);
+            }
+          }
+
+          await supabase.from('scrape_jobs').update({
+            status: 'imported',
+            updated_at: new Date().toISOString(),
+          }).eq('id', job.id);
+
+          imported++;
         }
-
-        // Mark job as imported
-        await supabase.from('scrape_jobs').update({
-          status: 'imported',
-          updated_at: new Date().toISOString(),
-        }).eq('id', job.id);
-
-        imported++;
       } catch (err) {
         console.error(`Error importing job ${job.id}:`, err);
         await supabase.from('scrape_jobs').update({
