@@ -5,8 +5,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Non-whitelisted brands to skip at scrape time (save Firecrawl credits too)
+const URL_REJECTED_BRANDS = [
+  'burkert', 'pneumax', 'camozzi', 'mindman', 'deltrol', 'festo', 'smc',
+  'norgren', 'bosch', 'rexroth', 'hafner', 'airtac', 'metalwork', 'metal-work',
+  'univer', 'humphrey', 'clippard', 'bimba', 'ckd', 'koganei', 'pisco',
+  'janatics', 'airtec', 'ross-controls', 'versa', 'mac-valves', 'mead',
+  'schrader', 'rotork', 'biffi', 'keystone',
+];
+
+function isRejectedByUrl(sourceUrl: string): string | null {
+  const urlLower = sourceUrl.toLowerCase();
+  for (const brand of URL_REJECTED_BRANDS) {
+    if (urlLower.includes(brand)) {
+      return brand;
+    }
+  }
+  return null;
+}
+
 async function scrapeWithRetry(url: string, firecrawlKey: string): Promise<{ ok: boolean; data: any }> {
-  // First attempt with 60s timeout
   const attempt = async (timeout: number) => {
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
@@ -24,19 +42,13 @@ async function scrapeWithRetry(url: string, firecrawlKey: string): Promise<{ ok:
     return { response, data: await response.json() };
   };
 
-  // First try: 60s
   let result = await attempt(60000);
-  if (result.response.ok) {
-    return { ok: true, data: result.data };
-  }
+  if (result.response.ok) return { ok: true, data: result.data };
 
-  // If timeout, retry with 90s
   if (result.data?.code === 'SCRAPE_TIMEOUT') {
     console.log(`Retrying ${url} with 90s timeout...`);
     result = await attempt(90000);
-    if (result.response.ok) {
-      return { ok: true, data: result.data };
-    }
+    if (result.response.ok) return { ok: true, data: result.data };
   }
 
   return { ok: false, data: result.data };
@@ -63,7 +75,6 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get pending jobs
     let query = supabase.from('scrape_jobs').select('*').eq('status', 'pending').limit(batchSize);
     if (jobIds?.length) {
       query = supabase.from('scrape_jobs').select('*').in('id', jobIds).eq('status', 'pending');
@@ -86,11 +97,25 @@ Deno.serve(async (req) => {
 
     let scraped = 0;
     let failed = 0;
+    let skippedBrand = 0;
 
     for (const job of jobs) {
       try {
-        console.log(`Scraping: ${job.source_url}`);
+        // ── URL-based brand pre-filter: skip scraping entirely ──
+        const rejectedBrand = isRejectedByUrl(job.source_url);
+        if (rejectedBrand) {
+          console.log(`URL pre-filter: skipping ${job.source_url} (brand: ${rejectedBrand})`);
+          await supabase.from('scrape_jobs').update({
+            status: 'failed',
+            error_message: `URL pre-filter: non-whitelisted brand "${rejectedBrand}"`,
+            updated_at: new Date().toISOString(),
+          }).eq('id', job.id);
+          skippedBrand++;
+          failed++;
+          continue;
+        }
 
+        console.log(`Scraping: ${job.source_url}`);
         const result = await scrapeWithRetry(job.source_url, firecrawlKey);
 
         if (!result.ok) {
@@ -130,7 +155,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, scraped, failed, total: jobs.length }),
+      JSON.stringify({ success: true, scraped, failed, skippedBrand, total: jobs.length }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
