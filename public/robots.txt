@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://nexfluid.it/sitemap.xml
+Sitemap: https://xhejomioyecdfpvmohqh.supabase.co/functions/v1/generate-sitemap
