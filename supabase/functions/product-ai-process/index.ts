@@ -202,6 +202,11 @@ Deno.serve(async (req) => {
     let skippedBrand = 0;
 
     for (const job of jobs) {
+      // Safety timer: return partial results if approaching timeout
+      if (Date.now() - fnStart > SAFETY_MS) {
+        console.log(`Safety timer hit at ${Math.round((Date.now() - fnStart) / 1000)}s — returning partial results`);
+        break;
+      }
       try {
         const rawMarkdown = job.raw_data?.markdown || '';
         const rawMetadata = job.raw_data?.metadata || {};
