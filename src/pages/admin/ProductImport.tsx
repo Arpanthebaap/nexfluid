@@ -132,15 +132,34 @@ export default function ProductImport() {
     await fetchCounts();
     if (stopRef.current) { setPhase('paused'); return; }
 
-    // Parallel loops
+    // Smart backlog routing: only start loops that have work
     setPhase('running');
-    addLog('⚡ Starting parallel scrape → AI → import pipeline...');
+    const latest = await fetchCounts();
+    const hasPending = (latest?.pending || 0) > 0;
+    const hasScraped = (latest?.scraped || 0) > 0;
+    const hasProcessed = (latest?.processed || 0) > 0;
 
-    await Promise.all([
-      runScrapeLoop(),
-      runAiLoop(),
-      runInsertLoop(),
-    ]);
+    const loops: Promise<void>[] = [];
+    if (hasPending) {
+      addLog('⚡ Starting scrape loop (pending jobs exist)...');
+      loops.push(runScrapeLoop());
+    }
+    if (hasPending || hasScraped) {
+      addLog('🤖 Starting AI process loop...');
+      loops.push(runAiLoop());
+    }
+    if (hasPending || hasScraped || hasProcessed) {
+      addLog('📦 Starting import loop...');
+      loops.push(runInsertLoop());
+    }
+
+    if (loops.length === 0) {
+      addLog('✅ No backlog to process.');
+      setPhase('idle');
+      return;
+    }
+
+    await Promise.all(loops);
 
     if (stopRef.current) {
       setPhase('paused');
@@ -178,10 +197,12 @@ export default function ProductImport() {
   const runAiLoop = async (skipDelay = false) => {
     if (!skipDelay) await new Promise(r => setTimeout(r, 10000));
     let emptyRounds = 0;
+    let transientRetries = 0;
     while (!stopRef.current) {
       try {
-        const res = await firecrawlApi.aiProcess(3);
+        const res = await firecrawlApi.aiProcess(2);
         const data = res as any;
+        transientRetries = 0; // reset on successful response
         if (data.rateLimited) {
           addLog('⏳ AI rate limited, waiting 30s...');
           await new Promise(r => setTimeout(r, 30000));
@@ -190,7 +211,11 @@ export default function ProductImport() {
         if (!res.success) {
           if (res.error?.includes('402')) { addLog('💳 AI credits exhausted'); break; }
           addLog(`❌ AI error: ${res.error}`);
-          break;
+          // Transient error — retry with backoff instead of breaking
+          transientRetries++;
+          if (transientRetries >= 3) { addLog('⚠️ Too many consecutive AI errors, stopping.'); break; }
+          await new Promise(r => setTimeout(r, 5000 * transientRetries));
+          continue;
         }
         if (data.processed === 0) {
           emptyRounds++;
@@ -202,8 +227,10 @@ export default function ProductImport() {
         addLog(`🤖 AI processed ${data.processed} products`);
         await fetchCounts();
       } catch (err) {
-        addLog(`❌ AI error: ${err}`);
-        await new Promise(r => setTimeout(r, 5000));
+        transientRetries++;
+        addLog(`❌ AI error (attempt ${transientRetries}/3): ${err}`);
+        if (transientRetries >= 3) { addLog('⚠️ Too many consecutive AI errors, stopping.'); break; }
+        await new Promise(r => setTimeout(r, 5000 * transientRetries));
       }
     }
   };

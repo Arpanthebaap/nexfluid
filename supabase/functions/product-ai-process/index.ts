@@ -148,7 +148,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { batchSize = 5 } = await req.json();
+    const { batchSize = 2 } = await req.json();
+    const SAFETY_MS = 90_000;
+    const fnStart = Date.now();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -200,6 +202,11 @@ Deno.serve(async (req) => {
     let skippedBrand = 0;
 
     for (const job of jobs) {
+      // Safety timer: return partial results if approaching timeout
+      if (Date.now() - fnStart > SAFETY_MS) {
+        console.log(`Safety timer hit at ${Math.round((Date.now() - fnStart) / 1000)}s — returning partial results`);
+        break;
+      }
       try {
         const rawMarkdown = job.raw_data?.markdown || '';
         const rawMetadata = job.raw_data?.metadata || {};
