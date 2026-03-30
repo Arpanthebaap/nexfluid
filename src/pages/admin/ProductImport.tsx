@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Globe, Map, Cpu, Database, Loader2, Play, Square, RotateCcw, ChevronDown, Rocket, Trash2, Clock, ImageIcon } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Globe, Map, Cpu, Database, Loader2, Play, Square, RotateCcw, ChevronDown, Rocket, Trash2, Clock, ImageIcon, Link2 } from 'lucide-react';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -46,6 +47,8 @@ export default function ProductImport() {
   const [processing, setProcessing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [scrapingImages, setScrapingImages] = useState(false);
+  const [manualUrls, setManualUrls] = useState('');
+  const [addingUrls, setAddingUrls] = useState(false);
   const stopRef = useRef(false);
   const lastImportedRef = useRef(0);
   const speedCheckRef = useRef<number>(0);
@@ -528,6 +531,52 @@ export default function ProductImport() {
           </CardContent>
         </Card>
       )}
+
+      {/* Manual URL Input */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2"><Link2 className="h-4 w-4" /> Add Specific URLs</CardTitle>
+          <CardDescription className="text-xs">Paste product URLs (one per line) to add them directly to the pipeline</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            placeholder={"https://www.valves-direct.com/123-product-name.html\nhttps://www.valves-direct.com/456-another-product.html"}
+            value={manualUrls}
+            onChange={(e) => setManualUrls(e.target.value)}
+            rows={5}
+            className="font-mono text-xs"
+          />
+          <Button
+            size="sm"
+            disabled={!manualUrls.trim() || addingUrls}
+            onClick={async () => {
+              setAddingUrls(true);
+              const urls = manualUrls.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+              addLog(`📎 Adding ${urls.length} URLs to pipeline...`);
+              try {
+                const res = await firecrawlApi.addUrls(urls);
+                const data = res as any;
+                if (res.success) {
+                  addLog(`✅ Added: ${data.totalNew || 0} new, ${data.totalRequeued || 0} requeued, ${data.totalSkipped || 0} already exist`);
+                  toast({ title: `${data.totalNew || 0} new URLs added to pipeline` });
+                  setManualUrls('');
+                } else {
+                  addLog(`❌ ${res.error}`);
+                  toast({ title: 'Error', description: res.error, variant: 'destructive' });
+                }
+              } catch (err) {
+                addLog(`❌ ${err}`);
+              }
+              setAddingUrls(false);
+              fetchCounts();
+            }}
+            className="gap-2"
+          >
+            {addingUrls ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+            Add to Pipeline
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Advanced manual controls */}
       <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>

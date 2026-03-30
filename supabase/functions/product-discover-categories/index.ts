@@ -36,7 +36,8 @@ function isValvesDirectSubcategoryUrl(url: string, baseDomain: string): boolean 
     const path = parsed.pathname;
     if (path.endsWith('.html')) return false;
     const segments = path.split('/').filter(Boolean);
-    if (segments.length !== 1) return false;
+    if (segments.length === 0) return false;
+    // Check first segment matches \d+- pattern (category/subcategory)
     return /^\d+-/.test(segments[0]);
   } catch { return false; }
 }
@@ -143,7 +144,13 @@ Deno.serve(async (req) => {
 
     console.log(`--- Discovering: ${categoryUrl} ---`);
 
-    const parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
+    let parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
+    // Retry once if parent page returned 0 links (likely blocked/timeout)
+    if (parentLinks.length === 0 && isTimeSafe()) {
+      console.log(`Parent page returned 0 links, retrying after 2s...`);
+      await new Promise(r => setTimeout(r, 2000));
+      parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
+    }
     console.log(`Found ${parentLinks.length} links on parent page`);
 
     const allProductUrls: string[] = [];
@@ -226,9 +233,10 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Re-queue failed URLs back to pending so they get another chance
-      for (let i = 0; i < unique.length; i += batchSize) {
-        const batch = unique.slice(i, i + batchSize);
+      // Re-queue failed URLs back to pending — use small batches (50) to avoid PostgREST URL size limit
+      const requeueBatch = 50;
+      for (let i = 0; i < unique.length; i += requeueBatch) {
+        const batch = unique.slice(i, i + requeueBatch);
         const { data, error } = await supabase
           .from('scrape_jobs')
           .update({ status: 'pending', error_message: null, updated_at: new Date().toISOString() })

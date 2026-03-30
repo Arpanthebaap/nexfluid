@@ -110,4 +110,12 @@ export const firecrawlApi = {
     if (error) return { success: false, error: error.message };
     return data;
   },
+
+  async addUrls(urls: string[]): Promise<FirecrawlResponse> {
+    const { data, error } = await supabase.functions.invoke('product-add-urls', {
+      body: { urls },
+    });
+    if (error) return { success: false, error: error.message };
+    return data;
+  },
 };
