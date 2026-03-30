@@ -68,27 +68,40 @@ function extractPaginationUrls(links: string[], baseUrl: string): string[] {
 }
 
 async function scrapeLinks(url: string, firecrawlKey: string): Promise<string[]> {
-  const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${firecrawlKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      url,
-      formats: ['links'],
-      onlyMainContent: false,
-      timeout: 45000,
-    }),
-  });
+  try {
+    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${firecrawlKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        formats: ['links'],
+        onlyMainContent: false,
+        timeout: 45000,
+      }),
+    });
 
-  const data = await response.json();
-  if (!response.ok) {
-    console.error(`Scrape failed for ${url}:`, data);
+    const text = await response.text();
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error(`Non-JSON response for ${url}: ${text.substring(0, 200)}`);
+      return [];
+    }
+
+    if (!response.ok) {
+      console.error(`Scrape failed for ${url}:`, data);
+      return [];
+    }
+
+    return data.data?.links || data.links || [];
+  } catch (err) {
+    console.error(`Network error scraping ${url}:`, err);
     return [];
   }
-
-  return data.data?.links || data.links || [];
 }
 
 Deno.serve(async (req) => {
