@@ -536,6 +536,74 @@ export default function ProductImport() {
         </Card>
       )}
 
+      {/* Single Source Link Discovery */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2"><Search className="h-4 w-4" /> Single Source Link Discovery</CardTitle>
+          <CardDescription className="text-xs">
+            Paste a category or subcategory page URL to discover all product links within it. Use this to check if a specific source page has undiscovered products.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              placeholder="https://www.valves-direct.com/10-solenoid-valves"
+              value={singleSourceUrl}
+              onChange={(e) => setSingleSourceUrl(e.target.value)}
+              className="font-mono text-xs"
+            />
+            <Button
+              size="sm"
+              disabled={!singleSourceUrl.trim() || discoveringSingle}
+              onClick={async () => {
+                setDiscoveringSingle(true);
+                setSingleResult(null);
+                const url = singleSourceUrl.trim();
+                addLog(`🔍 Discovering products from: ${url}`);
+                try {
+                  const res = await firecrawlApi.discoverCategory(url);
+                  const data = res as any;
+                  setSingleResult(data);
+                  if (res.success) {
+                    const requeuedInfo = data.totalRequeued ? `, ${data.totalRequeued} requeued` : '';
+                    addLog(`✅ Found ${data.totalFound || 0} products, ${data.totalNew || 0} new${requeuedInfo}${data.timedOut ? ' (partial — timed out)' : ''}`);
+                    toast({ title: `Discovered ${data.totalFound || 0} products`, description: `${data.totalNew || 0} new, ${data.totalRequeued || 0} requeued` });
+                  } else {
+                    addLog(`❌ Discovery failed: ${res.error}`);
+                    toast({ title: 'Discovery failed', description: res.error, variant: 'destructive' });
+                  }
+                } catch (err) {
+                  addLog(`❌ ${err}`);
+                  toast({ title: 'Discovery failed', variant: 'destructive' });
+                }
+                setDiscoveringSingle(false);
+                fetchCounts();
+              }}
+              className="gap-2 whitespace-nowrap"
+            >
+              {discoveringSingle ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              Discover
+            </Button>
+          </div>
+          {singleResult && (
+            <div className="flex flex-wrap gap-2 text-xs">
+              {singleResult.success ? (
+                <>
+                  <Badge variant="outline">Found: {singleResult.totalFound || 0}</Badge>
+                  <Badge className="bg-green-500/20 text-green-700 border-green-300">New: {singleResult.totalNew || 0}</Badge>
+                  {(singleResult.totalRequeued || 0) > 0 && <Badge variant="secondary">Requeued: {singleResult.totalRequeued}</Badge>}
+                  {singleResult.subcategoriesScraped > 0 && <Badge variant="outline">Subcategories: {singleResult.subcategoriesScraped}</Badge>}
+                  {singleResult.pagesScraped > 0 && <Badge variant="outline">Pages: {singleResult.pagesScraped}</Badge>}
+                  {singleResult.timedOut && <Badge variant="destructive">Timed out (partial results)</Badge>}
+                </>
+              ) : (
+                <Badge variant="destructive">{singleResult.error || 'Failed'}</Badge>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Manual URL Input */}
       <Card>
         <CardHeader className="pb-2">
