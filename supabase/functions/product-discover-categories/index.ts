@@ -171,47 +171,51 @@ Deno.serve(async (req) => {
     const mapLinks = await mapUrls(categoryUrl, firecrawlKey);
     mapCalls++;
 
+    const productFilter = isRsOnline ? isRsOnlineProductUrl : isValvesDirectProductUrl;
+
     if (mapLinks.length > 0) {
-      // Filter product URLs
-      const productFilter = isRsOnline ? isRsOnlineProductUrl : isValvesDirectProductUrl;
       const products = mapLinks.filter(l => productFilter(l) && !shouldExclude(l));
-      allProductUrls.push(...products);
+      const subcatUrls = !isRsOnline
+        ? mapLinks.filter(l => isValvesDirectSubcategoryUrl(l, baseDomain) && !shouldExclude(l)).filter(l => l !== categoryUrl)
+        : [];
 
-      // Extract subcategory URLs from map results and map those too (for deep categories)
-      if (!isRsOnline) {
-        const subcatUrls = mapLinks
-          .filter(l => isValvesDirectSubcategoryUrl(l, baseDomain) && !shouldExclude(l))
-          .filter(l => l !== categoryUrl); // skip self
-
-        // Deduplicate subcategory base paths
-        const seenPaths = new Set<string>();
-        const uniqueSubcats = subcatUrls.filter(u => {
-          const p = new URL(u).pathname;
-          if (seenPaths.has(p)) return false;
-          seenPaths.add(p);
-          return true;
-        });
-
-        console.log(`Map found ${products.length} products, ${uniqueSubcats.length} unique subcategories`);
-
-        // Map each subcategory for deeper product discovery
-        for (const subcatUrl of uniqueSubcats) {
-          if (!isTimeSafe()) { timedOut = true; break; }
-          const subcatLinks = await mapUrls(subcatUrl, firecrawlKey);
-          mapCalls++;
-          const moreProducts = subcatLinks.filter(l => productFilter(l) && !shouldExclude(l));
-          allProductUrls.push(...moreProducts);
-          // Small delay to be polite
-          await new Promise(r => setTimeout(r, 100));
-        }
+      if (products.length === 0 && subcatUrls.length === 0) {
+        // Map returned generic links but no products/subcats — fall back to scrape
+        console.log(`Map returned ${mapLinks.length} links but 0 products/subcats, falling back to scrape`);
+        scrapeFallback = true;
       } else {
-        console.log(`Map found ${products.length} RS-Online products`);
+        allProductUrls.push(...products);
+
+        if (!isRsOnline) {
+          const seenPaths = new Set<string>();
+          const uniqueSubcats = subcatUrls.filter(u => {
+            const p = new URL(u).pathname;
+            if (seenPaths.has(p)) return false;
+            seenPaths.add(p);
+            return true;
+          });
+
+          console.log(`Map found ${products.length} products, ${uniqueSubcats.length} unique subcategories`);
+
+          for (const subcatUrl of uniqueSubcats) {
+            if (!isTimeSafe()) { timedOut = true; break; }
+            const subcatLinks = await mapUrls(subcatUrl, firecrawlKey);
+            mapCalls++;
+            const moreProducts = subcatLinks.filter(l => productFilter(l) && !shouldExclude(l));
+            allProductUrls.push(...moreProducts);
+            await new Promise(r => setTimeout(r, 100));
+          }
+        } else {
+          console.log(`Map found ${products.length} RS-Online products`);
+        }
       }
     } else {
-      // === FALLBACK: Scrape-based discovery if map returned 0 ===
-      console.log('Map returned 0 links, falling back to scrape-based discovery');
+      console.log('Map returned 0 links, falling back to scrape');
       scrapeFallback = true;
+    }
 
+    // === SCRAPE FALLBACK ===
+    if (scrapeFallback) {
       let parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
       if (parentLinks.length === 0 && isTimeSafe()) {
         console.log('Parent page returned 0 links, retrying after 2s...');
