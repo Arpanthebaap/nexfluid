@@ -206,6 +206,7 @@ Deno.serve(async (req) => {
 
     // Upsert into scrape_jobs — ON CONFLICT DO NOTHING (unique index on source_url)
     let inserted = 0;
+    let requeued = 0;
     if (unique.length > 0) {
       const batchSize = 500;
       for (let i = 0; i < unique.length; i += batchSize) {
@@ -213,21 +214,37 @@ Deno.serve(async (req) => {
           source_url: url,
           status: 'pending' as const,
         }));
-        const { error, count } = await supabase
+        const { data, error } = await supabase
           .from('scrape_jobs')
           .upsert(batch, { onConflict: 'source_url', ignoreDuplicates: true })
           .select('id');
         if (error) {
           console.error('Upsert error:', error);
         } else {
-          // count may not be reliable with ignoreDuplicates, estimate from batch
-          inserted += batch.length;
+          // data contains only actually inserted rows (ignoreDuplicates skips existing)
+          inserted += (data?.length || 0);
+        }
+      }
+
+      // Re-queue failed URLs back to pending so they get another chance
+      for (let i = 0; i < unique.length; i += batchSize) {
+        const batch = unique.slice(i, i + batchSize);
+        const { data, error } = await supabase
+          .from('scrape_jobs')
+          .update({ status: 'pending', error_message: null, updated_at: new Date().toISOString() })
+          .in('source_url', batch)
+          .eq('status', 'failed')
+          .select('id');
+        if (error) {
+          console.error('Requeue error:', error);
+        } else {
+          requeued += (data?.length || 0);
         }
       }
     }
 
     const elapsed = Math.round((Date.now() - startTime) / 1000);
-    console.log(`Done in ${elapsed}s: ${unique.length} total product URLs found`);
+    console.log(`Done in ${elapsed}s: ${unique.length} found, ${inserted} new, ${requeued} requeued from failed`);
 
     return new Response(
       JSON.stringify({
@@ -235,6 +252,7 @@ Deno.serve(async (req) => {
         categoryUrl,
         totalFound: unique.length,
         totalNew: inserted,
+        totalRequeued: requeued,
         subcategoriesScraped,
         pagesScraped,
         timedOut,

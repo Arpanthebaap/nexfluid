@@ -117,7 +117,8 @@ export default function ProductImport() {
           const data = res as any;
           if (res.success) {
             totalNewUrls += data.totalNew || 0;
-            addLog(`✅ Found ${data.totalFound || 0} products, ${data.totalNew || 0} new${data.timedOut ? ' (partial — timed out)' : ''}`);
+            const requeuedInfo = data.totalRequeued ? `, ${data.totalRequeued} requeued from failed` : '';
+            addLog(`✅ Found ${data.totalFound || 0} products, ${data.totalNew || 0} new${requeuedInfo}${data.timedOut ? ' (partial — timed out)' : ''}`);
           } else {
             addLog(`⚠️ ${catUrl}: ${res.error}`);
           }
