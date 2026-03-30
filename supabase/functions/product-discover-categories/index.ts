@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
 
   // Per-request timing (NOT module-level) so each invocation gets a fresh 50s window
   const startTime = Date.now();
-  const SAFETY_LIMIT_MS = 50000;
+  const SAFETY_LIMIT_MS = 120000;
   function isTimeSafe(): boolean {
     return (Date.now() - startTime) < SAFETY_LIMIT_MS;
   }
@@ -178,7 +178,12 @@ Deno.serve(async (req) => {
       const directProducts = parentLinks.filter(l => isValvesDirectProductUrl(l) && !shouldExclude(l));
       allProductUrls.push(...directProducts);
 
-      console.log(`Found ${subcatUrls.length} subcategories, ${directProducts.length} direct products`);
+      // Debug: show how many links matched vs total
+      const sameDomainLinks = parentLinks.filter(l => { try { return new URL(l).hostname === baseDomain; } catch { return false; } });
+      console.log(`Found ${subcatUrls.length} subcategories, ${directProducts.length} direct products (${sameDomainLinks.length} same-domain links, ${parentLinks.length - sameDomainLinks.length} external)`);
+      if (sameDomainLinks.length > 0 && directProducts.length === 0 && subcatUrls.length === 0) {
+        console.log(`⚠️ No products or subcategories matched filters. Sample links:`, sameDomainLinks.slice(0, 5));
+      }
 
       for (const subcatUrl of subcatUrls) {
         if (!isTimeSafe()) { timedOut = true; break; }
