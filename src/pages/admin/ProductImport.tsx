@@ -187,14 +187,14 @@ export default function ProductImport() {
         const res = await firecrawlApi.scrapeBatch(2);
         const data = res as any;
         if (!res.success) { addLog(`❌ Scrape error: ${res.error}`); break; }
-        if (data.scraped === 0) {
+        if (data.total === 0) {
           emptyRounds++;
-          if (emptyRounds > 5) break; // no more pending
+          if (emptyRounds > 5) break; // no more pending jobs at all
           await new Promise(r => setTimeout(r, 5000));
           continue;
         }
         emptyRounds = 0;
-        addLog(`🔍 Scraped ${data.scraped} products (${data.failed || 0} failed)`);
+        addLog(`🔍 Scraped ${data.scraped} products (${data.failed || 0} failed, ${data.skippedBrand || 0} brand-skipped)`);
       } catch (err) {
         addLog(`❌ Scrape error: ${err}`);
         await new Promise(r => setTimeout(r, 5000));
