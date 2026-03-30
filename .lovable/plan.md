@@ -1,39 +1,38 @@
 
 
-# Pipeline Stability Fix
+# Pipeline Discovery Bug: URLs Not Appearing in Pending
 
-## Issues Found
+## Root Cause
 
-### 1. AI processing times out after 3 products
-The `product-ai-process` edge function has **no safety timer** (unlike `product-scrape-batch` which has a 120s one). Processing 3 products sequentially (each AI call ~10s + 1s delay) can exceed the client connection timeout, causing "Failed to send a request to the Edge Function". The edge function keeps running but the client gets an error.
+The `product-discover-categories` function uses `upsert` with `ignoreDuplicates: true` (ON CONFLICT DO NOTHING). Since all 11,796 previously discovered URLs already exist in `scrape_jobs` (as `imported` or `failed`), the upsert silently skips every URL. No new rows are created.
 
-### 2. "Start Full Pipeline" doesn't route to the right backlog stage
-Currently it skips discovery if backlog exists but always starts all 3 parallel loops (scrape + AI + import). If only "processed" items exist, it still starts the scrape loop unnecessarily — wasting rounds and confusing logs.
+Additionally, the `totalNew` count reported back to the UI is **wrong** -- it uses `batch.length` (line 224) instead of the actual number of inserted rows. So the UI says "Found X new URLs" when in reality 0 were inserted.
 
-### 3. AI loop breaks on transient errors instead of retrying
-In `runAiLoop`, when the error is "Failed to send a request", the loop `break`s entirely. This should retry a few times since the edge function likely succeeded but the response was lost.
+## What Needs to Change
 
-## Plan
+### 1. Fix inaccurate count reporting (`product-discover-categories/index.ts`)
+Replace `inserted += batch.length` with actual count from the response. Use `.select('id')` result length or a count-based approach to determine how many rows were truly new.
 
-### Step 1: Add safety timer to `product-ai-process/index.ts`
-Add a 90-second safety window (similar to scrape-batch's 120s). Return partial results if approaching timeout. Reduce default batch from 5 to 2 so each invocation completes faster.
+### 2. Discovery should not re-queue already-imported URLs
+The current behavior (skip duplicates) is correct for `imported` URLs -- we don't want to re-process products that are already in the products table.
 
-### Step 2: Update `ProductImport.tsx` — smart backlog routing
-Modify `runFullPipeline` to only start the loops that have work:
-- If `processed > 0` → start import loop
-- If `scraped > 0` → start AI + import loops  
-- If `pending > 0` → start all 3 loops
-- Skip loops that have no backlog (no empty round spinning)
+### 3. Discovery should optionally re-queue failed URLs
+When discovery finds URLs that previously failed, those should be reset to `pending` so they get another chance. This requires changing the upsert to: insert new URLs with `ignoreDuplicates`, then separately UPDATE existing `failed` rows back to `pending` if their `source_url` is in the discovered set.
 
-### Step 3: Make `runAiLoop` resilient to transient failures
-Instead of `break` on generic errors, retry up to 3 times with backoff. Only break on definitive errors (402 credits exhausted).
+### 4. UI should show accurate feedback
+The admin UI log currently says things like "Found 500 products, 500 new" when actually 0 are new. Fix to show "Found 500 products, 0 new (all previously discovered)".
 
-### Step 4: Reduce AI batch size
-Change `runAiLoop` call from `firecrawlApi.aiProcess(3)` to `firecrawlApi.aiProcess(2)` to stay well within timeout.
+## Implementation
 
-## Files to modify
-| File | Change |
-|------|--------|
-| `supabase/functions/product-ai-process/index.ts` | Add 90s safety timer, reduce default batch to 2 |
-| `src/pages/admin/ProductImport.tsx` | Smart backlog routing in `runFullPipeline`, retry logic in `runAiLoop`, batch size reduction |
+**File: `supabase/functions/product-discover-categories/index.ts`**
+- After the upsert with `ignoreDuplicates`, count actual new inserts by checking the returned `data` array length (not `batch.length`)
+- Add a second step: `UPDATE scrape_jobs SET status = 'pending', error_message = null WHERE source_url IN (...) AND status = 'failed'` to re-queue failed URLs
+- Return both `totalNew` (truly new) and `totalRequeued` (failed -> pending) in the response
+
+**File: `src/pages/admin/ProductImport.tsx`**
+- Update the discovery log line to show requeued count: "Found X products, Y new, Z requeued from failed"
+
+## Technical Detail
+
+The upsert with `.select('id')` and `ignoreDuplicates: true` returns only the rows that were actually inserted (not the skipped ones). So switching from `inserted += batch.length` to `inserted += (data?.length || 0)` gives the correct count. For re-queuing failed URLs, batch them in groups and run an update query.
 
