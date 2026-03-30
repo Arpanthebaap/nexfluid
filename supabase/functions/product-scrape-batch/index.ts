@@ -83,7 +83,17 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    let query = supabase.from('scrape_jobs').select('*').eq('status', 'pending').limit(batchSize);
+    // Bulk-reject all pending jobs with non-whitelisted brand URLs in one shot
+    const brandPatterns = URL_REJECTED_BRANDS.map(b => `%${b}%`);
+    for (const pattern of brandPatterns) {
+      await supabase.from('scrape_jobs').update({
+        status: 'failed',
+        error_message: `URL pre-filter: non-whitelisted brand`,
+        updated_at: new Date().toISOString(),
+      }).eq('status', 'pending').ilike('source_url', pattern);
+    }
+
+    let query = supabase.from('scrape_jobs').select('*').eq('status', 'pending').order('source_url', { ascending: true }).limit(batchSize);
     if (jobIds?.length) {
       query = supabase.from('scrape_jobs').select('*').in('id', jobIds).eq('status', 'pending');
     }
