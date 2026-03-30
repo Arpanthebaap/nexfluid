@@ -592,8 +592,9 @@ export default function ProductImport() {
                   <Badge variant="outline">Found: {singleResult.totalFound || 0}</Badge>
                   <Badge className="bg-green-500/20 text-green-700 border-green-300">New: {singleResult.totalNew || 0}</Badge>
                   {(singleResult.totalRequeued || 0) > 0 && <Badge variant="secondary">Requeued: {singleResult.totalRequeued}</Badge>}
-                  {singleResult.subcategoriesScraped > 0 && <Badge variant="outline">Subcategories: {singleResult.subcategoriesScraped}</Badge>}
-                  {singleResult.pagesScraped > 0 && <Badge variant="outline">Pages: {singleResult.pagesScraped}</Badge>}
+                  {singleResult.mapCalls > 0 && <Badge variant="outline">Map calls: {singleResult.mapCalls}</Badge>}
+                  {singleResult.scrapeFallback && <Badge variant="secondary">Used scrape fallback</Badge>}
+                  {singleResult.elapsedSeconds && <Badge variant="outline">{singleResult.elapsedSeconds}s</Badge>}
                   {singleResult.timedOut && <Badge variant="destructive">Timed out (partial results)</Badge>}
                 </>
               ) : (
