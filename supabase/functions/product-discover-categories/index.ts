@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
 
   // Per-request timing (NOT module-level) so each invocation gets a fresh 50s window
   const startTime = Date.now();
-  const SAFETY_LIMIT_MS = 50000;
+  const SAFETY_LIMIT_MS = 120000;
   function isTimeSafe(): boolean {
     return (Date.now() - startTime) < SAFETY_LIMIT_MS;
   }
