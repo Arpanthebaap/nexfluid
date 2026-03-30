@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Textarea } from '@/components/ui/textarea';
-import { Globe, Map, Cpu, Database, Loader2, Play, Square, RotateCcw, ChevronDown, Rocket, Trash2, Clock, ImageIcon, Link2 } from 'lucide-react';
+import { Globe, Map, Cpu, Database, Loader2, Play, Square, RotateCcw, ChevronDown, Rocket, Trash2, Clock, ImageIcon, Link2, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -49,6 +50,9 @@ export default function ProductImport() {
   const [scrapingImages, setScrapingImages] = useState(false);
   const [manualUrls, setManualUrls] = useState('');
   const [addingUrls, setAddingUrls] = useState(false);
+  const [singleSourceUrl, setSingleSourceUrl] = useState('');
+  const [discoveringSingle, setDiscoveringSingle] = useState(false);
+  const [singleResult, setSingleResult] = useState<any>(null);
   const stopRef = useRef(false);
   const lastImportedRef = useRef(0);
   const speedCheckRef = useRef<number>(0);
