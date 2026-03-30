@@ -1,38 +1,43 @@
 
 
-# Pipeline Discovery Bug: URLs Not Appearing in Pending
+# Discovery Fix + Manual URL Input
 
-## Root Cause
+## Issues Found
 
-The `product-discover-categories` function uses `upsert` with `ignoreDuplicates: true` (ON CONFLICT DO NOTHING). Since all 11,796 previously discovered URLs already exist in `scrape_jobs` (as `imported` or `failed`), the upsert silently skips every URL. No new rows are created.
+### 1. Requeue "Bad Request" — batch too large
+The logs show `Requeue error: { message: "Bad Request" }` repeatedly. The requeue step uses `.in('source_url', batch)` with up to 500 URLs. PostgREST has a URL/query size limit, and 500 long URLs exceeds it. This means failed URLs never get requeued.
 
-Additionally, the `totalNew` count reported back to the UI is **wrong** -- it uses `batch.length` (line 224) instead of the actual number of inserted rows. So the UI says "Found X new URLs" when in reality 0 were inserted.
+### 2. Some categories return 0 links
+Categories like `pinch-valves` and `seat-valves` return "Found 0 links on parent page" — Firecrawl is failing silently on those pages (likely getting blocked or timing out). No retry logic exists for parent page scraping.
 
-## What Needs to Change
+### 3. Subcategory detection too restrictive
+`isValvesDirectSubcategoryUrl` requires `segments.length !== 1` (exactly 1 path segment). Deeper nested subcategories (2+ segments) are missed entirely.
 
-### 1. Fix inaccurate count reporting (`product-discover-categories/index.ts`)
-Replace `inserted += batch.length` with actual count from the response. Use `.select('id')` result length or a count-based approach to determine how many rows were truly new.
+### 4. No way to add specific product URLs
+User wants a section to paste individual product URLs directly into the pipeline.
 
-### 2. Discovery should not re-queue already-imported URLs
-The current behavior (skip duplicates) is correct for `imported` URLs -- we don't want to re-process products that are already in the products table.
+## Plan
 
-### 3. Discovery should optionally re-queue failed URLs
-When discovery finds URLs that previously failed, those should be reset to `pending` so they get another chance. This requires changing the upsert to: insert new URLs with `ignoreDuplicates`, then separately UPDATE existing `failed` rows back to `pending` if their `source_url` is in the discovered set.
+### Step 1: Fix `product-discover-categories/index.ts`
+- Reduce requeue batch from 500 to 50 to avoid PostgREST "Bad Request"
+- Add retry (1 attempt) for parent page scraping when it returns 0 links
+- Relax `isValvesDirectSubcategoryUrl` to allow multi-segment subcategory paths (remove `segments.length !== 1` restriction, just check that path starts with `\d+-` pattern)
 
-### 4. UI should show accurate feedback
-The admin UI log currently says things like "Found 500 products, 500 new" when actually 0 are new. Fix to show "Found 500 products, 0 new (all previously discovered)".
+### Step 2: Add Manual URL Input to `ProductImport.tsx`
+- Add a new Card section with a Textarea where user can paste specific product URLs (one per line)
+- "Add to Pipeline" button that inserts them directly into `scrape_jobs` as `pending`
+- Show count of new vs already-existing URLs after insertion
+- Uses the same `firecrawlApi.discoverCategory` or direct Supabase insert
 
-## Implementation
+### Step 3: Add `addUrls` method to `firecrawl.ts`
+- New edge function `product-add-urls` that accepts an array of URLs, inserts them into `scrape_jobs` with `pending` status, and returns counts of new/skipped/requeued
 
-**File: `supabase/functions/product-discover-categories/index.ts`**
-- After the upsert with `ignoreDuplicates`, count actual new inserts by checking the returned `data` array length (not `batch.length`)
-- Add a second step: `UPDATE scrape_jobs SET status = 'pending', error_message = null WHERE source_url IN (...) AND status = 'failed'` to re-queue failed URLs
-- Return both `totalNew` (truly new) and `totalRequeued` (failed -> pending) in the response
-
-**File: `src/pages/admin/ProductImport.tsx`**
-- Update the discovery log line to show requeued count: "Found X products, Y new, Z requeued from failed"
-
-## Technical Detail
-
-The upsert with `.select('id')` and `ignoreDuplicates: true` returns only the rows that were actually inserted (not the skipped ones). So switching from `inserted += batch.length` to `inserted += (data?.length || 0)` gives the correct count. For re-queuing failed URLs, batch them in groups and run an update query.
+## Files to modify
+| File | Change |
+|------|--------|
+| `supabase/functions/product-discover-categories/index.ts` | Reduce requeue batch to 50, add parent page retry, relax subcategory detection |
+| `supabase/functions/product-add-urls/index.ts` | New edge function for manual URL insertion |
+| `src/lib/api/firecrawl.ts` | Add `addUrls()` method |
+| `src/pages/admin/ProductImport.tsx` | Add Manual URL Input card with textarea and button |
+| `supabase/config.toml` | Add `product-add-urls` function config |
 
