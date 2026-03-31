@@ -33,9 +33,7 @@ function isValvesDirectSubcategoryUrl(url: string, baseDomain: string): boolean 
   try {
     const parsed = new URL(url);
     if (parsed.hostname !== baseDomain) return false;
-    // Reject query-string filter URLs (brand filters, accessory filters etc.)
     if (parsed.search) return false;
-    // Reject fragment URLs
     if (parsed.hash) return false;
     const path = parsed.pathname;
     if (path.endsWith('.html')) return false;
@@ -50,6 +48,31 @@ function isRsOnlineProductUrl(url: string): boolean {
     const path = new URL(url).pathname;
     return /\/web\/p\//.test(path);
   } catch { return false; }
+}
+
+// Extract max page number from pagination links
+function extractMaxPage(links: string[], baseUrl: string): number {
+  let maxPage = 1;
+  for (const link of links) {
+    try {
+      const u = new URL(link);
+      const page = u.searchParams.get('page');
+      if (page) {
+        const n = parseInt(page, 10);
+        if (!isNaN(n) && n > maxPage) maxPage = n;
+      }
+    } catch {}
+  }
+  // Also check #/ style pagination
+  const pagePattern = /[?&]page=(\d+)/;
+  for (const link of links) {
+    const match = link.match(pagePattern);
+    if (match) {
+      const n = parseInt(match[1], 10);
+      if (!isNaN(n) && n > maxPage) maxPage = n;
+    }
+  }
+  return maxPage;
 }
 
 // --- Map API based discovery (primary, fast) ---
@@ -166,12 +189,13 @@ Deno.serve(async (req) => {
     let mapCalls = 0;
     let scrapeFallback = false;
     let timedOut = false;
+    let pagesScraped = 0;
+
+    const productFilter = isRsOnline ? isRsOnlineProductUrl : isValvesDirectProductUrl;
 
     // === PRIMARY: Map API based discovery ===
     const mapLinks = await mapUrls(categoryUrl, firecrawlKey);
     mapCalls++;
-
-    const productFilter = isRsOnline ? isRsOnlineProductUrl : isValvesDirectProductUrl;
 
     if (mapLinks.length > 0) {
       const products = mapLinks.filter(l => productFilter(l) && !shouldExclude(l));
@@ -179,8 +203,9 @@ Deno.serve(async (req) => {
         ? mapLinks.filter(l => isValvesDirectSubcategoryUrl(l, baseDomain) && !shouldExclude(l)).filter(l => l !== categoryUrl)
         : [];
 
+      console.log(`Map: ${mapLinks.length} total links, ${products.length} products, ${subcatUrls.length} subcats`);
+
       if (products.length === 0 && subcatUrls.length === 0) {
-        // Map returned generic links but no products/subcats — fall back to scrape
         console.log(`Map returned ${mapLinks.length} links but 0 products/subcats, falling back to scrape`);
         scrapeFallback = true;
       } else {
@@ -195,8 +220,6 @@ Deno.serve(async (req) => {
             return true;
           });
 
-          console.log(`Map found ${products.length} products, ${uniqueSubcats.length} unique subcategories`);
-
           for (const subcatUrl of uniqueSubcats) {
             if (!isTimeSafe()) { timedOut = true; break; }
             const subcatLinks = await mapUrls(subcatUrl, firecrawlKey);
@@ -205,8 +228,6 @@ Deno.serve(async (req) => {
             allProductUrls.push(...moreProducts);
             await new Promise(r => setTimeout(r, 100));
           }
-        } else {
-          console.log(`Map found ${products.length} RS-Online products`);
         }
       }
     } else {
@@ -214,13 +235,15 @@ Deno.serve(async (req) => {
       scrapeFallback = true;
     }
 
-    // === SCRAPE FALLBACK ===
+    // === SCRAPE FALLBACK WITH PAGINATION ===
     if (scrapeFallback) {
       let parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
+      pagesScraped++;
       if (parentLinks.length === 0 && isTimeSafe()) {
         console.log('Parent page returned 0 links, retrying after 2s...');
         await new Promise(r => setTimeout(r, 2000));
         parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
+        pagesScraped++;
       }
       console.log(`Fallback: Found ${parentLinks.length} links on parent page`);
 
@@ -235,11 +258,37 @@ Deno.serve(async (req) => {
         const sameDomainLinks = parentLinks.filter(l => { try { return new URL(l).hostname === baseDomain; } catch { return false; } });
         console.log(`Fallback: ${subcatUrls.length} subcats, ${directProducts.length} products (${sameDomainLinks.length} same-domain)`);
 
+        // Scrape each subcategory WITH PAGINATION
         for (const subcatUrl of subcatUrls) {
           if (!isTimeSafe()) { timedOut = true; break; }
+          
+          // Page 1
           const subcatLinks = await scrapeLinks(subcatUrl, firecrawlKey);
+          pagesScraped++;
           const products = subcatLinks.filter(l => isValvesDirectProductUrl(l) && !shouldExclude(l));
           allProductUrls.push(...products);
+
+          // Check for pagination
+          const maxPage = extractMaxPage(subcatLinks, subcatUrl);
+          if (maxPage > 1) {
+            console.log(`  Subcat ${subcatUrl}: found pagination up to page ${maxPage}`);
+            const pageLimit = Math.min(maxPage, 50); // cap at 50 pages per subcat
+            for (let p = 2; p <= pageLimit; p++) {
+              if (!isTimeSafe()) { timedOut = true; break; }
+              const pageUrl = `${subcatUrl}?page=${p}`;
+              const pageLinks = await scrapeLinks(pageUrl, firecrawlKey);
+              pagesScraped++;
+              const pageProducts = pageLinks.filter(l => isValvesDirectProductUrl(l) && !shouldExclude(l));
+              if (pageProducts.length === 0) {
+                console.log(`  Page ${p}: 0 products, stopping pagination`);
+                break; // No more products on this page
+              }
+              allProductUrls.push(...pageProducts);
+              console.log(`  Page ${p}: ${pageProducts.length} products`);
+              await new Promise(r => setTimeout(r, 200));
+            }
+          }
+
           await new Promise(r => setTimeout(r, 200));
         }
       }
@@ -247,7 +296,7 @@ Deno.serve(async (req) => {
 
     // Deduplicate
     const unique = [...new Set(allProductUrls)];
-    console.log(`Total unique product URLs: ${unique.length} (${mapCalls} map calls, fallback=${scrapeFallback})`);
+    console.log(`Total unique product URLs: ${unique.length} (${mapCalls} map calls, ${pagesScraped} pages scraped, fallback=${scrapeFallback})`);
 
     // Upsert into scrape_jobs
     let inserted = 0;
@@ -271,6 +320,7 @@ Deno.serve(async (req) => {
       }
 
       // Re-queue failed URLs back to pending (small batches to avoid PostgREST URL limit)
+      // IMPORTANT: Only requeue transient failures, NOT brand-rejected ones
       const requeueBatch = 50;
       for (let i = 0; i < unique.length; i += requeueBatch) {
         const batch = unique.slice(i, i + requeueBatch);
@@ -279,6 +329,9 @@ Deno.serve(async (req) => {
           .update({ status: 'pending', error_message: null, updated_at: new Date().toISOString() })
           .in('source_url', batch)
           .eq('status', 'failed')
+          .not('error_message', 'ilike', '%brand%')
+          .not('error_message', 'ilike', '%pre-filter%')
+          .not('error_message', 'ilike', '%No scraped content%')
           .select('id');
         if (error) {
           console.error('Requeue error:', error);
@@ -299,6 +352,7 @@ Deno.serve(async (req) => {
         totalNew: inserted,
         totalRequeued: requeued,
         mapCalls,
+        pagesScraped,
         scrapeFallback,
         timedOut,
         elapsedSeconds: elapsed,

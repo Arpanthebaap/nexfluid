@@ -6,23 +6,18 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Textarea } from '@/components/ui/textarea';
-import { Globe, Map, Cpu, Database, Loader2, Play, Square, RotateCcw, ChevronDown, Rocket, Trash2, Clock, ImageIcon, Link2, Search } from 'lucide-react';
+import { Globe, Map, Cpu, Database, Loader2, Play, Square, RotateCcw, ChevronDown, Rocket, Trash2, Clock, ImageIcon, Link2, Search, Plus, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { supabase } from '@/integrations/supabase/client';
 
-const SOURCE_CATEGORY_URLS = [
-  'https://www.valves-direct.com/3-air-preparation-equipment',
-  'https://www.valves-direct.com/4-manually-operated-valves',
-  'https://www.valves-direct.com/5-pinch-valves',
-  'https://www.valves-direct.com/6-pneumatic-cylinders',
-  'https://www.valves-direct.com/7-proportional-valves',
-  'https://www.valves-direct.com/8-seat-valves',
-  'https://www.valves-direct.com/9-sensors-switches',
-  'https://www.valves-direct.com/10-solenoid-valves',
-  'https://www.valves-direct.com/11-vacuum-technologies',
-  'https://www.valves-direct.com/12-valve-systems',
-  'https://it.rs-online.com/web/b/parker/',
+// Permanent failure patterns that should be deleted, not retried
+const PERMANENT_FAILURE_PATTERNS = [
+  'non-whitelisted brand',
+  'Pre-filter',
+  'URL pre-filter',
+  'Invalid brand',
+  'No scraped content',
 ];
 
 type StatusCounts = {
@@ -36,12 +31,22 @@ type StatusCounts = {
 
 type PipelinePhase = 'idle' | 'discovering' | 'running' | 'paused';
 
+type SourceLink = {
+  id: string;
+  url: string;
+  label: string | null;
+  is_active: boolean;
+  last_discovered_at: string | null;
+  product_count: number;
+};
+
 export default function ProductImport() {
   const { toast } = useToast();
   const [counts, setCounts] = useState<StatusCounts>({ pending: 0, scraped: 0, processed: 0, imported: 0, failed: 0, total: 0 });
   const [phase, setPhase] = useState<PipelinePhase>('idle');
   const [logs, setLogs] = useState<string[]>([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [sourceLinksOpen, setSourceLinksOpen] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [speed, setSpeed] = useState(0);
   const [scraping, setScraping] = useState(false);
@@ -53,6 +58,9 @@ export default function ProductImport() {
   const [singleSourceUrl, setSingleSourceUrl] = useState('');
   const [discoveringSingle, setDiscoveringSingle] = useState(false);
   const [singleResult, setSingleResult] = useState<any>(null);
+  const [sourceLinks, setSourceLinks] = useState<SourceLink[]>([]);
+  const [newSourceUrl, setNewSourceUrl] = useState('');
+  const [newSourceLabel, setNewSourceLabel] = useState('');
   const stopRef = useRef(false);
   const lastImportedRef = useRef(0);
   const speedCheckRef = useRef<number>(0);
@@ -83,21 +91,34 @@ export default function ProductImport() {
     }
   }, []);
 
+  const fetchSourceLinks = useCallback(async () => {
+    const { data } = await supabase
+      .from('source_links')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (data) setSourceLinks(data as any);
+  }, []);
+
   useEffect(() => {
     fetchCounts();
+    fetchSourceLinks();
     const interval = setInterval(fetchCounts, 10000);
     return () => clearInterval(interval);
-  }, [fetchCounts]);
+  }, [fetchCounts, fetchSourceLinks]);
 
   // Speed calculation
   useEffect(() => {
     if (phase === 'running' && startTime) {
-      const elapsed = (Date.now() - startTime) / 60000; // minutes
+      const elapsed = (Date.now() - startTime) / 60000;
       if (elapsed > 0.5) {
         setSpeed(Math.round(counts.imported / elapsed));
       }
     }
   }, [counts.imported, phase, startTime]);
+
+  const getActiveSourceUrls = () => {
+    return sourceLinks.filter(s => s.is_active).map(s => s.url);
+  };
 
   const runFullPipeline = async (forceDiscovery = false) => {
     stopRef.current = false;
@@ -105,7 +126,6 @@ export default function ProductImport() {
     setLogs([]);
     lastImportedRef.current = 0;
 
-    // Check if there's already a backlog — skip discovery unless forced
     const currentCounts = await fetchCounts();
     const backlog = (currentCounts?.pending || 0) + (currentCounts?.scraped || 0) + (currentCounts?.processed || 0);
 
@@ -113,12 +133,13 @@ export default function ProductImport() {
       addLog(`⏩ Skipping discovery — ${backlog} jobs already in queue. Use "Force Discovery" to add more.`);
     } else {
       setPhase('discovering');
-      addLog('🚀 Starting URL discovery from category pages...');
+      const urls = getActiveSourceUrls();
+      addLog(`🚀 Starting URL discovery from ${urls.length} source links...`);
       let totalNewUrls = 0;
-      for (let i = 0; i < SOURCE_CATEGORY_URLS.length; i++) {
+      for (let i = 0; i < urls.length; i++) {
         if (stopRef.current) break;
-        const catUrl = SOURCE_CATEGORY_URLS[i];
-        addLog(`🔍 [${i + 1}/${SOURCE_CATEGORY_URLS.length}] Discovering: ${catUrl}`);
+        const catUrl = urls[i];
+        addLog(`🔍 [${i + 1}/${urls.length}] Discovering: ${catUrl}`);
         try {
           const res = await firecrawlApi.discoverCategory(catUrl);
           const data = res as any;
@@ -140,7 +161,6 @@ export default function ProductImport() {
     await fetchCounts();
     if (stopRef.current) { setPhase('paused'); return; }
 
-    // Smart backlog routing: only start loops that have work
     setPhase('running');
     const latest = await fetchCounts();
     const hasPending = (latest?.pending || 0) > 0;
@@ -189,7 +209,7 @@ export default function ProductImport() {
         if (!res.success) { addLog(`❌ Scrape error: ${res.error}`); break; }
         if (data.total === 0) {
           emptyRounds++;
-          if (emptyRounds > 5) break; // no more pending jobs at all
+          if (emptyRounds > 5) break;
           await new Promise(r => setTimeout(r, 5000));
           continue;
         }
@@ -210,7 +230,7 @@ export default function ProductImport() {
       try {
         const res = await firecrawlApi.aiProcess(2);
         const data = res as any;
-        transientRetries = 0; // reset on successful response
+        transientRetries = 0;
         if (data.rateLimited) {
           addLog('⏳ AI rate limited, waiting 30s...');
           await new Promise(r => setTimeout(r, 30000));
@@ -219,7 +239,6 @@ export default function ProductImport() {
         if (!res.success) {
           if (res.error?.includes('402')) { addLog('💳 AI credits exhausted'); break; }
           addLog(`❌ AI error: ${res.error}`);
-          // Transient error — retry with backoff instead of breaking
           transientRetries++;
           if (transientRetries >= 3) { addLog('⚠️ Too many consecutive AI errors, stopping.'); break; }
           await new Promise(r => setTimeout(r, 5000 * transientRetries));
@@ -306,13 +325,7 @@ export default function ProductImport() {
     stopRef.current = false;
     setPhase('running');
     addLog('▶️ Resuming pipeline...');
-
-    await Promise.all([
-      runScrapeLoop(),
-      runAiLoop(),
-      runInsertLoop(),
-    ]);
-
+    await Promise.all([runScrapeLoop(), runAiLoop(), runInsertLoop()]);
     if (stopRef.current) {
       setPhase('paused');
     } else {
@@ -322,15 +335,45 @@ export default function ProductImport() {
     await fetchCounts();
   };
 
-  const retryFailed = async () => {
-    const { error } = await supabase
+  const deletePermanentFailures = async () => {
+    addLog('🗑️ Deleting permanent failures (brand-rejected, no content)...');
+    let totalDeleted = 0;
+    for (const pattern of PERMANENT_FAILURE_PATTERNS) {
+      const { data, error } = await supabase
+        .from('scrape_jobs')
+        .delete()
+        .eq('status', 'failed')
+        .ilike('error_message', `%${pattern}%`)
+        .select('id');
+      if (error) {
+        addLog(`❌ Delete error: ${error.message}`);
+      } else {
+        totalDeleted += (data?.length || 0);
+      }
+    }
+    addLog(`✅ Deleted ${totalDeleted} permanent failures`);
+    toast({ title: `Deleted ${totalDeleted} permanent failures` });
+    fetchCounts();
+  };
+
+  const retryTransientFailures = async () => {
+    // Build a filter that excludes permanent failures
+    let query = supabase
       .from('scrape_jobs')
       .update({ status: 'pending', error_message: null, updated_at: new Date().toISOString() } as any)
       .eq('status', 'failed');
+
+    for (const pattern of PERMANENT_FAILURE_PATTERNS) {
+      query = query.not('error_message', 'ilike', `%${pattern}%`);
+    }
+
+    const { data, error } = await query.select('id');
     if (error) {
       toast({ title: 'Retry failed', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: `${counts.failed} failed jobs reset to pending` });
+      const count = data?.length || 0;
+      toast({ title: `${count} transient failures reset to pending` });
+      addLog(`♻️ Reset ${count} transient failures to pending`);
       fetchCounts();
     }
   };
@@ -344,6 +387,32 @@ export default function ProductImport() {
       toast({ title: 'All jobs cleared' });
       fetchCounts();
     }
+  };
+
+  const addSourceLink = async () => {
+    if (!newSourceUrl.trim()) return;
+    const { error } = await supabase.from('source_links').insert({
+      url: newSourceUrl.trim(),
+      label: newSourceLabel.trim() || null,
+    } as any);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      setNewSourceUrl('');
+      setNewSourceLabel('');
+      fetchSourceLinks();
+      toast({ title: 'Source link added' });
+    }
+  };
+
+  const removeSourceLink = async (id: string) => {
+    await supabase.from('source_links').delete().eq('id', id);
+    fetchSourceLinks();
+  };
+
+  const toggleSourceLink = async (id: string, isActive: boolean) => {
+    await supabase.from('source_links').update({ is_active: !isActive } as any).eq('id', id);
+    fetchSourceLinks();
   };
 
   const totalProgress = counts.total > 0
@@ -505,11 +574,17 @@ export default function ProductImport() {
             )}
           </div>
 
+          {/* Failed job management */}
           <div className="flex flex-wrap gap-3">
             {counts.failed > 0 && !anyRunning && (
-              <Button variant="outline" onClick={retryFailed} className="gap-2">
-                <RotateCcw className="h-4 w-4" /> Retry {counts.failed} Failed
-              </Button>
+              <>
+                <Button variant="outline" onClick={deletePermanentFailures} className="gap-2">
+                  <Trash2 className="h-4 w-4" /> Delete Permanent Failures
+                </Button>
+                <Button variant="outline" onClick={retryTransientFailures} className="gap-2">
+                  <RotateCcw className="h-4 w-4" /> Retry Transient Failures
+                </Button>
+              </>
             )}
             {!anyRunning && counts.total > 0 && (
               <Button variant="ghost" size="sm" onClick={clearAllJobs} className="gap-2 text-destructive ml-auto">
@@ -536,12 +611,69 @@ export default function ProductImport() {
         </Card>
       )}
 
+      {/* Source Links Registry */}
+      <Collapsible open={sourceLinksOpen} onOpenChange={setSourceLinksOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="gap-2 w-full justify-start">
+            <ChevronDown className={`h-4 w-4 transition-transform ${sourceLinksOpen ? 'rotate-180' : ''}`} />
+            Source Links ({sourceLinks.length})
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Source Link Registry</CardTitle>
+              <CardDescription className="text-xs">Manage the category/brand pages the pipeline discovers products from</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1">
+                {sourceLinks.map(sl => (
+                  <div key={sl.id} className="flex items-center gap-2 text-xs py-1 border-b border-muted last:border-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-6 w-6 p-0 ${sl.is_active ? 'text-green-600' : 'text-muted-foreground'}`}
+                      onClick={() => toggleSourceLink(sl.id, sl.is_active)}
+                      title={sl.is_active ? 'Active — click to disable' : 'Disabled — click to enable'}
+                    >
+                      {sl.is_active ? '●' : '○'}
+                    </Button>
+                    <span className="font-mono truncate flex-1">{sl.url}</span>
+                    {sl.label && <Badge variant="outline" className="text-[10px]">{sl.label}</Badge>}
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive" onClick={() => removeSourceLink(sl.id)}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://www.valves-direct.com/..."
+                  value={newSourceUrl}
+                  onChange={(e) => setNewSourceUrl(e.target.value)}
+                  className="font-mono text-xs flex-1"
+                />
+                <Input
+                  placeholder="Label (optional)"
+                  value={newSourceLabel}
+                  onChange={(e) => setNewSourceLabel(e.target.value)}
+                  className="text-xs w-40"
+                />
+                <Button size="sm" onClick={addSourceLink} disabled={!newSourceUrl.trim()} className="gap-1">
+                  <Plus className="h-3 w-3" /> Add
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </CollapsibleContent>
+      </Collapsible>
+
       {/* Single Source Link Discovery */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2"><Search className="h-4 w-4" /> Single Source Link Discovery</CardTitle>
           <CardDescription className="text-xs">
-            Paste a category or subcategory page URL to discover all product links within it. Use this to check if a specific source page has undiscovered products.
+            Paste a category or subcategory page URL to discover all product links within it.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -593,6 +725,7 @@ export default function ProductImport() {
                   <Badge className="bg-green-500/20 text-green-700 border-green-300">New: {singleResult.totalNew || 0}</Badge>
                   {(singleResult.totalRequeued || 0) > 0 && <Badge variant="secondary">Requeued: {singleResult.totalRequeued}</Badge>}
                   {singleResult.mapCalls > 0 && <Badge variant="outline">Map calls: {singleResult.mapCalls}</Badge>}
+                  {singleResult.pagesScraped > 0 && <Badge variant="outline">Pages scraped: {singleResult.pagesScraped}</Badge>}
                   {singleResult.scrapeFallback && <Badge variant="secondary">Used scrape fallback</Badge>}
                   {singleResult.elapsedSeconds && <Badge variant="outline">{singleResult.elapsedSeconds}s</Badge>}
                   {singleResult.timedOut && <Badge variant="destructive">Timed out (partial results)</Badge>}
@@ -676,11 +809,11 @@ export default function ProductImport() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2"><Cpu className="h-4 w-4" /> AI Process</CardTitle>
-              <CardDescription className="text-xs">AI rewrite scraped content (3 per batch)</CardDescription>
+              <CardDescription className="text-xs">AI rewrite scraped content (2 per batch)</CardDescription>
             </CardHeader>
             <CardContent>
               <Button size="sm" onClick={async () => {
-                const res = await firecrawlApi.aiProcess(3);
+                const res = await firecrawlApi.aiProcess(2);
                 addLog(`Manual AI: ${JSON.stringify(res)}`);
                 fetchCounts();
               }} disabled={counts.scraped === 0 || isRunning}>Run Once</Button>

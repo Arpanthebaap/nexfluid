@@ -112,12 +112,71 @@ function extractFromMarkdown(markdown: string, metadata: any): { productName: st
   return { productName, brand, description, specs: [] };
 }
 
+// Valves-direct URL slug → internal category slug mapping
+const SLUG_MAPPING: Record<string, string> = {
+  '3-air-preparation-equipment': 'air-preparation-equipment',
+  '4-manually-operated-valves': 'manually-operated-valves',
+  '5-pinch-valves': 'pinch-valves',
+  '6-pneumatic-cylinders': 'pneumatic-cylinders',
+  '7-proportional-valves': 'proportional-valves',
+  '8-seat-valves': 'seat-valves',
+  '9-sensors-switches': 'sensors-switches',
+  '10-solenoid-valves': 'solenoid-valves',
+  '11-vacuum-technologies': 'vacuum-technologies',
+  '12-valve-systems': 'valve-systems',
+};
+
 function extractCategorySlug(sourceUrl: string): string | null {
   try {
     const path = new URL(sourceUrl).pathname;
     const segments = path.split('/').filter(Boolean);
+    if (segments.length < 2) return null;
+
+    // Try the direct parent segment (second-to-last)
+    const parentSlug = segments[segments.length - 2];
+    // Strip leading number prefix if present (e.g., "10-solenoid-valves" → try both)
+    const stripped = parentSlug.replace(/^\d+-/, '');
+
+    return stripped || parentSlug;
+  } catch {}
+  return null;
+}
+
+// Enhanced: try multiple slug strategies to find best category match
+function findCategoryFromUrl(sourceUrl: string, slugToCategory: Map<string, { id: string; name_en: string }>): { id: string; name_en: string } | null {
+  try {
+    const path = new URL(sourceUrl).pathname;
+    const segments = path.split('/').filter(Boolean);
+    
+    // Strategy 1: direct parent slug (second-to-last segment)
     if (segments.length >= 2) {
-      return segments[segments.length - 2];
+      const parentSlug = segments[segments.length - 2];
+      // Try exact match
+      const exact = slugToCategory.get(parentSlug);
+      if (exact) return exact;
+      // Try stripped (no number prefix)
+      const stripped = parentSlug.replace(/^\d+-/, '');
+      const strippedMatch = slugToCategory.get(stripped);
+      if (strippedMatch) return strippedMatch;
+      // Try via mapping table
+      const mapped = SLUG_MAPPING[parentSlug];
+      if (mapped) {
+        const mappedMatch = slugToCategory.get(mapped);
+        if (mappedMatch) return mappedMatch;
+      }
+    }
+
+    // Strategy 2: first segment (top-level category)
+    if (segments.length >= 1) {
+      const topSlug = segments[0];
+      const stripped = topSlug.replace(/^\d+-/, '');
+      const topMatch = slugToCategory.get(stripped);
+      if (topMatch) return topMatch;
+      const mapped = SLUG_MAPPING[topSlug];
+      if (mapped) {
+        const mappedMatch = slugToCategory.get(mapped);
+        if (mappedMatch) return mappedMatch;
+      }
     }
   } catch {}
   return null;
@@ -245,13 +304,11 @@ Deno.serve(async (req) => {
 
         let matchedCategoryId: string | null = null;
         let matchedCategoryName = '';
-        const slug = extractCategorySlug(job.source_url);
-        if (slug) {
-          const match = slugToCategory.get(slug);
-          if (match) {
-            matchedCategoryId = match.id;
-            matchedCategoryName = match.name_en;
-          }
+        // Enhanced: try multiple URL-based strategies
+        const catMatch = findCategoryFromUrl(job.source_url, slugToCategory);
+        if (catMatch) {
+          matchedCategoryId = catMatch.id;
+          matchedCategoryName = catMatch.name_en;
         }
 
         const categoryInstruction = matchedCategoryId
