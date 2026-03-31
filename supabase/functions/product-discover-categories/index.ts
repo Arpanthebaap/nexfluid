@@ -52,12 +52,14 @@ function isRsOnlineProductUrl(url: string): boolean {
 
 function extractMaxPage(links: string[]): number {
   let maxPage = 1;
-  const pagePattern = /[?&]page=(\d+)/;
+  const pagePatterns = [/[?&]page=(\d+)/, /[?&]pn=(\d+)/];
   for (const link of links) {
-    const match = link.match(pagePattern);
-    if (match) {
-      const n = parseInt(match[1], 10);
-      if (!isNaN(n) && n > maxPage) maxPage = n;
+    for (const pattern of pagePatterns) {
+      const match = link.match(pattern);
+      if (match) {
+        const n = parseInt(match[1], 10);
+        if (!isNaN(n) && n > maxPage) maxPage = n;
+      }
     }
   }
   return maxPage;
