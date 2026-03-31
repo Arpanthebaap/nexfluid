@@ -1,67 +1,99 @@
 
 
-# Fix: Pipeline Stuck — Scrape Loop Breaks Early + Queue Clogged
+# Pipeline Stabilization: Selective Cleanup + Deeper Discovery + Hybrid Category Alignment
 
-## What's Actually Happening (from live data)
+## Problems Identified
 
-**Current state**: 507 pending, 0 scraped, 0 processed, 11,445 imported, 200 failed
+### 1. Failed jobs recycling endlessly
+The **"Retry Failed"** button resets ALL failed jobs to pending -- including permanently unfixable ones (non-whitelisted brands, no content). These then fail again immediately, wasting cycles. The discovery requeue logic also resets failed brand-rejected jobs back to pending every run.
 
-**Breakdown of 507 pending URLs by brand:**
-- ASCO: 50, AVENTICS: 213, JOUCOMATIC: 34, NUMATICS: 23 — **320 valid, processable**
-- Burkert: 42, Camozzi: 85, Pneumax: 33 — **160 will always be rejected by URL pre-filter**
-- Other: 27
+### 2. Discovery only finds ~200 products per category (out of thousands)
+The scrape fallback only discovers products visible on the **first page** of each subcategory. Valves-direct has paginated listings (e.g., `?page=2`, `?page=3`), and the pipeline never visits page 2+. The Map API returns only 1 URL for valves-direct (the site blocks it). So we're limited to whatever links appear on the first page load of each subcategory -- typically 12-20 products per subcat.
 
-**Bug #1: Scrape loop quits after 5 batches even though valid URLs exist**
-
-The scrape loop (`runScrapeLoop`) checks `if (data.scraped === 0)` to count "empty rounds" and breaks after 5. But when `product-scrape-batch` returns `{"scraped":0, "failed":2, "skippedBrand":2}`, that counts as an empty round even though pending jobs existed — they were just rejected brands. The loop breaks after 5 consecutive brand-rejection batches without ever reaching the 320 valid ASCO/AVENTICS/JOUCOMATIC/NUMATICS URLs.
-
-**Bug #2: No query ordering — rejected brands always get picked first**
-
-`product-scrape-batch` queries `WHERE status='pending' LIMIT 2` with no `ORDER BY`. The database returns rows in arbitrary order, and the rejected-brand URLs keep getting selected first.
-
-**Bug #3: Discovery returns 0 new because all URLs exist**
-
-The `upsert` with `ignoreDuplicates: true` silently skips all URLs that already exist in `scrape_jobs`. Since the site hasn't added new products, discovery reports "0 new, 0 requeued" — there's nothing new to find. The 320 valid pending URLs are already queued; they just can't process due to bugs #1 and #2.
-
-**About the "vanished 34K products"**: The products table has 11,426 products. The scrape_jobs table has 12,152 entries. It appears the scrape_jobs table was cleared at some point (possibly via "Clear All Jobs"), losing tracking of ~22K previously processed URLs. The products themselves may still be in the products table if they weren't deleted.
+### 3. Category alignment gaps
+Some products end up with no category or wrong category because the URL slug extraction (`extractCategorySlug`) only looks at the second-to-last path segment, which for some URL structures doesn't map to any existing category.
 
 ## Fix Plan
 
-### Step 1: Fix scrape loop empty-round detection (`ProductImport.tsx`)
-Change the loop to only count a round as "empty" when the total batch was 0 (no pending jobs at all), not when all jobs were brand-skipped:
+### Step 1: Selective failed-job cleanup
+
+**File: `src/pages/admin/ProductImport.tsx`**
+
+Replace the "Retry Failed" button with two actions:
+- **"Delete Permanent Failures"** -- deletes failed jobs where `error_message` contains known permanent failure patterns: `non-whitelisted brand`, `Pre-filter`, `URL pre-filter`, `Invalid brand`, `No scraped content`
+- **"Retry Transient Failures"** -- resets only jobs with transient error patterns (network errors, timeouts, AI errors) back to pending
+
+**File: `supabase/functions/product-discover-categories/index.ts`**
+
+Stop the requeue logic from resetting brand-rejected failures. Add a filter: only requeue jobs where `error_message NOT ILIKE '%brand%' AND error_message NOT ILIKE '%pre-filter%'`.
+
+### Step 2: Paginated discovery for valves-direct
+
+**File: `supabase/functions/product-discover-categories/index.ts`**
+
+The core discovery gap: valves-direct subcategories have hundreds of pages. Currently we scrape page 1 only. Fix:
+
+1. After scraping a subcategory page and extracting product links, check if pagination links exist (look for `?page=` patterns in the scraped links)
+2. If pagination found, extract the max page number
+3. Scrape pages 2 through N (up to a reasonable limit like page 50) within the safety timer
+4. This multiplies discovery by 10-50x per subcategory
+
+The scrape fallback currently gets ~12 products per subcat page. With pagination, a subcat with 500 products across 25 pages would yield all 500.
+
+Logic addition inside the scrape fallback subcategory loop:
 ```
-// Before (broken):
-if (data.scraped === 0) { emptyRounds++; ... }
-
-// After (fixed):
-if (data.total === 0) { emptyRounds++; ... }
+for each subcatUrl:
+  links = scrapeLinks(subcatUrl)  // page 1
+  products += filter(links)
+  
+  // NEW: check for pagination
+  pageLinks = links.filter(l => l.includes('?page='))
+  maxPage = extractMaxPage(pageLinks)  // e.g., 25
+  for page 2..min(maxPage, 50):
+    if !isTimeSafe() break
+    pageLinks = scrapeLinks(subcatUrl + '?page=' + page)
+    products += filter(pageLinks)
 ```
-This way, brand-rejection batches keep the loop running until it reaches valid URLs.
 
-### Step 2: Add ordering to scrape-batch query (`product-scrape-batch/index.ts`)
-Add `.order('source_url', { ascending: true })` to the pending jobs query. This ensures alphabetical processing, which naturally groups ASCO/AVENTICS URLs before burkert/camozzi/pneumax, processing valid products first.
+### Step 3: Hybrid strict category alignment
 
-### Step 3: Bulk-reject pending rejected-brand URLs upfront (`product-scrape-batch/index.ts`)
-Before processing the batch, run a quick bulk update to mark all pending jobs with rejected-brand URLs as failed in one go, instead of wasting API calls:
-```sql
-UPDATE scrape_jobs SET status='failed', error_message='URL pre-filter: non-whitelisted brand'
-WHERE status='pending' AND (source_url ILIKE '%burkert%' OR source_url ILIKE '%camozzi%' OR ...)
-```
-This clears the 160 clogging URLs immediately on the next scrape call.
+**File: `supabase/functions/product-ai-process/index.ts`**
 
-### Step 4: Fix discovery to requeue "imported" URLs that match pending criteria
-Add an option to the discovery function to reset imported URLs back to pending when the user explicitly runs "Force Discovery". This handles the case where URLs exist but need re-processing.
+Add a secondary slug mapping layer for valves-direct URL patterns. The current `extractCategorySlug` only checks the second-to-last segment. Enhance with:
+
+1. A static mapping of common valves-direct category slugs to internal category IDs/slugs (e.g., `solenoid-valves` -> the right leaf category)
+2. If the URL slug doesn't match directly, try matching the parent category slug (first segment like `10-solenoid-valves`)
+3. Only fall through to AI category matching when both URL-based approaches fail
+
+**File: `supabase/functions/product-bulk-insert/index.ts`**
+
+Add a similar fallback: if `category_id` is still null at import time, try the URL-based mapping one more time before inserting without a category.
+
+### Step 4: Source registry in admin
+
+**File: `src/pages/admin/ProductImport.tsx`**
+
+Make the `SOURCE_CATEGORY_URLS` array editable from the UI:
+- Add a collapsible "Source Links" section showing all current source URLs
+- Allow adding/removing URLs
+- Store in a simple `source_links` table or localStorage initially
+- Show per-source-link stats: how many products discovered, how many imported, how many remaining
+
+This lets you add brand-specific pages like `valves-direct.com/10-solenoid-valves/asco/` to target specific brands within categories.
 
 ## Files to modify
 
 | File | Change |
 |------|--------|
-| `src/pages/admin/ProductImport.tsx` | Fix empty-round detection in `runScrapeLoop` to check `data.total === 0` instead of `data.scraped === 0` |
-| `supabase/functions/product-scrape-batch/index.ts` | Add `.order('source_url')` to query; add bulk-reject of known-bad brand URLs at start of function |
+| `src/pages/admin/ProductImport.tsx` | Split retry button into selective cleanup + transient retry; add source registry UI |
+| `supabase/functions/product-discover-categories/index.ts` | Add pagination support for subcategory pages; stop requeuing brand-rejected failures |
+| `supabase/functions/product-ai-process/index.ts` | Enhanced URL-to-category mapping with parent slug fallback |
+| `supabase/functions/product-bulk-insert/index.ts` | Secondary category fallback at import time |
+| New migration | Create `source_links` table (url, label, is_active, last_discovered_at, product_count) |
 
-## Expected Result
-- The 320 valid pending URLs (ASCO, AVENTICS, JOUCOMATIC, NUMATICS) will be scraped immediately
-- Brand-rejected URLs get cleared in bulk instead of one-by-one
-- Scrape loop no longer quits prematurely
-- Pipeline processes the existing backlog without needing new discovery
+## Expected Impact
+- Failed jobs stop recycling (permanent failures deleted, transient ones retried)
+- Discovery coverage increases from ~200 to thousands per category via pagination
+- Category alignment improves with hybrid URL + AI approach
+- Source links become manageable from the admin UI
 
