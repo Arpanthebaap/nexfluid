@@ -241,6 +241,37 @@ Deno.serve(async (req) => {
 
         console.log(`Scrape fallback: ${parentLinks.length} links, ${directProducts.length} products, ${subcatUrls.length} subcats`);
 
+        // Parent-page pagination for valves-direct (before subcategory loop)
+        if (!isRsOnline && subcatUrls.length > 0) {
+          const parentMaxPage = extractMaxPage(parentLinks);
+          if (parentMaxPage > 1) {
+            console.log(`valves-direct: parent page has pagination up to ${parentMaxPage}`);
+            const parentPageLimit = Math.min(parentMaxPage, 500);
+            let consecutiveEmpty = 0;
+            for (let p = 2; p <= parentPageLimit; p++) {
+              if (!isTimeSafe()) {
+                timedOut = true;
+                console.log(`Timer expired at parent page ${p}`);
+                break;
+              }
+              const pageUrl = `${categoryUrl}?page=${p}`;
+              const pageLinks = await scrapeLinks(pageUrl, firecrawlKey);
+              pagesScraped++;
+              const pageProducts = pageLinks.filter(l => productFilter(l) && !shouldExclude(l));
+              if (pageProducts.length === 0) {
+                consecutiveEmpty++;
+                if (consecutiveEmpty >= 3) break;
+                await new Promise(r => setTimeout(r, 200));
+                continue;
+              }
+              consecutiveEmpty = 0;
+              allProductUrls.push(...pageProducts);
+              console.log(`  Parent page ${p}: ${pageProducts.length} products`);
+              await new Promise(r => setTimeout(r, 200));
+            }
+          }
+        }
+
         // rs-online parent-page pagination (resumable)
         if (isRsOnline) {
           const maxPage = Math.min(extractMaxPage(parentLinks), 200);
