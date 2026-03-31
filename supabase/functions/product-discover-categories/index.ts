@@ -380,9 +380,10 @@ Deno.serve(async (req) => {
         // Resuming mid-pagination: we need to know maxPage. Scrape page 1 just for pagination info.
         const subcatLinks = await scrapeLinks(subcatUrl, firecrawlKey);
         pagesScraped++;
-        const maxPage = Math.min(extractMaxPage(subcatLinks), 100);
+        const maxPage = Math.min(extractMaxPage(subcatLinks), 500);
         console.log(`  Resuming subcat [${si}] from page ${firstPage}, maxPage=${maxPage}`);
 
+        let consecutiveEmpty = 0;
         for (let p = firstPage; p <= maxPage; p++) {
           if (!isTimeSafe()) {
             timedOut = true;
@@ -394,9 +395,13 @@ Deno.serve(async (req) => {
           pagesScraped++;
           const pageProducts = pageLinks.filter(l => productFilter(l) && !shouldExclude(l));
           if (pageProducts.length === 0) {
-            console.log(`  Page ${p}: 0 products, stopping pagination`);
-            break;
+            consecutiveEmpty++;
+            console.log(`  Page ${p}: 0 products (${consecutiveEmpty}/3 consecutive empty)`);
+            if (consecutiveEmpty >= 3) break;
+            await new Promise(r => setTimeout(r, 200));
+            continue;
           }
+          consecutiveEmpty = 0;
           allProductUrls.push(...pageProducts);
           console.log(`  Page ${p}: ${pageProducts.length} products`);
           await new Promise(r => setTimeout(r, 200));
