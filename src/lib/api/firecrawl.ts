@@ -103,9 +103,15 @@ export const firecrawlApi = {
     return data;
   },
 
-  async discoverCategory(categoryUrl: string): Promise<FirecrawlResponse> {
+  async discoverCategory(categoryUrl: string, resumeParams?: { startSubcatIndex: number; startPage: number; subcategories: string[] }): Promise<FirecrawlResponse> {
+    const body: any = { categoryUrl };
+    if (resumeParams) {
+      body.startSubcatIndex = resumeParams.startSubcatIndex;
+      body.startPage = resumeParams.startPage;
+      body.subcategories = resumeParams.subcategories;
+    }
     const { data, error } = await supabase.functions.invoke('product-discover-categories', {
-      body: { categoryUrl },
+      body,
     });
     if (error) return { success: false, error: error.message };
     return data;
