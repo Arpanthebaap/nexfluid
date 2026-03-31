@@ -323,8 +323,6 @@ Deno.serve(async (req) => {
     }
 
     // === Scrape subcategories with pagination (resumable) ===
-    const startIdx = startSubcatIndex || 0;
-    const startPg = startPage || 1;
 
     for (let si = startIdx; si < subcatUrls.length; si++) {
       if (!isTimeSafe()) {
