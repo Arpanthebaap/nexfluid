@@ -344,6 +344,36 @@ export type Database = {
           },
         ]
       }
+      source_links: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string | null
+          last_discovered_at: string | null
+          product_count: number
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          last_discovered_at?: string | null
+          product_count?: number
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          last_discovered_at?: string | null
+          product_count?: number
+          url?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
