@@ -63,20 +63,31 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Category verification
+        // Category verification with enhanced URL-based fallback
         let categoryId = job.category_id || pd.category_id || null;
         if (!categoryId && job.source_url) {
           try {
             const urlPath = new URL(job.source_url).pathname;
             const segments = urlPath.split('/').filter(Boolean);
+            // Try multiple slug strategies
+            const slugsToTry: string[] = [];
             if (segments.length >= 2) {
-              const slug = segments[segments.length - 2];
+              const parentSlug = segments[segments.length - 2];
+              slugsToTry.push(parentSlug);
+              slugsToTry.push(parentSlug.replace(/^\d+-/, ''));
+            }
+            if (segments.length >= 1) {
+              const topSlug = segments[0];
+              slugsToTry.push(topSlug.replace(/^\d+-/, ''));
+            }
+            for (const slug of slugsToTry) {
+              if (!slug) continue;
               const { data: cat } = await supabase
                 .from('categories')
                 .select('id')
                 .eq('slug', slug)
-                .single();
-              if (cat) categoryId = cat.id;
+                .maybeSingle();
+              if (cat) { categoryId = cat.id; break; }
             }
           } catch {}
         }
