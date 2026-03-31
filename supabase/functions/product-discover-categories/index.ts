@@ -346,7 +346,8 @@ Deno.serve(async (req) => {
         const maxPage = extractMaxPage(subcatLinks);
         if (maxPage > 1) {
           console.log(`  Subcat [${si}] ${subcatUrl}: pagination up to page ${maxPage}`);
-          const pageLimit = Math.min(maxPage, 100);
+          const pageLimit = Math.min(maxPage, 500);
+          let consecutiveEmpty = 0;
           for (let p = 2; p <= pageLimit; p++) {
             if (!isTimeSafe()) {
               timedOut = true;
@@ -359,9 +360,16 @@ Deno.serve(async (req) => {
             pagesScraped++;
             const pageProducts = pageLinks.filter(l => productFilter(l) && !shouldExclude(l));
             if (pageProducts.length === 0) {
-              console.log(`  Page ${p}: 0 products, stopping pagination`);
-              break;
+              consecutiveEmpty++;
+              console.log(`  Page ${p}: 0 products (${consecutiveEmpty}/3 consecutive empty)`);
+              if (consecutiveEmpty >= 3) {
+                console.log(`  3 consecutive empty pages, stopping pagination`);
+                break;
+              }
+              await new Promise(r => setTimeout(r, 200));
+              continue;
             }
+            consecutiveEmpty = 0;
             allProductUrls.push(...pageProducts);
             console.log(`  Page ${p}: ${pageProducts.length} products`);
             await new Promise(r => setTimeout(r, 200));
