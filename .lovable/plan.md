@@ -1,64 +1,36 @@
 
 
-# Fix: Single Source Link Discovery Fails for rs-online.com
+# Fix: Discovery Only Scrapes 504 of 3901 Pages
 
-## Root Cause
+## Root Cause Analysis
 
-The discovery function has **two separate bugs** affecting rs-online URLs:
+Three issues prevent full page coverage:
 
-### Bug 1: No subcategory or pagination handling for rs-online
-When `isRsOnline = true` (line 197), subcategory detection is completely skipped:
+### 1. Hard cap of 100 pages per subcategory (line 349)
 ```javascript
-if (!isRsOnline) {
-  // subcategory discovery only runs for valves-direct
-}
+const pageLimit = Math.min(maxPage, 100);
 ```
-This means the pagination loop (lines 246-319) never executes because `subcatUrls` stays empty. The function only returns whatever products appear on the single parent page scrape.
+Subcategories like `air-preparation-equipment-accessories` have 221+ pages. The cap cuts off more than half. With multiple such subcats, this accounts for thousands of missed pages.
 
-### Bug 2: rs-online uses different pagination parameters
-rs-online uses `?pn=2` or `&pn=2` for pagination, but `extractMaxPage()` only checks for `?page=`. Even if pagination links are found, they won't be detected.
+### 2. Single empty page kills pagination (lines 361-363)
+If one scrape returns 0 products (transient failure, timeout, Bad Gateway), pagination stops for that entire subcategory. Remaining pages are never scraped.
 
-### Result
-For `https://it.rs-online.com/web/b/parker/`: Map returns ~19 product URLs from page 1, no subcategories are discovered, no pagination is attempted. Discovery reports "Found: 19, New: 0" (all 19 already exist).
+### 3. Parent category pagination not attempted for valves-direct
+The parent URL (`6-pneumatic-cylinders`) itself may have paginated product listings. Currently only rs-online gets parent-page pagination. For valves-direct, only subcategories are paginated.
 
-## Fix
+## Fix (single file)
 
-### File: `supabase/functions/product-discover-categories/index.ts`
+**File: `supabase/functions/product-discover-categories/index.ts`**
 
-**1. Update `extractMaxPage` to handle rs-online pagination**
-Add detection for `pn=` parameter alongside `page=`:
-```
-const pagePatterns = [/[?&]page=(\d+)/, /[?&]pn=(\d+)/];
-```
+1. **Increase page cap** from 100 to 500 per subcategory
+2. **Add empty-page tolerance**: allow up to 3 consecutive empty pages before stopping (handles transient scrape failures)
+3. **Add parent-page pagination for valves-direct**: after scraping subcategories from page 1, also check if the parent URL has `?page=` pagination and scrape those pages too (before entering subcategory loop)
 
-**2. Add parent-page pagination for rs-online**
-After the scrape fallback finds products on the parent page, check those links for pagination and scrape subsequent pages. Currently only valves-direct subcategories get paginated — rs-online parent pages need the same treatment:
-
-```
-// After scraping parent page for rs-online:
-if (isRsOnline && directProducts.length > 0) {
-  const maxPage = extractMaxPage(parentLinks);
-  for (let p = 2; p <= Math.min(maxPage, 200); p++) {
-    if (!isTimeSafe()) { timedOut = true; break; }
-    const pageUrl = `${categoryUrl}?pn=${p}`;
-    const pageLinks = await scrapeLinks(pageUrl, firecrawlKey);
-    const pageProducts = pageLinks.filter(productFilter && !shouldExclude);
-    if (pageProducts.length === 0) break;
-    allProductUrls.push(...pageProducts);
-  }
-}
-```
-
-**3. Support resumable pagination for rs-online parent pages**
-Since rs-online doesn't have subcategories, treat the parent page itself as "subcat 0" for resume purposes. When the timer runs out mid-pagination, return `resumeFrom` with the current page so the frontend loop can continue.
-
-## Files to modify
-
-| File | Change |
-|------|--------|
-| `supabase/functions/product-discover-categories/index.ts` | Add `pn=` to `extractMaxPage`, add parent-page pagination for rs-online with resume support |
+These changes work within the existing resumable cursor system — the frontend loop already handles multiple calls correctly.
 
 ## Expected Result
-- rs-online brand pages with hundreds of paginated pages will be fully scraped across multiple resumable calls
-- `https://it.rs-online.com/web/b/parker/` will discover all Parker products instead of just 19
+- Subcategories with 200+ pages will be fully scraped (up to 500 pages each)
+- Transient scrape failures won't prematurely stop pagination
+- Parent category pages are also scraped for additional product URLs
+- Discovery should reach 3000-3900+ pages across multiple resumable calls
 
