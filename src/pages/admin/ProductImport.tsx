@@ -692,17 +692,69 @@ export default function ProductImport() {
                 setSingleResult(null);
                 const url = singleSourceUrl.trim();
                 addLog(`🔍 Discovering products from: ${url}`);
+                
+                let totalFound = 0;
+                let totalNew = 0;
+                let totalRequeued = 0;
+                let totalPagesScraped = 0;
+                let callCount = 0;
+                let resumeParams: { startSubcatIndex: number; startPage: number; subcategories: string[] } | undefined;
+                
                 try {
-                  const res = await firecrawlApi.discoverCategory(url);
-                  const data = res as any;
-                  setSingleResult(data);
-                  if (res.success) {
-                    const requeuedInfo = data.totalRequeued ? `, ${data.totalRequeued} requeued` : '';
-                    addLog(`✅ Found ${data.totalFound || 0} products, ${data.totalNew || 0} new${requeuedInfo}${data.timedOut ? ' (partial — timed out)' : ''}`);
-                    toast({ title: `Discovered ${data.totalFound || 0} products`, description: `${data.totalNew || 0} new, ${data.totalRequeued || 0} requeued` });
-                  } else {
-                    addLog(`❌ Discovery failed: ${res.error}`);
-                    toast({ title: 'Discovery failed', description: res.error, variant: 'destructive' });
+                  while (true) {
+                    callCount++;
+                    if (resumeParams) {
+                      addLog(`🔄 Resuming discovery (call #${callCount}) — subcat ${resumeParams.startSubcatIndex}, page ${resumeParams.startPage}...`);
+                    }
+                    const res = await firecrawlApi.discoverCategory(url, resumeParams);
+                    const data = res as any;
+                    
+                    if (!res.success) {
+                      addLog(`❌ Discovery failed: ${res.error}`);
+                      setSingleResult(data);
+                      break;
+                    }
+                    
+                    totalFound += data.totalFound || 0;
+                    totalNew += data.totalNew || 0;
+                    totalRequeued += data.totalRequeued || 0;
+                    totalPagesScraped += data.pagesScraped || 0;
+                    
+                    addLog(`✅ Call #${callCount}: ${data.totalFound || 0} found, ${data.totalNew || 0} new (${data.pagesScraped || 0} pages scraped, ${data.elapsedSeconds || 0}s)`);
+                    
+                    if (data.resumeFrom && data.subcategories) {
+                      resumeParams = {
+                        startSubcatIndex: data.resumeFrom.subcatIndex,
+                        startPage: data.resumeFrom.page,
+                        subcategories: data.subcategories,
+                      };
+                      // Update running totals in UI
+                      setSingleResult({
+                        success: true,
+                        totalFound,
+                        totalNew,
+                        totalRequeued,
+                        pagesScraped: totalPagesScraped,
+                        callCount,
+                        timedOut: true,
+                        inProgress: true,
+                      });
+                      await fetchCounts();
+                    } else {
+                      // Complete!
+                      setSingleResult({
+                        success: true,
+                        totalFound,
+                        totalNew,
+                        totalRequeued,
+                        pagesScraped: totalPagesScraped,
+                        callCount,
+                        timedOut: false,
+                      });
+                      addLog(`🎉 Discovery complete: ${totalFound} total found, ${totalNew} new, ${totalRequeued} requeued (${callCount} calls, ${totalPagesScraped} pages)`);
+                      toast({ title: `Discovery complete`, description: `${totalFound} found, ${totalNew} new, ${totalRequeued} requeued` });
+                      break;
+                    }
                   }
                 } catch (err) {
                   addLog(`❌ ${err}`);
