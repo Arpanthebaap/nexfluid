@@ -304,13 +304,11 @@ Deno.serve(async (req) => {
 
         let matchedCategoryId: string | null = null;
         let matchedCategoryName = '';
-        const slug = extractCategorySlug(job.source_url);
-        if (slug) {
-          const match = slugToCategory.get(slug);
-          if (match) {
-            matchedCategoryId = match.id;
-            matchedCategoryName = match.name_en;
-          }
+        // Enhanced: try multiple URL-based strategies
+        const catMatch = findCategoryFromUrl(job.source_url, slugToCategory);
+        if (catMatch) {
+          matchedCategoryId = catMatch.id;
+          matchedCategoryName = catMatch.name_en;
         }
 
         const categoryInstruction = matchedCategoryId
