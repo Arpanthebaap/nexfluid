@@ -52,12 +52,14 @@ function isRsOnlineProductUrl(url: string): boolean {
 
 function extractMaxPage(links: string[]): number {
   let maxPage = 1;
-  const pagePattern = /[?&]page=(\d+)/;
+  const pagePatterns = [/[?&]page=(\d+)/, /[?&]pn=(\d+)/];
   for (const link of links) {
-    const match = link.match(pagePattern);
-    if (match) {
-      const n = parseInt(match[1], 10);
-      if (!isNaN(n) && n > maxPage) maxPage = n;
+    for (const pattern of pagePatterns) {
+      const match = link.match(pattern);
+      if (match) {
+        const n = parseInt(match[1], 10);
+        if (!isNaN(n) && n > maxPage) maxPage = n;
+      }
     }
   }
   return maxPage;
@@ -236,6 +238,85 @@ Deno.serve(async (req) => {
         }
 
         console.log(`Scrape fallback: ${parentLinks.length} links, ${directProducts.length} products, ${subcatUrls.length} subcats`);
+
+        // rs-online parent-page pagination (resumable)
+        if (isRsOnline) {
+          const maxPage = Math.min(extractMaxPage(parentLinks), 200);
+          console.log(`rs-online: detected maxPage=${maxPage} from parent links`);
+          const rsStartPage = startPg > 1 ? startPg : 2;
+          for (let p = rsStartPage; p <= maxPage; p++) {
+            if (!isTimeSafe()) {
+              timedOut = true;
+              resumeFrom = { subcatIndex: 0, page: p };
+              console.log(`Timer expired at rs-online page ${p}`);
+              break;
+            }
+            const pageUrl = categoryUrl.includes('?') ? `${categoryUrl}&pn=${p}` : `${categoryUrl}?pn=${p}`;
+            const pageLinks = await scrapeLinks(pageUrl, firecrawlKey);
+            pagesScraped++;
+            const pageProducts = pageLinks.filter(l => isRsOnlineProductUrl(l) && !shouldExclude(l));
+            if (pageProducts.length === 0) {
+              console.log(`  rs-online page ${p}: 0 products, stopping`);
+              break;
+            }
+            allProductUrls.push(...pageProducts);
+            console.log(`  rs-online page ${p}: ${pageProducts.length} products`);
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
+      }
+
+      // rs-online: also paginate when Map DID return products (but only page 1)
+      if (isRsOnline && mapProducts.length > 0 && !resumeFrom) {
+        console.log('rs-online: Map returned products, attempting pagination from parent...');
+        const parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
+        pagesScraped++;
+        const maxPage = Math.min(extractMaxPage(parentLinks), 200);
+        if (maxPage > 1) {
+          console.log(`rs-online: pagination up to page ${maxPage}`);
+          const rsStartPage = startPg > 1 ? startPg : 2;
+          for (let p = rsStartPage; p <= maxPage; p++) {
+            if (!isTimeSafe()) {
+              timedOut = true;
+              resumeFrom = { subcatIndex: 0, page: p };
+              break;
+            }
+            const pageUrl = categoryUrl.includes('?') ? `${categoryUrl}&pn=${p}` : `${categoryUrl}?pn=${p}`;
+            const pageLinks = await scrapeLinks(pageUrl, firecrawlKey);
+            pagesScraped++;
+            const pageProducts = pageLinks.filter(l => isRsOnlineProductUrl(l) && !shouldExclude(l));
+            if (pageProducts.length === 0) {
+              console.log(`  rs-online page ${p}: 0 products, stopping`);
+              break;
+            }
+            allProductUrls.push(...pageProducts);
+            console.log(`  rs-online page ${p}: ${pageProducts.length} products`);
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
+      }
+    }
+
+    // === Handle rs-online resume (pagination only, no subcats) ===
+    if (isRsOnline && isResuming && !providedSubcats?.length) {
+      console.log(`rs-online: resuming pagination from page ${startPg}`);
+      const parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
+      pagesScraped++;
+      const maxPage = Math.min(extractMaxPage(parentLinks), 200);
+      for (let p = startPg; p <= maxPage; p++) {
+        if (!isTimeSafe()) {
+          timedOut = true;
+          resumeFrom = { subcatIndex: 0, page: p };
+          break;
+        }
+        const pageUrl = categoryUrl.includes('?') ? `${categoryUrl}&pn=${p}` : `${categoryUrl}?pn=${p}`;
+        const pageLinks = await scrapeLinks(pageUrl, firecrawlKey);
+        pagesScraped++;
+        const pageProducts = pageLinks.filter(l => isRsOnlineProductUrl(l) && !shouldExclude(l));
+        if (pageProducts.length === 0) break;
+        allProductUrls.push(...pageProducts);
+        console.log(`  rs-online page ${p}: ${pageProducts.length} products`);
+        await new Promise(r => setTimeout(r, 200));
       }
     }
 
