@@ -776,11 +776,10 @@ export default function ProductImport() {
                   <Badge variant="outline">Found: {singleResult.totalFound || 0}</Badge>
                   <Badge className="bg-green-500/20 text-green-700 border-green-300">New: {singleResult.totalNew || 0}</Badge>
                   {(singleResult.totalRequeued || 0) > 0 && <Badge variant="secondary">Requeued: {singleResult.totalRequeued}</Badge>}
-                  {singleResult.mapCalls > 0 && <Badge variant="outline">Map calls: {singleResult.mapCalls}</Badge>}
                   {singleResult.pagesScraped > 0 && <Badge variant="outline">Pages scraped: {singleResult.pagesScraped}</Badge>}
-                  {singleResult.scrapeFallback && <Badge variant="secondary">Used scrape fallback</Badge>}
-                  {singleResult.elapsedSeconds && <Badge variant="outline">{singleResult.elapsedSeconds}s</Badge>}
-                  {singleResult.timedOut && <Badge variant="destructive">Timed out (partial results)</Badge>}
+                  {singleResult.callCount > 1 && <Badge variant="outline">API calls: {singleResult.callCount}</Badge>}
+                  {singleResult.inProgress && <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-300">Still discovering...</Badge>}
+                  {!singleResult.inProgress && !singleResult.timedOut && <Badge className="bg-green-500/20 text-green-700 border-green-300">✓ Complete</Badge>}
                 </>
               ) : (
                 <Badge variant="destructive">{singleResult.error || 'Failed'}</Badge>
