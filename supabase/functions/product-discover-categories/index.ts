@@ -180,6 +180,8 @@ Deno.serve(async (req) => {
     let resumeFrom: { subcatIndex: number; page: number } | null = null;
 
     const productFilter = isRsOnline ? isRsOnlineProductUrl : isValvesDirectProductUrl;
+    const startIdx = startSubcatIndex || 0;
+    const startPg = startPage || 1;
 
     // === Determine subcategories ===
     let subcatUrls: string[] = [];
