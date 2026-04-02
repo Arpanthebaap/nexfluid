@@ -1,0 +1,1 @@
+DELETE FROM scrape_jobs WHERE status = 'failed';
