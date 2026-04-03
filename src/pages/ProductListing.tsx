@@ -173,6 +173,7 @@ const ProductListing = () => {
                             alt={`${product.product_code} ${lang === 'it' ? product.name_it : product.name_en}`}
                             productCode={product.product_code}
                             brand={product.brand}
+                            categoryImageUrl={categoryImageUrl}
                             size="sm"
                           />
                         </Link>
