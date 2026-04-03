@@ -43,7 +43,7 @@ const Header = () => {
     <>
       <header className="sticky top-0 z-50 w-full">
         {/* Top contact bar */}
-        <div className="bg-primary">
+        <div className="bg-gray-200">
           <div className="container mx-auto flex items-center justify-end gap-2 px-4 py-1.5 text-xs">
             <a href="tel:+390498016529" className="flex items-center gap-1.5 bg-green-600 text-white rounded-full px-3 py-1 hover:bg-green-700 transition-colors">
               <Phone className="h-3 w-3" />
