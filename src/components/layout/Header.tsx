@@ -78,9 +78,7 @@ const Header = () => {
 
             {/* Sign in */}
             <div className="flex items-center gap-3">
-              <Link to="/search" className="text-primary-foreground md:hidden p-1">
-                <Search className="h-5 w-5" />
-              </Link>
+              
               <Link
                 to="/contact"
                 className="hidden md:flex items-center gap-1.5 text-primary-foreground/70 hover:text-primary-foreground text-sm transition-colors"
