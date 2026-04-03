@@ -48,6 +48,7 @@ type CategoryInfo = {
   name_it: string;
   name_en: string;
   parent_id: string | null;
+  image_url: string | null;
 };
 
 type RelatedProduct = {
