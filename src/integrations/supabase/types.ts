@@ -400,6 +400,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_brand_category_counts: {
+        Args: { _brand: string }
+        Returns: {
+          category_id: string
+          product_count: number
+        }[]
+      }
       get_scrape_job_counts: { Args: never; Returns: Json }
       has_role: {
         Args: {
