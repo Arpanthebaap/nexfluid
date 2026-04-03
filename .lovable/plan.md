@@ -1,30 +1,43 @@
 
 
-# Fix Header to Match Screenshot Design
+# Redesign About Us Page to Match Figma Screenshot
 
 ## Screenshot Analysis
 
-The screenshot shows a **two-row header**:
+The Figma design for the About Us page contains these sections (top to bottom):
 
-1. **Top contact bar**: Light grey/neutral background (NOT blue, NOT green), with phone and email displayed as green pill-shaped buttons on the right side, separated by a `|` divider.
-2. **Main header row**: Deep blue/primary background with the Nexfluid logo on the left, a search bar in the center (white input with a blue search icon button on the left), and "Sign in" on the right.
+### 1. Hero Section (white background)
+- Two-column layout
+- **Left**: "NEXFLUID" as large bold primary-colored heading, followed by multiple paragraphs describing the company (industrial solutions, valves, pneumatics, hydraulics, automation, 85,000+ products)
+- **Right**: Large product image (hydraulic/pneumatic fittings)
 
-## Current Issues
+### 2. "WHAT WE OFFER" Section (light grey background)
+- Centered primary-colored heading "WHAT WE OFFER"
+- Descriptive paragraph below the heading
+- 4 category cards in a row: **Valves, Hydraulic, Pneumatic, Vacuum**
+- Each card: circular product image, bold title, description text, "Discover more →" link in primary color
 
-- The top contact bar has `bg-primary` (blue) background — should be a **light grey** (`bg-gray-200` or similar neutral tone matching the screenshot)
-- The green pill buttons and separator look correct but sit on the wrong background color
+### 3. "OUR BRANDS" Section (white background)
+- Two-column layout: brand logos grid (4+3 layout) on the LEFT, "OUR BRANDS" heading + description on the RIGHT
+
+### 4. "SPEAK WITH US" Section (dark primary background) — reuse existing component
+
+### 5. "SHIPPING AND SECURITY" Section — reuse existing component
 
 ## Changes
 
-### `src/components/layout/Header.tsx`
-- Change the top bar wrapper from `bg-primary` to `bg-gray-200` (light grey background matching the screenshot)
-- Keep the green pill-style phone/email buttons as they are (they match the screenshot)
-- Keep the `|` separator between them
+### `src/pages/About.tsx` — Full redesign
+- Remove current simple text + stats layout
+- Add **Hero section**: 2-column with "NEXFLUID" heading + company description paragraphs (left), product image placeholder (right)
+- Add **"What We Offer" section**: grey bg, centered heading, 4 category cards (Valves, Hydraulic, Pneumatic, Vacuum) with circular images, descriptions, "Discover more →" links
+- Import and render `<OurBrands />`, `<SpeakWithUs />`, `<ShippingSecurity />` at the bottom
 
-No other changes needed — the main header row and search bar already match.
+### `src/components/shared/OurBrands.tsx` — Redesign layout
+- Change from vertical logo grid to horizontal 2-column: logos grid on left (4+3 rows), "OUR BRANDS" heading + description text on right
 
 ### Files to modify
 | File | Change |
 |------|--------|
-| `src/components/layout/Header.tsx` | Top bar background: `bg-primary` → `bg-gray-200` |
+| `src/pages/About.tsx` | Full redesign: hero + What We Offer + reuse shared sections |
+| `src/components/shared/OurBrands.tsx` | Horizontal layout: logos left, heading+text right |
 
