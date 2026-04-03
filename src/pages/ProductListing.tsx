@@ -53,6 +53,7 @@ const ProductListing = () => {
 
       if (!cat) { setLoading(false); return; }
       setCategoryName(lang === 'it' ? cat.name_it : cat.name_en);
+      setCategoryImageUrl(cat.image_url || null);
 
       // Get products count
       const { count } = await supabase
