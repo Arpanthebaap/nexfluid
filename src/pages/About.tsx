@@ -94,7 +94,6 @@ const About = () => {
                   alt="Nexfluid industrial products"
                   className="w-full h-full object-cover"
                 />
-                />
               </div>
             </motion.div>
           </div>
