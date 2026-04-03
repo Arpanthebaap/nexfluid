@@ -10,6 +10,7 @@ const BrandedProductImage = ({
   productCode,
   brand,
   categoryName,
+  categoryImageUrl,
   size = 'md',
   className = '',
 }: {
@@ -18,10 +19,14 @@ const BrandedProductImage = ({
   productCode?: string;
   brand?: string | null;
   categoryName?: string;
+  categoryImageUrl?: string | null;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }) => {
-  if (!src) {
+  // Fallback chain: product image → category image → branded placeholder
+  const effectiveSrc = src || categoryImageUrl || null;
+
+  if (!effectiveSrc) {
     return (
       <ProductPlaceholder
         productCode={productCode}
@@ -42,7 +47,7 @@ const BrandedProductImage = ({
   return (
     <div className={`relative overflow-hidden rounded-lg bg-muted ${sizeClasses[size]} ${className}`}>
       <img
-        src={src}
+        src={effectiveSrc}
         alt={alt}
         className="w-full h-full object-contain p-2"
         loading="lazy"

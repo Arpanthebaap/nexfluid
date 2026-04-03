@@ -48,6 +48,7 @@ type CategoryInfo = {
   name_it: string;
   name_en: string;
   parent_id: string | null;
+  image_url: string | null;
 };
 
 type RelatedProduct = {
@@ -68,6 +69,7 @@ const ProductDetail = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [categoryChain, setCategoryChain] = useState<{ name: string; slug: string }[]>([]);
+  const [categoryImageUrl, setCategoryImageUrl] = useState<string | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
@@ -100,12 +102,20 @@ const ProductDetail = () => {
         if (prod.category_id) {
           const { data: allCats } = await supabase
             .from('categories')
-            .select('id, slug, name_it, name_en, parent_id');
+            .select('id, slug, name_it, name_en, parent_id, image_url');
           if (allCats) {
             const catMap = new Map<string, CategoryInfo>();
             allCats.forEach(c => catMap.set(c.id, c));
             const chain: { name: string; slug: string }[] = [];
             let current = catMap.get(prod.category_id);
+            // Walk up the chain to find the nearest category image
+            let imgCat = catMap.get(prod.category_id);
+            let foundImage: string | null = null;
+            while (imgCat && !foundImage) {
+              if (imgCat.image_url) foundImage = imgCat.image_url;
+              else imgCat = imgCat.parent_id ? catMap.get(imgCat.parent_id) : undefined;
+            }
+            setCategoryImageUrl(foundImage);
             while (current) {
               chain.unshift({
                 name: lang === 'it' ? current.name_it : current.name_en,
@@ -334,6 +344,7 @@ const ProductDetail = () => {
                     productCode={product.product_code}
                     brand={product.brand}
                     categoryName={categoryLastName}
+                    categoryImageUrl={categoryImageUrl}
                     size="lg"
                   />
                 </div>

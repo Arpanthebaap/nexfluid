@@ -36,6 +36,7 @@ const ProductListing = () => {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [categoryName, setCategoryName] = useState('');
+  const [categoryImageUrl, setCategoryImageUrl] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('relevance');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
@@ -47,12 +48,34 @@ const ProductListing = () => {
       // Get category
       const { data: cat } = await supabase
         .from('categories')
-        .select('id, name_it, name_en')
+        .select('id, name_it, name_en, image_url, parent_id')
         .eq('slug', slug)
         .single();
 
       if (!cat) { setLoading(false); return; }
       setCategoryName(lang === 'it' ? cat.name_it : cat.name_en);
+
+      // Walk up parent chain to find nearest category image
+      let catImage = cat.image_url || null;
+      if (!catImage && cat.id) {
+        let parentId = (cat as any).parent_id || null;
+        // Fetch parent if needed
+        if (!catImage) {
+          const { data: parentCats } = await supabase
+            .from('categories')
+            .select('id, image_url, parent_id')
+            .eq('is_active', true);
+          if (parentCats) {
+            const pMap = new Map(parentCats.map(c => [c.id, c]));
+            let cur = pMap.get(cat.id);
+            while (cur && !catImage) {
+              if (cur.image_url) catImage = cur.image_url;
+              else cur = cur.parent_id ? pMap.get(cur.parent_id) : undefined;
+            }
+          }
+        }
+      }
+      setCategoryImageUrl(catImage);
 
       // Get products count
       const { count } = await supabase
@@ -172,6 +195,7 @@ const ProductListing = () => {
                             alt={`${product.product_code} ${lang === 'it' ? product.name_it : product.name_en}`}
                             productCode={product.product_code}
                             brand={product.brand}
+                            categoryImageUrl={categoryImageUrl}
                             size="sm"
                           />
                         </Link>
