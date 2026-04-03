@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
+import valveCollage from '@/assets/valve-collage-404.jpg';
 
 const NotFound = () => {
   const { i18n } = useTranslation();
@@ -20,15 +19,15 @@ const NotFound = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-1">
-        <div className="container mx-auto px-4 py-16">
+    <div className="container mx-auto px-4 py-16">
+      <div className="grid gap-12 lg:grid-cols-2 items-center">
+        {/* Left - Text + Search */}
+        <div>
           <p className="text-sm text-muted-foreground mb-2">404 Page Not Found</p>
           <h1 className="text-3xl md:text-4xl font-bold font-display text-primary uppercase leading-tight">
             {lang === 'it'
               ? 'Oops! Questa pagina non esiste più... Prova una nuova ricerca'
-              : 'Oops! This page no longer exist... Try a new search'}
+              : 'Oops! This page no longer exists... Try a new search'}
           </h1>
 
           <form onSubmit={handleSearch} className="mt-8 max-w-md">
@@ -43,16 +42,17 @@ const NotFound = () => {
               />
             </div>
           </form>
-
-          {/* Decorative valve image placeholder */}
-          <div className="mt-12 flex justify-center">
-            <div className="h-48 w-72 rounded-lg bg-muted flex items-center justify-center text-6xl text-muted-foreground/20">
-              🔧
-            </div>
-          </div>
         </div>
-      </main>
-      <Footer />
+
+        {/* Right - Product Image */}
+        <div className="flex justify-center">
+          <img
+            src={valveCollage}
+            alt={lang === 'it' ? 'Valvole e componenti industriali' : 'Industrial valves and components'}
+            className="max-h-80 w-auto rounded-lg object-contain"
+          />
+        </div>
+      </div>
     </div>
   );
 };

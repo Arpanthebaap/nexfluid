@@ -18,15 +18,15 @@ const Footer = () => {
             <div className="space-y-2 text-sm text-primary-foreground/60">
               <a href="tel:+390498016529" className="flex items-center gap-2 hover:text-primary-foreground transition-colors">
                 <Phone className="h-3.5 w-3.5 shrink-0" />
-                Tel 049.8016529 — Fax 049.801651
+                Tel 049.8016529 — Fax 049.8016551
               </a>
-              <a href="mailto:info@nexfluid.it" className="flex items-center gap-2 hover:text-primary-foreground transition-colors">
+              <a href="mailto:info@dinafluid.it" className="flex items-center gap-2 hover:text-primary-foreground transition-colors">
                 <Mail className="h-3.5 w-3.5 shrink-0" />
-                info@nexfluid.it
+                info@dinafluid.it
               </a>
               <div className="flex items-start gap-2">
                 <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>Via De Gasperi, 4 Z.I. Sarmeolago (PD)</span>
+                <span>Via De Gasperi, 6 Z.i. Saccolongo (PD)</span>
               </div>
             </div>
           </div>
@@ -75,7 +75,7 @@ const Footer = () => {
         </div>
 
         <div className="mt-12 border-t border-primary-foreground/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-primary-foreground/40">
-          <span>Nexfluid © {new Date().getFullYear()} | All Rights Reserved</span>
+          <span>Nexfluid © {new Date().getFullYear()} | All Rights Reserve</span>
           <div className="flex gap-4">
             <a href="#" className="hover:text-primary-foreground/60 transition-colors">Privacy Policy</a>
             <a href="#" className="hover:text-primary-foreground/60 transition-colors">Cookie Policy</a>
