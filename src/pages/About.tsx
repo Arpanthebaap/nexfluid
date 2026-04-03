@@ -142,7 +142,7 @@ const About = () => {
       {/* Our Brands */}
       <section className="bg-background py-12 md:py-16">
         <div className="container mx-auto px-4">
-          <OurBrands />
+          <OurBrands showDescription />
         </div>
       </section>
 
