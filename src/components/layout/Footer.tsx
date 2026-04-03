@@ -26,7 +26,7 @@ const Footer = () => {
               </a>
               <div className="flex items-start gap-2">
                 <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>Via De Gasperi, 4 Z.I. Sarmeolago (PD)</span>
+                <span>Via De Gasperi, 6 Z.i. Saccolongo (PD)</span>
               </div>
             </div>
           </div>
