@@ -54,7 +54,28 @@ const ProductListing = () => {
 
       if (!cat) { setLoading(false); return; }
       setCategoryName(lang === 'it' ? cat.name_it : cat.name_en);
-      setCategoryImageUrl(cat.image_url || null);
+
+      // Walk up parent chain to find nearest category image
+      let catImage = cat.image_url || null;
+      if (!catImage && cat.id) {
+        let parentId = (cat as any).parent_id || null;
+        // Fetch parent if needed
+        if (!catImage) {
+          const { data: parentCats } = await supabase
+            .from('categories')
+            .select('id, image_url, parent_id')
+            .eq('is_active', true);
+          if (parentCats) {
+            const pMap = new Map(parentCats.map(c => [c.id, c]));
+            let cur = pMap.get(cat.id);
+            while (cur && !catImage) {
+              if (cur.image_url) catImage = cur.image_url;
+              else cur = cur.parent_id ? pMap.get(cur.parent_id) : undefined;
+            }
+          }
+        }
+      }
+      setCategoryImageUrl(catImage);
 
       // Get products count
       const { count } = await supabase
