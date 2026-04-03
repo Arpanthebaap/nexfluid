@@ -106,7 +106,7 @@ const About = () => {
           <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight text-inherit">
             {lang === 'it' ? 'COSA OFFRIAMO' : 'WHAT WE OFFER'}
           </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-primary-foreground">
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-primary-foreground/80">
             {lang === 'it'
               ? 'Offriamo una vasta gamma di prodotti industriali di alta qualità per soddisfare ogni esigenza applicativa.'
               : 'We specialize in the supply of valves and components for pneumatic, hydraulic and vacuum systems. We maintain a large stock of products ready for immediate delivery to ensure operational continuity. In addition to supply, we provide technical support for component selection, installation and commissioning, including configuration and programming when required.'}
