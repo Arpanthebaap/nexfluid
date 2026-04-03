@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet-async';
-import { Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Package, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -47,9 +47,10 @@ const BrandPage = () => {
 
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [brandCounts, setBrandCounts] = useState<Map<string, number>>(new Map());
+  const [totalBrandCount, setTotalBrandCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Product listing state (when at leaf category)
+  // Product listing state
   const [products, setProducts] = useState<Product[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
@@ -62,18 +63,21 @@ const BrandPage = () => {
   const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
   const [categoryImageUrl, setCategoryImageUrl] = useState<string | null>(null);
 
+  const isAllProducts = slug === 'all';
   const catName = (cat: Category) => lang === 'it' ? cat.name_it : cat.name_en;
 
-  // Fetch all categories and brand counts
+  // Fetch all categories, brand counts, and total brand product count
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const [{ data: cats }, { data: counts }] = await Promise.all([
+      const [{ data: cats }, { data: counts }, { count: total }] = await Promise.all([
         supabase.from('categories').select('id, slug, name_it, name_en, parent_id, image_url').eq('is_active', true).order('sort_order'),
         supabase.rpc('get_brand_category_counts', { _brand: brand }),
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('status', 'published').ilike('brand', brand),
       ]);
 
       setAllCategories(cats || []);
+      setTotalBrandCount(total || 0);
 
       const countMap = new Map<string, number>();
       if (counts) {
@@ -87,7 +91,15 @@ const BrandPage = () => {
 
   // Resolve current view based on slug
   useEffect(() => {
-    if (allCategories.length === 0 || brandCounts.size === 0) return;
+    if (allCategories.length === 0 && !isAllProducts) return;
+
+    if (isAllProducts) {
+      setCurrentCategory(null);
+      setBreadcrumbs([]);
+      setShowProducts(true);
+      setPage(0);
+      return;
+    }
 
     if (!slug) {
       setCurrentCategory(null);
@@ -117,7 +129,6 @@ const BrandPage = () => {
     if (childrenWithProducts.length > 0) {
       setShowProducts(false);
     } else {
-      // Leaf category — show products
       setShowProducts(true);
       setPage(0);
     }
@@ -130,25 +141,29 @@ const BrandPage = () => {
       imgCat = allCategories.find(c => c.id === imgCat!.parent_id);
     }
     setCategoryImageUrl(imgUrl);
-  }, [slug, allCategories, brandCounts]);
+  }, [slug, allCategories, brandCounts, isAllProducts]);
 
   // Fetch products when showing product list
   useEffect(() => {
-    if (!showProducts || !currentCategory) return;
+    if (!showProducts) return;
+    // For "all" view OR leaf category
+    if (!isAllProducts && !currentCategory) return;
 
     const fetchProducts = async () => {
       setLoading(true);
-
-      // Get all descendant category IDs (current + all children recursively)
-      const catIds = getDescendantIds(currentCategory.id, allCategories);
 
       let query = supabase
         .from('products')
         .select('id, product_code, name_it, name_en, slug, brand, images, description_it, description_en', { count: 'exact' })
         .eq('is_active', true)
         .eq('status', 'published')
-        .ilike('brand', brand)
-        .in('category_id', catIds);
+        .ilike('brand', brand);
+
+      // If viewing a specific category, filter by descendant IDs
+      if (!isAllProducts && currentCategory) {
+        const catIds = getDescendantIds(currentCategory.id, allCategories);
+        query = query.in('category_id', catIds);
+      }
 
       if (sortBy === 'name_asc') query = query.order('name_en', { ascending: true });
       else if (sortBy === 'name_desc') query = query.order('name_en', { ascending: false });
@@ -163,9 +178,8 @@ const BrandPage = () => {
       setLoading(false);
     };
     fetchProducts();
-  }, [showProducts, currentCategory, page, sortBy, brand, allCategories]);
+  }, [showProducts, currentCategory, isAllProducts, page, sortBy, brand, allCategories]);
 
-  // Get total product count for a category including all descendants
   function getCategoryProductCount(catId: string, cats: Category[], counts: Map<string, number>): number {
     let total = counts.get(catId) || 0;
     const children = cats.filter(c => c.parent_id === catId);
@@ -184,13 +198,11 @@ const BrandPage = () => {
     return ids;
   }
 
-  // Determine which categories to display
   const displayCategories = (): CategoryWithCount[] => {
     const parentId = currentCategory?.id || null;
     let cats: Category[];
 
     if (!parentId) {
-      // Show top-level categories
       cats = allCategories.filter(c => !c.parent_id);
     } else {
       cats = allCategories.filter(c => c.parent_id === parentId);
@@ -209,10 +221,16 @@ const BrandPage = () => {
     setQuantities(prev => ({ ...prev, [id]: Math.max(1, (prev[id] || 1) + delta) }));
   };
 
+  const pageTitle = isAllProducts
+    ? `${brand} — ${lang === 'it' ? 'Tutti i Prodotti' : 'All Products'}`
+    : currentCategory
+      ? `${brand} — ${catName(currentCategory)}`
+      : brand;
+
   return (
     <>
       <Helmet>
-        <title>{`${brand}${currentCategory ? ` — ${catName(currentCategory)}` : ''} | Nexfluid`}</title>
+        <title>{`${pageTitle} | Nexfluid`}</title>
         <meta name="description" content={`${lang === 'it' ? 'Scopri i prodotti' : 'Discover products from'} ${brand}${currentCategory ? ` - ${catName(currentCategory)}` : ''}`} />
       </Helmet>
 
@@ -224,7 +242,17 @@ const BrandPage = () => {
               <BreadcrumbLink asChild><Link to="/">Home</Link></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
-            {breadcrumbs.length === 0 ? (
+            {isAllProducts ? (
+              <>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild><Link to={`/brands/${brandName}`}>{brand}</Link></BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{lang === 'it' ? 'Tutti i Prodotti' : 'All Products'}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </>
+            ) : breadcrumbs.length === 0 ? (
               <BreadcrumbItem><BreadcrumbPage>{brand}</BreadcrumbPage></BreadcrumbItem>
             ) : (
               <>
@@ -255,7 +283,7 @@ const BrandPage = () => {
 
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold font-display uppercase tracking-tight text-foreground mb-6">
-              {currentCategory ? `${brand} — ${catName(currentCategory)}` : brand}
+              {pageTitle}
             </h1>
 
             {loading ? (
@@ -264,7 +292,7 @@ const BrandPage = () => {
                   <div key={i} className="h-40 animate-pulse bg-muted rounded-lg" />
                 ))}
               </div>
-            ) : showProducts && currentCategory ? (
+            ) : (showProducts && (isAllProducts || currentCategory)) ? (
               /* Product listing */
               <>
                 <div className="flex items-center justify-between mb-4">
@@ -351,10 +379,10 @@ const BrandPage = () => {
                 )}
               </>
             ) : (
-              /* Category grid */
+              /* Category grid + All Products card */
               (() => {
                 const cats = displayCategories();
-                return cats.length === 0 ? (
+                return (cats.length === 0 && totalBrandCount === 0) ? (
                   <div className="text-center py-16">
                     <Package className="mx-auto h-12 w-12 text-muted-foreground/50" />
                     <p className="mt-4 text-muted-foreground">
@@ -363,6 +391,23 @@ const BrandPage = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {/* All Products card — always first when on brand landing */}
+                    {!currentCategory && totalBrandCount > 0 && (
+                      <Link
+                        to={`/brands/${brandName}/all`}
+                        className="group rounded-lg border bg-primary/5 border-primary/20 p-4 hover:shadow-lg transition-shadow flex flex-col items-center text-center"
+                      >
+                        <div className="w-full aspect-square rounded-md bg-primary/10 flex items-center justify-center mb-3">
+                          <Layers className="h-10 w-10 text-primary" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-primary transition-colors">
+                          {lang === 'it' ? 'Tutti i Prodotti' : 'All Products'}
+                        </h3>
+                        <span className="text-xs text-muted-foreground mt-1">
+                          {totalBrandCount} {totalBrandCount === 1 ? (lang === 'it' ? 'prodotto' : 'product') : (lang === 'it' ? 'prodotti' : 'products')}
+                        </span>
+                      </Link>
+                    )}
                     {cats.map(cat => (
                       <Link
                         key={cat.id}
