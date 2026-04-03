@@ -101,7 +101,7 @@ const ProductDetail = () => {
         if (prod.category_id) {
           const { data: allCats } = await supabase
             .from('categories')
-            .select('id, slug, name_it, name_en, parent_id');
+            .select('id, slug, name_it, name_en, parent_id, image_url');
           if (allCats) {
             const catMap = new Map<string, CategoryInfo>();
             allCats.forEach(c => catMap.set(c.id, c));
