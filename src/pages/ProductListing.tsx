@@ -48,7 +48,7 @@ const ProductListing = () => {
       // Get category
       const { data: cat } = await supabase
         .from('categories')
-        .select('id, name_it, name_en, image_url')
+        .select('id, name_it, name_en, image_url, parent_id')
         .eq('slug', slug)
         .single();
 
