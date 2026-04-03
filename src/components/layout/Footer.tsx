@@ -18,7 +18,7 @@ const Footer = () => {
             <div className="space-y-2 text-sm text-primary-foreground/60">
               <a href="tel:+390498016529" className="flex items-center gap-2 hover:text-primary-foreground transition-colors">
                 <Phone className="h-3.5 w-3.5 shrink-0" />
-                Tel 049.8016529 — Fax 049.801651
+                Tel 049.8016529 — Fax 049.8016551
               </a>
               <a href="mailto:info@nexfluid.it" className="flex items-center gap-2 hover:text-primary-foreground transition-colors">
                 <Mail className="h-3.5 w-3.5 shrink-0" />
