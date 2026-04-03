@@ -47,7 +47,7 @@ const OurBrands = () => {
         <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
           {lang === 'it'
             ? 'Collaboriamo con i marchi più affermati nel settore dell\'automazione industriale, della pneumatica, dell\'idraulica e delle valvole. Ogni prodotto che offriamo è originale, certificato e supportato dalla garanzia del produttore.'
-            : 'We work with the most established brands in industrial automation, pneumatics, hydraulics and valves. Every product we offer is original, certified and backed by the manufacturer\'s warranty.'}
+            : 'We work with established brands to guarantee high technical standards and provide a concrete response to production needs, offering tested components ready for use.\n\nWe ensure immediate stock availability of Parker products and other brands, including Asco, Aventics, Joucomatic, Numatics, Emerson and Sirai. These partnerships reflect our focus on selecting reliable components that are well recognized in the industrial sector.'}
         </p>
       </div>
     </div>

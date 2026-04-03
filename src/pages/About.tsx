@@ -72,17 +72,17 @@ const About = () => {
                 <p>
                   {lang === 'it'
                     ? 'Nexfluid è il tuo partner di riferimento per soluzioni industriali di precisione. Specializzati in valvole, pneumatica, idraulica e automazione industriale, offriamo un catalogo di oltre 85.000 prodotti dai migliori produttori mondiali.'
-                    : 'Nexfluid is your trusted partner for precision industrial solutions. Specializing in valves, pneumatics, hydraulics and industrial automation, we offer a catalog of over 85,000 products from the world\'s leading manufacturers.'}
+                    : 'Nexfluid operates in the field of hydraulic and pneumatic components.\n\nThe high quality of the components we supply is the result of careful research and selection among the best manufacturers worldwide in this sector.'}
                 </p>
                 <p>
                   {lang === 'it'
                     ? 'Il nostro team di esperti tecnici è pronto ad assisterti nella scelta del prodotto giusto per la tua applicazione. Garantiamo preventivi rapidi, prezzi competitivi e prodotti originali con certificazione completa.'
-                    : 'Our team of technical experts is ready to assist you in choosing the right product for your application. We guarantee fast quotes, competitive pricing and original products with full certification.'}
+                    : 'We work with a direct and pragmatic approach, focused on real industrial needs, selecting solutions designed to integrate easily into existing systems and simplify installation and maintenance activities.'}
                 </p>
                 <p>
                   {lang === 'it'
                     ? 'Con una rete di distribuzione che copre Italia e Unione Europea, offriamo servizi di spedizione rapida e consegna express in 24 ore per soddisfare le esigenze più urgenti della tua produzione.'
-                    : 'With a distribution network covering Italy and the European Union, we offer fast shipping services and 24-hour express delivery to meet the most urgent needs of your production.'}
+                    : 'Our goal is to ensure operational continuity and fast response times, providing practical technical support and timely supply in line with production requirements.'}
                 </p>
               </div>
             </motion.div>
@@ -108,7 +108,7 @@ const About = () => {
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground leading-relaxed">
             {lang === 'it'
               ? 'Offriamo una vasta gamma di prodotti industriali di alta qualità per soddisfare ogni esigenza applicativa.'
-              : 'We offer a wide range of high-quality industrial products to meet every application need.'}
+              : 'We specialize in the supply of valves and components for pneumatic, hydraulic and vacuum systems. We maintain a large stock of products ready for immediate delivery to ensure operational continuity. In addition to supply, we provide technical support for component selection, installation and commissioning, including configuration and programming when required.'}
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {offerCategories.map((cat, i) => (
