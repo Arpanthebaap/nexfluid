@@ -43,15 +43,16 @@ const Header = () => {
     <>
       <header className="sticky top-0 z-50 w-full">
         {/* Top contact bar */}
-        <div className="bg-primary text-primary-foreground">
-          <div className="container mx-auto flex items-center justify-end gap-6 px-4 py-1.5 text-xs">
-            <a href="tel:+390498016529" className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity">
+        <div className="bg-green-600 text-white">
+          <div className="container mx-auto flex items-center justify-end gap-4 px-4 py-1.5 text-xs">
+            <a href="tel:+390498016529" className="flex items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
               <Phone className="h-3 w-3" />
-              <span>049.8016529</span>
+              <span>Tel 049.8016529</span>
             </a>
-            <a href="mailto:info@nexfluid.it" className="flex items-center gap-1.5 opacity-80 hover:opacity-100 transition-opacity">
+            <span className="opacity-60">|</span>
+            <a href="mailto:info@dinafluid.it" className="flex items-center gap-1.5 opacity-90 hover:opacity-100 transition-opacity">
               <Mail className="h-3 w-3" />
-              <span>info@nexfluid.it</span>
+              <span>info@dinafluid.it</span>
             </a>
           </div>
         </div>

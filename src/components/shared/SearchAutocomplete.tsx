@@ -94,8 +94,10 @@ const SearchAutocomplete = ({ className = '', inputClassName = '', placeholder =
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
       <form onSubmit={handleSubmit}>
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="relative w-full flex items-center">
+          <div className="absolute left-0 top-0 bottom-0 flex items-center justify-center w-10 bg-primary rounded-l-sm z-10">
+            <Search className="h-5 w-5 text-primary-foreground" />
+          </div>
           <Input
             type="search"
             placeholder={placeholder || (lang === 'it' ? 'Cerca per Modello, Part Number, Keyword...' : 'Search by Model, Part Number, Keyword...')}
@@ -103,7 +105,7 @@ const SearchAutocomplete = ({ className = '', inputClassName = '', placeholder =
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => suggestions.length > 0 && setOpen(true)}
             onKeyDown={handleKeyDown}
-            className={`w-full pl-10 pr-4 bg-white border-0 rounded-sm h-10 text-sm text-foreground placeholder:text-muted-foreground ${inputClassName}`}
+            className={`w-full pl-12 pr-4 bg-white border-0 rounded-sm h-10 text-sm text-foreground placeholder:text-muted-foreground ${inputClassName}`}
             autoComplete="off"
           />
           {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
