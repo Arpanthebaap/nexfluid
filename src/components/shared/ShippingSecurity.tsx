@@ -32,7 +32,7 @@ const ShippingSecurity = () => {
   return (
     <section className="bg-background py-12 md:py-16">
       <div className="container mx-auto px-4">
-        <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight text-foreground text-center mb-8">
+        <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight text-center mb-8 text-primary">
           {lang === 'it' ? 'Spedizione e Sicurezza' : 'Shipping and Security'}
         </h2>
         <div className="grid gap-6 sm:grid-cols-3 max-w-4xl mx-auto">
