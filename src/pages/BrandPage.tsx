@@ -300,9 +300,10 @@ const BrandPage = () => {
                         <div key={product.id} className="flex items-center gap-4 rounded-lg border bg-card p-4 hover:shadow-md transition-shadow">
                           <Link to={`/products/${product.slug}`} className="shrink-0 w-20 h-20 rounded-md bg-muted flex items-center justify-center overflow-hidden">
                             <BrandedProductImage
-                              images={imgs}
+                              src={imgs.length > 0 ? imgs[0] : null}
+                              alt={prodName(product)}
+                              productCode={product.product_code}
                               brand={product.brand}
-                              productName={prodName(product)}
                               size="sm"
                               categoryImageUrl={categoryImageUrl}
                             />
