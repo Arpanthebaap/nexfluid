@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 const brandLogos = [
@@ -11,27 +12,45 @@ const brandLogos = [
 ];
 
 const OurBrands = () => {
+  const { i18n } = useTranslation();
+  const lang = i18n.language;
+
   return (
-    <section className="py-8">
-      <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight text-foreground mb-6">
-        Our Brands
-      </h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
-        {brandLogos.map((brand) => (
+    <div className="grid gap-8 md:grid-cols-2 items-center">
+      {/* Logos grid on the left */}
+      <div className="grid grid-cols-4 gap-4">
+        {brandLogos.slice(0, 4).map((brand) => (
           <Link
             key={brand.name}
             to={`/brands/${brand.name}`}
-            className="flex items-center justify-center rounded-lg border bg-card p-4 sm:p-6 md:p-8 h-28 sm:h-36 md:h-40 lg:h-44 hover:shadow-lg transition-shadow"
+            className="flex items-center justify-center rounded-lg border bg-card p-4 h-24 hover:shadow-lg transition-shadow"
           >
-            <img
-              src={brand.logo}
-              alt={`${brand.name} logo`}
-              className="max-h-16 sm:max-h-20 md:max-h-24 lg:max-h-28 max-w-[90%] object-contain"
-            />
+            <img src={brand.logo} alt={`${brand.name} logo`} className="max-h-14 max-w-[90%] object-contain" />
+          </Link>
+        ))}
+        {brandLogos.slice(4).map((brand) => (
+          <Link
+            key={brand.name}
+            to={`/brands/${brand.name}`}
+            className="flex items-center justify-center rounded-lg border bg-card p-4 h-24 hover:shadow-lg transition-shadow"
+          >
+            <img src={brand.logo} alt={`${brand.name} logo`} className="max-h-14 max-w-[90%] object-contain" />
           </Link>
         ))}
       </div>
-    </section>
+
+      {/* Heading + description on the right */}
+      <div>
+        <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight text-primary">
+          {lang === 'it' ? 'I NOSTRI BRAND' : 'OUR BRANDS'}
+        </h2>
+        <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
+          {lang === 'it'
+            ? 'Collaboriamo con i marchi più affermati nel settore dell\'automazione industriale, della pneumatica, dell\'idraulica e delle valvole. Ogni prodotto che offriamo è originale, certificato e supportato dalla garanzia del produttore.'
+            : 'We work with the most established brands in industrial automation, pneumatics, hydraulics and valves. Every product we offer is original, certified and backed by the manufacturer\'s warranty.'}
+        </p>
+      </div>
+    </div>
   );
 };
 

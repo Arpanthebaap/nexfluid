@@ -1,76 +1,153 @@
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Package, Users, Award, Globe } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
+import OurBrands from '@/components/shared/OurBrands';
+import SpeakWithUs from '@/components/shared/SpeakWithUs';
+import ShippingSecurity from '@/components/shared/ShippingSecurity';
+
+const offerCategories = [
+  {
+    title: { en: 'Valves', it: 'Valvole' },
+    desc: {
+      en: 'Wide range of industrial valves including solenoid, ball, butterfly, and control valves from leading manufacturers.',
+      it: 'Ampia gamma di valvole industriali tra cui elettrovalvole, a sfera, a farfalla e di controllo dai principali produttori.',
+    },
+    image: '/lovable-uploads/d79eb4f8-72e7-4b40-be99-9757c23801d9.png',
+    link: '/categories',
+  },
+  {
+    title: { en: 'Hydraulic', it: 'Idraulica' },
+    desc: {
+      en: 'Complete hydraulic solutions including pumps, motors, cylinders, and accessories for industrial applications.',
+      it: 'Soluzioni idrauliche complete tra cui pompe, motori, cilindri e accessori per applicazioni industriali.',
+    },
+    image: '/lovable-uploads/d9635bac-3b56-47aa-94e6-ea6f9646ce32.png',
+    link: '/categories',
+  },
+  {
+    title: { en: 'Pneumatic', it: 'Pneumatica' },
+    desc: {
+      en: 'Pneumatic components and systems including actuators, FRL units, fittings, and tubing for automation.',
+      it: 'Componenti e sistemi pneumatici tra cui attuatori, unità FRL, raccordi e tubazioni per l\'automazione.',
+    },
+    image: '/lovable-uploads/7aefcd0b-457b-4058-b902-488481e5f1a8.png',
+    link: '/categories',
+  },
+  {
+    title: { en: 'Vacuum', it: 'Vuoto' },
+    desc: {
+      en: 'Vacuum technology products including pumps, generators, cups, and sensors for handling and automation.',
+      it: 'Prodotti per la tecnologia del vuoto tra cui pompe, generatori, ventose e sensori per la movimentazione.',
+    },
+    image: '/lovable-uploads/34983170-1e8d-43d7-8804-0224e46a0ccc.png',
+    link: '/categories',
+  },
+];
 
 const About = () => {
   const { i18n } = useTranslation();
   const lang = i18n.language;
 
-  const stats = [
-    { icon: Package, value: '85,000+', label: lang === 'it' ? 'Prodotti' : 'Products' },
-    { icon: Users, value: '500+', label: lang === 'it' ? 'Clienti' : 'Clients' },
-    { icon: Award, value: '50+', label: lang === 'it' ? 'Brand' : 'Brands' },
-    { icon: Globe, value: '2', label: lang === 'it' ? 'Mercati' : 'Markets' },
-  ];
-
-    return (
-    <div className="py-12 md:py-16">
+  return (
+    <>
       <Helmet>
         <title>{lang === 'it' ? 'Chi Siamo | Nexfluid' : 'About Us | Nexfluid'}</title>
         <meta name="description" content={lang === 'it'
           ? 'Nexfluid: il tuo partner per soluzioni industriali di precisione. Oltre 85.000 prodotti, 50+ brand, spedizione express.'
           : 'Nexfluid: your partner for precision industrial solutions. 85,000+ products, 50+ brands, express shipping.'
         } />
-        <link rel="alternate" hrefLang="it" href="https://nexfluid.it/about" />
-        <link rel="alternate" hrefLang="en" href="https://nexfluid.com/about" />
-        <link rel="alternate" hrefLang="x-default" href="https://nexfluid.it/about" />
       </Helmet>
-      <div className="container mx-auto px-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-3xl">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl font-display uppercase text-primary">
-            {lang === 'it' ? 'Chi Siamo' : 'About Us'}
-          </h1>
-          <div className="mt-6 space-y-4 text-muted-foreground leading-relaxed">
-            <p>
-              {lang === 'it'
-                ? 'Nexfluid è il tuo partner di riferimento per soluzioni industriali di precisione. Specializzati in valvole, pneumatica, idraulica e automazione industriale, offriamo un catalogo di oltre 85.000 prodotti dai migliori produttori mondiali.'
-                : 'Nexfluid is your trusted partner for precision industrial solutions. Specializing in valves, pneumatics, hydraulics and industrial automation, we offer a catalog of over 85,000 products from the world\'s leading manufacturers.'}
-            </p>
-            <p>
-              {lang === 'it'
-                ? 'Il nostro team di esperti tecnici è pronto ad assisterti nella scelta del prodotto giusto per la tua applicazione. Garantiamo preventivi rapidi, prezzi competitivi e prodotti originali con certificazione completa.'
-                : 'Our team of technical experts is ready to assist you in choosing the right product for your application. We guarantee fast quotes, competitive pricing and original products with full certification.'}
-            </p>
-          </div>
 
-          {/* Content will be provided by SocialVision */}
-          <p className="mt-6 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-4 text-sm text-muted-foreground italic">
-            {lang === 'it'
-              ? '📝 Contenuto completo in fase di elaborazione da SocialVision.'
-              : '📝 Full content being prepared by SocialVision.'}
-          </p>
-        </motion.div>
-
-        {/* Stats */}
-        <div className="mx-auto mt-12 grid max-w-3xl grid-cols-2 gap-6 md:grid-cols-4">
-          {stats.map((stat, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="rounded-lg border bg-card p-6 text-center"
-            >
-              <stat.icon className="mx-auto mb-2 h-6 w-6 text-primary" />
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
+      {/* Hero Section */}
+      <section className="bg-background py-12 md:py-20">
+        <div className="container mx-auto px-4">
+          <div className="grid gap-10 md:grid-cols-2 items-center">
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
+              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl font-display uppercase text-primary">
+                NEXFLUID
+              </h1>
+              <div className="mt-6 space-y-4 text-muted-foreground leading-relaxed text-sm">
+                <p>
+                  {lang === 'it'
+                    ? 'Nexfluid è il tuo partner di riferimento per soluzioni industriali di precisione. Specializzati in valvole, pneumatica, idraulica e automazione industriale, offriamo un catalogo di oltre 85.000 prodotti dai migliori produttori mondiali.'
+                    : 'Nexfluid is your trusted partner for precision industrial solutions. Specializing in valves, pneumatics, hydraulics and industrial automation, we offer a catalog of over 85,000 products from the world\'s leading manufacturers.'}
+                </p>
+                <p>
+                  {lang === 'it'
+                    ? 'Il nostro team di esperti tecnici è pronto ad assisterti nella scelta del prodotto giusto per la tua applicazione. Garantiamo preventivi rapidi, prezzi competitivi e prodotti originali con certificazione completa.'
+                    : 'Our team of technical experts is ready to assist you in choosing the right product for your application. We guarantee fast quotes, competitive pricing and original products with full certification.'}
+                </p>
+                <p>
+                  {lang === 'it'
+                    ? 'Con una rete di distribuzione che copre Italia e Unione Europea, offriamo servizi di spedizione rapida e consegna express in 24 ore per soddisfare le esigenze più urgenti della tua produzione.'
+                    : 'With a distribution network covering Italy and the European Union, we offer fast shipping services and 24-hour express delivery to meet the most urgent needs of your production.'}
+                </p>
+              </div>
             </motion.div>
-          ))}
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
+              <div className="rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
+                <img
+                  src="/lovable-uploads/04244b88-7e59-4987-9f7a-81be85561eac.png"
+                  alt="Nexfluid industrial products"
+                  className="w-3/4 h-auto object-contain"
+                />
+              </div>
+            </motion.div>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+
+      {/* What We Offer */}
+      <section className="bg-muted py-12 md:py-16">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight text-primary">
+            {lang === 'it' ? 'COSA OFFRIAMO' : 'WHAT WE OFFER'}
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground leading-relaxed">
+            {lang === 'it'
+              ? 'Offriamo una vasta gamma di prodotti industriali di alta qualità per soddisfare ogni esigenza applicativa.'
+              : 'We offer a wide range of high-quality industrial products to meet every application need.'}
+          </p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {offerCategories.map((cat, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="rounded-lg border bg-card p-6 text-center space-y-4"
+              >
+                <div className="mx-auto h-20 w-20 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                  <img src={cat.image} alt={cat.title[lang === 'it' ? 'it' : 'en']} className="h-14 w-14 object-contain" />
+                </div>
+                <h3 className="text-sm font-bold text-foreground uppercase">
+                  {cat.title[lang === 'it' ? 'it' : 'en']}
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {cat.desc[lang === 'it' ? 'it' : 'en']}
+                </p>
+                <Link to={cat.link} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                  {lang === 'it' ? 'Scopri di più' : 'Discover more'} <ArrowRight className="h-3 w-3" />
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Our Brands */}
+      <section className="bg-background py-12 md:py-16">
+        <div className="container mx-auto px-4">
+          <OurBrands />
+        </div>
+      </section>
+
+      <SpeakWithUs />
+      <ShippingSecurity />
+    </>
   );
 };
 
