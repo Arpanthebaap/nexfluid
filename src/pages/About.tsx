@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import aboutHeroImage from '@/assets/about-hero-industrial.jpg';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -14,7 +15,7 @@ const offerCategories = [
       en: 'Wide range of industrial valves including solenoid, ball, butterfly, and control valves from leading manufacturers.',
       it: 'Ampia gamma di valvole industriali tra cui elettrovalvole, a sfera, a farfalla e di controllo dai principali produttori.',
     },
-    image: '/lovable-uploads/d79eb4f8-72e7-4b40-be99-9757c23801d9.png',
+    image: '/categories/valves.jpg',
     link: '/categories',
   },
   {
@@ -23,7 +24,7 @@ const offerCategories = [
       en: 'Complete hydraulic solutions including pumps, motors, cylinders, and accessories for industrial applications.',
       it: 'Soluzioni idrauliche complete tra cui pompe, motori, cilindri e accessori per applicazioni industriali.',
     },
-    image: '/lovable-uploads/d9635bac-3b56-47aa-94e6-ea6f9646ce32.png',
+    image: '/categories/hydraulic.jpg',
     link: '/categories',
   },
   {
@@ -32,7 +33,7 @@ const offerCategories = [
       en: 'Pneumatic components and systems including actuators, FRL units, fittings, and tubing for automation.',
       it: 'Componenti e sistemi pneumatici tra cui attuatori, unità FRL, raccordi e tubazioni per l\'automazione.',
     },
-    image: '/lovable-uploads/7aefcd0b-457b-4058-b902-488481e5f1a8.png',
+    image: '/categories/pneumatic.jpg',
     link: '/categories',
   },
   {
@@ -41,7 +42,7 @@ const offerCategories = [
       en: 'Vacuum technology products including pumps, generators, cups, and sensors for handling and automation.',
       it: 'Prodotti per la tecnologia del vuoto tra cui pompe, generatori, ventose e sensori per la movimentazione.',
     },
-    image: '/lovable-uploads/34983170-1e8d-43d7-8804-0224e46a0ccc.png',
+    image: '/categories/vacuum.jpg',
     link: '/categories',
   },
 ];
@@ -89,9 +90,9 @@ const About = () => {
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
               <div className="rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
                 <img
-                  src="/lovable-uploads/04244b88-7e59-4987-9f7a-81be85561eac.png"
+                  src={aboutHeroImage}
                   alt="Nexfluid industrial products"
-                  className="w-3/4 h-auto object-contain"
+                  className="w-full h-full object-cover"
                 />
               </div>
             </motion.div>
