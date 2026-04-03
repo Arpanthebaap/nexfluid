@@ -47,7 +47,7 @@ const BrandedProductImage = ({
   return (
     <div className={`relative overflow-hidden rounded-lg bg-muted ${sizeClasses[size]} ${className}`}>
       <img
-        src={src}
+        src={effectiveSrc}
         alt={alt}
         className="w-full h-full object-contain p-2"
         loading="lazy"
