@@ -37,6 +37,7 @@ const ProductListing = () => {
   const [loading, setLoading] = useState(true);
   const [categoryName, setCategoryName] = useState('');
   const [categoryImageUrl, setCategoryImageUrl] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState('relevance');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   useEffect(() => {
