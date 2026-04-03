@@ -22,7 +22,7 @@ const Footer = () => {
               </a>
               <a href="mailto:info@nexfluid.it" className="flex items-center gap-2 hover:text-primary-foreground transition-colors">
                 <Mail className="h-3.5 w-3.5 shrink-0" />
-                info@nexfluid.it
+                info@dinafluid.it
               </a>
               <div className="flex items-start gap-2">
                 <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
