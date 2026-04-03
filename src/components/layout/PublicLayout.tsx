@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
+import WhatsAppFAB from '@/components/shared/WhatsAppFAB';
 
 const PublicLayout = () => {
   return (
@@ -10,6 +11,7 @@ const PublicLayout = () => {
         <Outlet />
       </main>
       <Footer />
+      <WhatsAppFAB />
     </div>
   );
 };
