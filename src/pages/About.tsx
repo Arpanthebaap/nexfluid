@@ -108,7 +108,7 @@ const About = () => {
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground leading-relaxed">
             {lang === 'it'
               ? 'Offriamo una vasta gamma di prodotti industriali di alta qualità per soddisfare ogni esigenza applicativa.'
-              : 'We offer a wide range of high-quality industrial products to meet every application need.'}
+              : 'We specialize in the supply of valves and components for pneumatic, hydraulic and vacuum systems. We maintain a large stock of products ready for immediate delivery to ensure operational continuity. In addition to supply, we provide technical support for component selection, installation and commissioning, including configuration and programming when required.'}
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {offerCategories.map((cat, i) => (
