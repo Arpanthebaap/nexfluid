@@ -108,6 +108,15 @@ const ProductDetail = () => {
             allCats.forEach(c => catMap.set(c.id, c));
             const chain: { name: string; slug: string }[] = [];
             let current = catMap.get(prod.category_id);
+            // Get the direct category's image for fallback
+            const directCat = catMap.get(prod.category_id);
+            if (directCat?.image_url) {
+              setCategoryImageUrl(directCat.image_url);
+            } else if (directCat?.parent_id) {
+              // Try parent category image
+              const parentCat = catMap.get(directCat.parent_id);
+              setCategoryImageUrl(parentCat?.image_url || null);
+            }
             while (current) {
               chain.unshift({
                 name: lang === 'it' ? current.name_it : current.name_en,
