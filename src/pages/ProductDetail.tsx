@@ -345,6 +345,7 @@ const ProductDetail = () => {
                     productCode={product.product_code}
                     brand={product.brand}
                     categoryName={categoryLastName}
+                    categoryImageUrl={categoryImageUrl}
                     size="lg"
                   />
                 </div>
