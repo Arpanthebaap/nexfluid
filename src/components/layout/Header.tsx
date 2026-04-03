@@ -49,9 +49,9 @@ const Header = () => {
               <Phone className="h-3 w-3" />
               <span>Tel 049.8016529</span>
             </a>
-            <a href="mailto:info@dinafluid.it" className="flex items-center gap-1.5 text-white rounded-full px-3 py-1 transition-colors bg-primary">
+            <a href="mailto:info@nexfluid.it" className="flex items-center gap-1.5 text-white rounded-full px-3 py-1 transition-colors bg-primary">
               <Mail className="h-3 w-3" />
-              <span>info@dinafluid.it</span>
+              <span>info@nexfluid.it</span>
             </a>
           </div>
         </div>

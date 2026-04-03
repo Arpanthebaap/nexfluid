@@ -20,9 +20,9 @@ const Footer = () => {
                 <Phone className="h-3.5 w-3.5 shrink-0" />
                 Tel 049.8016529 — Fax 049.8016551
               </a>
-              <a href="mailto:info@dinafluid.it" className="flex items-center gap-2 hover:text-primary-foreground transition-colors">
+              <a href="mailto:info@nexfluid.it" className="flex items-center gap-2 hover:text-primary-foreground transition-colors">
                 <Mail className="h-3.5 w-3.5 shrink-0" />
-                info@dinafluid.it
+                info@nexfluid.it
               </a>
               <div className="flex items-start gap-2">
                 <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />

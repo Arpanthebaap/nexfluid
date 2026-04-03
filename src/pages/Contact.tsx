@@ -109,9 +109,9 @@ const Contact = () => {
                     {lang === 'it' ? 'Scrivici:' : 'Mail us:'}
                   </span>
                 </div>
-                <a href="mailto:info@dinafluid.it"
+                <a href="mailto:info@nexfluid.it"
                   className="text-sm text-muted-foreground pl-7 hover:text-primary transition-colors block">
-                  info@dinafluid.it
+                  info@nexfluid.it
                 </a>
               </div>
 
