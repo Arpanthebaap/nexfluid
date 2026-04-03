@@ -90,9 +90,10 @@ const About = () => {
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
               <div className="rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
                 <img
-                  src="/lovable-uploads/04244b88-7e59-4987-9f7a-81be85561eac.png"
+                  src={aboutHeroImage}
                   alt="Nexfluid industrial products"
-                  className="w-3/4 h-auto object-contain"
+                  className="w-full h-full object-cover"
+                />
                 />
               </div>
             </motion.div>
