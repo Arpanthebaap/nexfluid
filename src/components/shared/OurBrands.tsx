@@ -11,46 +11,62 @@ const brandLogos = [
   { name: 'SIRAI', logo: '/lovable-uploads/a7e8aff3-0897-4d14-89aa-cc4f53facadd.png' },
 ];
 
-const OurBrands = ({ showDescription = false }: { showDescription?: boolean }) => {
+const OurBrands = ({ showDescription = false, layout = 'stacked' }: { showDescription?: boolean; layout?: 'stacked' | 'side-by-side' }) => {
   const { i18n } = useTranslation();
   const lang = i18n.language;
 
+  const logosGrid = (
+    <div className="grid grid-cols-4 gap-4">
+      {brandLogos.slice(0, 4).map((brand) => (
+        <Link
+          key={brand.name}
+          to={`/brands/${brand.name}`}
+          className="flex items-center justify-center rounded-lg border bg-card p-4 h-24 hover:shadow-lg transition-shadow"
+        >
+          <img src={brand.logo} alt={`${brand.name} logo`} className="max-h-14 max-w-[90%] object-contain" />
+        </Link>
+      ))}
+      {brandLogos.slice(4).map((brand) => (
+        <Link
+          key={brand.name}
+          to={`/brands/${brand.name}`}
+          className="flex items-center justify-center rounded-lg border bg-card p-4 h-24 hover:shadow-lg transition-shadow"
+        >
+          <img src={brand.logo} alt={`${brand.name} logo`} className="max-h-14 max-w-[90%] object-contain" />
+        </Link>
+      ))}
+    </div>
+  );
+
+  const heading = (
+    <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight text-primary">
+      {lang === 'it' ? 'I NOSTRI BRAND' : 'OUR BRANDS'}
+    </h2>
+  );
+
+  const description = showDescription ? (
+    <p className="mt-4 text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+      {lang === 'it'
+        ? 'Collaboriamo con marchi affermati per garantire elevati standard tecnici e fornire una risposta concreta alle esigenze produttive, offrendo componenti testati e pronti all\'uso.\n\nGarantiamo disponibilità immediata a magazzino di prodotti Parker e di altri marchi, tra cui Asco, Aventics, Joucomatic, Numatics, Emerson e Sirai. Queste collaborazioni riflettono la nostra attenzione nella selezione di componenti affidabili e riconosciuti nel settore industriale.'
+        : 'We work with established brands to guarantee high technical standards and provide a concrete response to production needs, offering tested components ready for use.\n\nWe ensure immediate stock availability of Parker products and other brands, including Asco, Aventics, Joucomatic, Numatics, Emerson and Sirai. These partnerships reflect our focus on selecting reliable components that are well recognized in the industrial sector.'}
+    </p>
+  ) : null;
+
+  if (layout === 'stacked') {
+    return (
+      <div className="space-y-6">
+        {heading}
+        {logosGrid}
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-8 md:grid-cols-2 items-center">
-      {/* Logos grid on the left */}
-      <div className="grid grid-cols-4 gap-4">
-        {brandLogos.slice(0, 4).map((brand) => (
-          <Link
-            key={brand.name}
-            to={`/brands/${brand.name}`}
-            className="flex items-center justify-center rounded-lg border bg-card p-4 h-24 hover:shadow-lg transition-shadow"
-          >
-            <img src={brand.logo} alt={`${brand.name} logo`} className="max-h-14 max-w-[90%] object-contain" />
-          </Link>
-        ))}
-        {brandLogos.slice(4).map((brand) => (
-          <Link
-            key={brand.name}
-            to={`/brands/${brand.name}`}
-            className="flex items-center justify-center rounded-lg border bg-card p-4 h-24 hover:shadow-lg transition-shadow"
-          >
-            <img src={brand.logo} alt={`${brand.name} logo`} className="max-h-14 max-w-[90%] object-contain" />
-          </Link>
-        ))}
-      </div>
-
-      {/* Heading on the right */}
+      {logosGrid}
       <div>
-        <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight text-primary">
-          {lang === 'it' ? 'I NOSTRI BRAND' : 'OUR BRANDS'}
-        </h2>
-        {showDescription && (
-          <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
-            {lang === 'it'
-              ? 'Collaboriamo con marchi affermati per garantire elevati standard tecnici e fornire una risposta concreta alle esigenze produttive, offrendo componenti testati e pronti all\'uso.\n\nGarantiamo disponibilità immediata a magazzino di prodotti Parker e di altri marchi, tra cui Asco, Aventics, Joucomatic, Numatics, Emerson e Sirai. Queste collaborazioni riflettono la nostra attenzione nella selezione di componenti affidabili e riconosciuti nel settore industriale.'
-              : 'We work with established brands to guarantee high technical standards and provide a concrete response to production needs, offering tested components ready for use.\n\nWe ensure immediate stock availability of Parker products and other brands, including Asco, Aventics, Joucomatic, Numatics, Emerson and Sirai. These partnerships reflect our focus on selecting reliable components that are well recognized in the industrial sector.'}
-          </p>
-        )}
+        {heading}
+        {description}
       </div>
     </div>
   );
