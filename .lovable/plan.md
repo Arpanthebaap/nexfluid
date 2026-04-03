@@ -1,63 +1,58 @@
 
 
-# Unify Brand Navigation + Category Image Fallback for Products
+# Build Dedicated Brand Pages with Category Hierarchy
 
-## Problem Analysis
+## Analysis
 
-There are three brand navigation menus with **inconsistent behavior**:
+Yes, creating dedicated brand pages is the right approach for this project. Here is why:
 
-| Location | Link Pattern | Result |
-|----------|-------------|--------|
-| Footer | `/search?q=Parker` | Shows all products matching brand name — **works well** |
-| Sidebar (BrandsSidebar) | `/brands/PARKER` | Shows category cards via BrandPage — **may miss products** (1000-row query limit) |
-| Header mobile | `/search?q=PARKER` | Same as footer — **works well** |
+- **SEO value**: Proper brand landing pages (`/brands/Parker`) create indexable, shareable URLs instead of ephemeral search queries
+- **User experience**: Matches the category browsing pattern users already know (as shown in the reference image), with sidebar, breadcrumbs, and drill-down navigation
+- **Scalability**: ASCO has 6,400+ products — showing a category tree filtered by brand lets users navigate efficiently
+- **The 1000-row problem is solvable**: Instead of fetching all products client-side, we create a database function that counts products per category for a given brand in a single query
 
-The BrandPage fetches all products just to group by category, which hits the 1000-row Supabase limit for brands with many products, causing incomplete results.
+## Architecture
 
-## Plan
+The brand page will mirror the category page pattern:
 
-### 1. Unify sidebar brand links to use search (like footer)
-**File: `src/components/shared/BrandsSidebar.tsx`**
-- Change brand links from `/brands/${b}` to `/search?q=${b}` to match the footer behavior
-- This ensures consistent, accurate results across all brand menus
+```text
+/brands/Parker              → Shows top-level categories containing Parker products
+/brands/Parker/valves       → Shows valve subcategories with Parker products
+/brands/Parker/solenoid-valves → Shows Parker products in that leaf category
+```
 
-### 2. Update SearchResults to filter by brand properly
-**File: `src/pages/SearchResults.tsx`**
-- Add a `brand` query parameter support (`/search?q=Parker&brand=PARKER`)
-- When brand param is present, add `.ilike('brand', brandParam)` filter for precise results
-- Update sidebar and footer links to use `/search?q=${b}` consistently (already works via text search)
+Breadcrumb: `Home > Parker > Valves > Solenoid Valves`
 
-### 3. Product image fallback: use end sub-category image
-**File: `src/components/shared/BrandedProductImage.tsx`**
-- Add optional `categoryImageUrl` prop
-- When no product image exists AND a `categoryImageUrl` is provided, display the category image instead of the generic placeholder
-- Fallback chain: product image → category image → branded placeholder
+The sidebar will highlight the current brand and show the category tree filtered by that brand.
 
-**File: `src/pages/ProductListing.tsx`**
-- When fetching the category for the product listing, also fetch its `image_url`
-- Pass `categoryImageUrl` to each `BrandedProductImage` component
+## Implementation Plan
 
-**File: `src/pages/ProductDetail.tsx`**
-- Similarly fetch the product's category image and pass it as fallback
+### 1. Database function for brand-category counts
+Create an RPC function `get_brand_category_counts(brand_name text)` that returns category IDs with product counts for a specific brand — avoids the 1000-row client-side limit entirely.
 
-### 4. Ensure categories have featured images
-- Query the database to identify categories missing `image_url`
-- For categories without images, generate relevant industrial component images using AI image generation and upload them to the product-images storage bucket
-- Update the category records with the new image URLs
+### 2. Redesign BrandPage (`src/pages/BrandPage.tsx`)
+- Accept both `brandName` and optional `slug` params
+- If no slug: show top-level categories (with product counts) that have products for this brand
+- If slug provided: check if it has subcategories with brand products → show subcategories; otherwise → show paginated product list (like the reference image with product cards, quantity selector, and "Request a Quote" button)
+- Add proper breadcrumbs: Home > Brand > Category > Subcategory
+- Include the BrandsSidebar on the left
 
-## Technical Details
+### 3. Update routes (`src/App.tsx`)
+- Add `/brands/:brandName/:slug` route for brand+category drill-down
 
-- The search approach (`/search?q=Brand`) works better than the dedicated BrandPage because it uses `ilike` matching which handles case and partial matches, and paginates properly
-- The BrandPage (`/brands/:brandName`) can remain as a route but sidebar/header/footer will all consistently link to search
-- Category image inheritance means ~85,000 products get visual coverage without individual image generation — products inherit their leaf sub-category's image
-- The 1000-row limit issue in BrandPage is bypassed entirely by using the search page instead
+### 4. Update OurBrands links (`src/components/shared/OurBrands.tsx`)
+- Change brand logo links back to `/brands/${name}` (now that BrandPage will work properly)
+
+### 5. Update BrandsSidebar links (`src/components/shared/BrandsSidebar.tsx`)
+- Change brand links back to `/brands/${name}` for proper brand page navigation
 
 ## Files to modify
+
 | File | Change |
 |------|--------|
-| `src/components/shared/BrandsSidebar.tsx` | Change brand links to `/search?q=${b}` |
-| `src/components/shared/BrandedProductImage.tsx` | Add `categoryImageUrl` fallback prop |
-| `src/pages/ProductListing.tsx` | Fetch category image, pass to product cards |
-| `src/pages/ProductDetail.tsx` | Fetch category image for fallback |
-| Database query + AI image generation | Identify and fill missing category images |
+| New migration | Create `get_brand_category_counts` RPC function |
+| `src/pages/BrandPage.tsx` | Full redesign: category hierarchy + product listing with pagination |
+| `src/App.tsx` | Add `/brands/:brandName/:slug` route |
+| `src/components/shared/OurBrands.tsx` | Links back to `/brands/${name}` |
+| `src/components/shared/BrandsSidebar.tsx` | Links back to `/brands/${name}` |
 
