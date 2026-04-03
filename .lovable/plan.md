@@ -1,43 +1,30 @@
 
 
-# Redesign About Us Page to Match Figma Screenshot
-
-## Screenshot Analysis
-
-The Figma design for the About Us page contains these sections (top to bottom):
-
-### 1. Hero Section (white background)
-- Two-column layout
-- **Left**: "NEXFLUID" as large bold primary-colored heading, followed by multiple paragraphs describing the company (industrial solutions, valves, pneumatics, hydraulics, automation, 85,000+ products)
-- **Right**: Large product image (hydraulic/pneumatic fittings)
-
-### 2. "WHAT WE OFFER" Section (light grey background)
-- Centered primary-colored heading "WHAT WE OFFER"
-- Descriptive paragraph below the heading
-- 4 category cards in a row: **Valves, Hydraulic, Pneumatic, Vacuum**
-- Each card: circular product image, bold title, description text, "Discover more →" link in primary color
-
-### 3. "OUR BRANDS" Section (white background)
-- Two-column layout: brand logos grid (4+3 layout) on the LEFT, "OUR BRANDS" heading + description on the RIGHT
-
-### 4. "SPEAK WITH US" Section (dark primary background) — reuse existing component
-
-### 5. "SHIPPING AND SECURITY" Section — reuse existing component
+# Update About Us Page and OurBrands Component
 
 ## Changes
 
-### `src/pages/About.tsx` — Full redesign
-- Remove current simple text + stats layout
-- Add **Hero section**: 2-column with "NEXFLUID" heading + company description paragraphs (left), product image placeholder (right)
-- Add **"What We Offer" section**: grey bg, centered heading, 4 category cards (Valves, Hydraulic, Pneumatic, Vacuum) with circular images, descriptions, "Discover more →" links
-- Import and render `<OurBrands />`, `<SpeakWithUs />`, `<ShippingSecurity />` at the bottom
+### 1. Homepage (`src/pages/Index.tsx`) — No changes
+Already correct, keeping as-is.
 
-### `src/components/shared/OurBrands.tsx` — Redesign layout
-- Change from vertical logo grid to horizontal 2-column: logos grid on left (4+3 rows), "OUR BRANDS" heading + description text on right
+### 2. OurBrands (`src/components/shared/OurBrands.tsx`) — Remove description text
+- Remove the paragraph text under "OUR BRANDS" heading
+- Keep only the heading and the logo grid
 
-### Files to modify
+### 3. About Us category images (`src/pages/About.tsx`) — Update to match homepage
+Replace the current brand logo images in the 4 "What We Offer" cards with the actual category images from the homepage:
+- Valves → `/categories/valves.jpg`
+- Hydraulic → `/categories/hydraulic.jpg`
+- Pneumatic → `/categories/pneumatic.jpg`
+- Vacuum → `/categories/vacuum.jpg`
+
+### 4. About Us hero image — Generate AI image
+Generate a professional industrial image showing hydraulic/pneumatic valves and components (relevant to the company description) using the AI image generation skill. Upload it to the project and replace the current Nexfluid logo placeholder in the hero section's right column.
+
+## Files to modify
 | File | Change |
 |------|--------|
-| `src/pages/About.tsx` | Full redesign: hero + What We Offer + reuse shared sections |
-| `src/components/shared/OurBrands.tsx` | Horizontal layout: logos left, heading+text right |
+| `src/components/shared/OurBrands.tsx` | Remove description paragraph |
+| `src/pages/About.tsx` | Update 4 category card image paths |
+| New generated image | AI-generated industrial components image for hero |
 
