@@ -70,6 +70,7 @@ const ProductDetail = () => {
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [categoryChain, setCategoryChain] = useState<{ name: string; slug: string }[]>([]);
   const [categoryImageUrl, setCategoryImageUrl] = useState<string | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
   const [formLoading, setFormLoading] = useState(false);
