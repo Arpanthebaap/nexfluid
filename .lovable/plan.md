@@ -1,27 +1,30 @@
 
 
-# Fix Domain-Based Language Detection for Policy Pages (and entire site)
+# Unify Brand Links Across All Navigation Sections
 
 ## Problem
 
-The i18n detection order is `['querystring', 'localStorage', 'navigator']` — it never checks the domain. So visitors to `nexfluid.com` see Italian content unless they manually switch or their browser language is English.
+The OurBrands component links to `/brands/Parker` (dedicated brand pages), but:
+- **Footer** links to `/search?q=Parker` (search results)
+- **Mobile sidebar** (Header) links to `/search?q=PARKER` (search results)
 
-## Solution
+The sidebar (BrandsSidebar) already uses `/brands/${b}` — so it's correct.
 
-Add a custom language detector in `src/lib/i18n.ts` that checks `window.location.hostname`:
-- `nexfluid.com` or `www.nexfluid.com` → `en`
-- `nexfluid.it` or `www.nexfluid.it` → `it`
-- Other (localhost, preview) → fall through to existing detectors
+## Fix
 
-This fixes language for **all pages** (including Privacy Policy and Cookie Policy), not just the policy pages.
+Two files need one-line changes each:
 
-## Technical Details
+### 1. `src/components/layout/Footer.tsx` (line 58)
+Change `/search?q=${b}` → `/brands/${b}`
 
-The `i18next-browser-languagedetector` supports custom detectors. We add a `domainDetector` that reads the hostname and put it **first** in the detection order, so domain always wins over localStorage/navigator.
+### 2. `src/components/layout/Header.tsx` (line 123)
+Change `/search?q=${b}` → `/brands/${b}`
 
-## Files to modify
+This ensures all four brand navigation points (OurBrands, BrandsSidebar, Footer, Mobile sidebar) link to the same dedicated brand pages.
 
+### Files to modify
 | File | Change |
 |------|--------|
-| `src/lib/i18n.ts` | Add custom domain-based detector, put it first in detection order |
+| `src/components/layout/Footer.tsx` | Change brand link pattern to `/brands/${b}` |
+| `src/components/layout/Header.tsx` | Change brand link pattern to `/brands/${b}` |
 
