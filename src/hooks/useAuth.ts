@@ -9,6 +9,7 @@ interface AuthState {
   isAdmin: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -69,11 +70,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   }, []);
 
+  const signUp = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({ email, password });
+    return { error };
+  }, []);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
   }, []);
 
-  const value = { user, session, isAdmin, loading, signIn, signOut };
+  const value = { user, session, isAdmin, loading, signIn, signUp, signOut };
 
   return React.createElement(AuthContext.Provider, { value }, children);
 }
