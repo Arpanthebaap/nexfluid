@@ -84,8 +84,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return React.createElement(AuthContext.Provider, { value }, children);
 }
 
+const defaultAuthState: AuthState = {
+  user: null,
+  session: null,
+  isAdmin: false,
+  loading: true,
+  signIn: async () => ({ error: new Error('AuthProvider not mounted') }),
+  signUp: async () => ({ error: new Error('AuthProvider not mounted') }),
+  signOut: async () => {},
+};
+
 export function useAuth(): AuthState {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  return ctx ?? defaultAuthState;
 }
