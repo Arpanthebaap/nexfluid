@@ -2,6 +2,21 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
+const domainDetector = {
+  name: 'domain',
+  lookup() {
+    if (typeof window === 'undefined') return undefined;
+    const host = window.location.hostname;
+    if (host === 'nexfluid.com' || host === 'www.nexfluid.com') return 'en';
+    if (host === 'nexfluid.it' || host === 'www.nexfluid.it') return 'it';
+    return undefined;
+  },
+  cacheUserLanguage() {},
+};
+
+const lngDetector = new LanguageDetector();
+lngDetector.addDetector(domainDetector);
+
 const resources = {
   it: {
     translation: {
@@ -140,14 +155,14 @@ const resources = {
 };
 
 i18n
-  .use(LanguageDetector)
+  .use(lngDetector)
   .use(initReactI18next)
   .init({
     resources,
     fallbackLng: 'it',
     interpolation: { escapeValue: false },
     detection: {
-      order: ['querystring', 'localStorage', 'navigator'],
+      order: ['domain', 'querystring', 'localStorage', 'navigator'],
       lookupQuerystring: 'lang',
     },
   });
