@@ -28,6 +28,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Lazy-loaded admin pages
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
+const AdminForgotPassword = lazy(() => import("./pages/admin/AdminForgotPassword"));
+const AdminResetPassword = lazy(() => import("./pages/admin/AdminResetPassword"));
 const ProtectedRoute = lazy(() => import("./components/admin/ProtectedRoute"));
 const AdminLayout = lazy(() => import("./components/admin/AdminLayout"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
