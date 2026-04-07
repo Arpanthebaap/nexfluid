@@ -120,7 +120,7 @@ const Header = () => {
                 {brands.map(b => (
                   <li key={b}>
                     <Link
-                      to={`/search?q=${b}`}
+                      to={`/brands/${b}`}
                       onClick={() => setSidebarOpen(false)}
                       className="text-sm text-primary hover:underline flex items-center gap-1.5"
                     >
