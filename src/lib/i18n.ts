@@ -155,14 +155,14 @@ const resources = {
 };
 
 i18n
-  .use(LanguageDetector)
+  .use(lngDetector)
   .use(initReactI18next)
   .init({
     resources,
     fallbackLng: 'it',
     interpolation: { escapeValue: false },
     detection: {
-      order: ['querystring', 'localStorage', 'navigator'],
+      order: ['domain', 'querystring', 'localStorage', 'navigator'],
       lookupQuerystring: 'lang',
     },
   });
