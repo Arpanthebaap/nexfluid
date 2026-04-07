@@ -9,6 +9,7 @@ const domainDetector = {
     const host = window.location.hostname;
     if (host === 'nexfluid.com' || host === 'www.nexfluid.com') return 'en';
     if (host === 'nexfluid.it' || host === 'www.nexfluid.it') return 'it';
+    if (host === 'localhost' || host.endsWith('.lovable.app')) return 'en';
     return undefined;
   },
   cacheUserLanguage() {},
