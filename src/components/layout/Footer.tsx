@@ -55,7 +55,7 @@ const Footer = () => {
             <h3 className="text-sm font-bold uppercase tracking-wider text-primary-foreground/80">Brands</h3>
             <div className="flex flex-col gap-1.5 text-sm text-primary-foreground/60">
               {['Parker', 'Asco', 'Aventics', 'Joucomatic', 'Numatics', 'Emerson', 'Sirai'].map(b => (
-                <Link key={b} to={`/search?q=${b}`} className="hover:text-primary-foreground transition-colors">{b}</Link>
+                <Link key={b} to={`/brands/${b}`} className="hover:text-primary-foreground transition-colors">{b}</Link>
               ))}
             </div>
           </div>
