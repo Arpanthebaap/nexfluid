@@ -1,60 +1,47 @@
 
 
-# Build Public Sign In Page with Forgot Password
+# Enhance Admin Login Page (WordPress-style)
 
-## Problem
-
-The header "Sign in" button links to `/contact` instead of a proper login page. There is no public-facing sign-in page — only the admin login at `/admin/login`.
-
-## Approach
-
-This is a B2B industrial components site. A customer sign-in page makes sense for future features like order tracking, saved quotes, and account management. For now, we build a polished sign-in page with email/password login, sign-up, and forgot password — all using the existing auth system.
+## Current State
+The admin login at `/admin/login` is a minimal card with email, password, and a submit button. No forgot password link, no password visibility toggle, no logo, no polish.
 
 ## Plan
 
-### 1. Create `src/pages/SignIn.tsx`
-A professional sign-in page with:
-- Nexfluid logo at the top
-- Tabbed or toggled view: **Sign In** / **Sign Up**
-- Sign In form: email + password + "Forgot password?" link
-- Sign Up form: email + password + confirm password
-- Error handling and loading states
-- Bilingual support (IT/EN) using `i18n.language`
-- Styled with the site's primary blue theme, consistent with the existing design system
-- After successful sign-in, redirect to homepage (or back to previous page)
-- After sign-up, show confirmation message about email verification
+### Update `src/pages/admin/AdminLogin.tsx`
+Transform into a polished WordPress-style admin login:
 
-### 2. Create `src/pages/ForgotPassword.tsx`
-- Email input to request password reset
-- Calls `supabase.auth.resetPasswordForEmail()` with redirect to `/reset-password`
-- Success message after submission
-- Link back to sign-in page
+- **Nexfluid logo** at the top of the card
+- **Password visibility toggle** (eye icon) like the public sign-in page
+- **"Forgot password?" link** below the password field, linking to `/admin/forgot-password`
+- **"Back to website" link** at the bottom pointing to `/`
+- **Better error display** with the existing destructive styling
+- Keep the existing redirect-if-admin logic
 
-### 3. Create `src/pages/ResetPassword.tsx`
-- Checks URL for `type=recovery` token
-- New password + confirm password form
+### Create `src/pages/admin/AdminForgotPassword.tsx`
+A standalone admin forgot-password page (not wrapped in PublicLayout):
+- Same full-screen centered card layout as AdminLogin
+- Nexfluid logo + "Admin Password Recovery" heading
+- Email input → calls `supabase.auth.resetPasswordForEmail` with redirect to `/admin/reset-password`
+- Success state with check icon
+- "Back to Admin Login" link
+
+### Create `src/pages/admin/AdminResetPassword.tsx`
+Handles the recovery token redirect:
+- New password + confirm password fields with visibility toggle
 - Calls `supabase.auth.updateUser({ password })`
-- Success → redirect to sign-in
-- Public route (not behind auth)
+- On success, redirects to `/admin/login`
+- "Back to Admin Login" link
 
-### 4. Update `src/App.tsx`
-- Add lazy routes: `/sign-in`, `/forgot-password`, `/reset-password` under PublicLayout
-
-### 5. Update `src/components/layout/Header.tsx`
-- Change "Sign in" link from `/contact` to `/sign-in`
-- When user is logged in, show user icon/name with sign-out option instead of "Sign in"
-
-### 6. Update `src/hooks/useAuth.ts`
-- Add `signUp` method to the auth context (wrapping `supabase.auth.signUp`)
+### Update `src/App.tsx`
+Add two new lazy-loaded routes (outside ProtectedRoute):
+- `/admin/forgot-password` → `AdminForgotPassword`
+- `/admin/reset-password` → `AdminResetPassword`
 
 ## Files to modify/create
-
 | File | Change |
 |------|--------|
-| `src/pages/SignIn.tsx` | New — sign in + sign up page |
-| `src/pages/ForgotPassword.tsx` | New — forgot password page |
-| `src/pages/ResetPassword.tsx` | New — reset password page |
-| `src/App.tsx` | Add 3 new lazy routes |
-| `src/components/layout/Header.tsx` | Update sign-in link, show logged-in state |
-| `src/hooks/useAuth.ts` | Add signUp method |
+| `src/pages/admin/AdminLogin.tsx` | Add logo, password toggle, forgot password link, back-to-site link |
+| `src/pages/admin/AdminForgotPassword.tsx` | New — admin password recovery page |
+| `src/pages/admin/AdminResetPassword.tsx` | New — admin password reset page |
+| `src/App.tsx` | Add 2 new lazy admin routes |
 
