@@ -1,75 +1,45 @@
 
 
-# Categorize All 3,975 Uncategorized Products
+# Create Privacy Policy and Cookie Policy Pages
 
-## Problem
+## Context
 
-Out of 12,091 published products, **3,975 have no category_id** — they're invisible in category and brand drill-down navigation.
+The site is Nexfluid — an Italian B2B industrial components distributor based in Saccolongo (PD), Italy. It collects user data via a quote request form (name, surname, email, phone, message) stored in the database. The footer has placeholder `#` links for "Privacy Policy" and "Cookie Policy" that need real pages.
 
-| Brand | Uncategorized |
-|-------|--------------|
-| ASCO | 2,436 |
-| AVENTICS | 1,331 |
-| NUMATICS | 166 |
-| PARKER | 37 |
-| JOUCOMATIC | 3 |
-| EMERSON | 2 |
+Key data points for policy content:
+- **Company**: Nexfluid, Via De Gasperi 6 Z.I., Saccolongo (PD), Italy
+- **Email**: info@nexfluid.it | **Phone**: 049.8016529
+- **Data collected**: Name, email, phone, message (via quote request form)
+- **Third-party services**: WhatsApp chat button, analytics (if any)
+- **Cookies**: Session/functional cookies from the app, potential analytics cookies
+- **Applicable law**: GDPR (EU), Italian Privacy Code (D.Lgs. 196/2003 as amended by D.Lgs. 101/2018)
+- **Languages**: Italian (primary) + English
 
-## Root Cause
+## Plan
 
-These products were imported before the full category hierarchy was built, and the URL-based slug matching in the import pipeline didn't find matches because the exact URL slugs (e.g., `series-551-552-553-solenoid-valves`) don't exist as category slugs.
+### 1. Create `src/pages/PrivacyPolicy.tsx`
+- Professional GDPR-compliant privacy policy page
+- Bilingual (IT/EN) using the existing i18n system
+- Sections: Data Controller, Data Collected, Purpose & Legal Basis, Data Retention, Third Parties, User Rights, Contact
+- Styled consistently with the site (same layout, heading styles, spacing)
 
-## Solution
+### 2. Create `src/pages/CookiePolicy.tsx`
+- Cookie policy page explaining technical/functional cookies used
+- Bilingual (IT/EN)
+- Sections: What Are Cookies, Types Used (technical, functional), Third-Party Cookies, How to Manage Cookies, Contact
 
-Create new end-sub-categories for ~200 distinct URL slugs and assign products to them. The approach:
+### 3. Update `src/App.tsx`
+- Add lazy-loaded routes: `/privacy-policy` and `/cookie-policy` under PublicLayout
 
-### Step 1: Create ~200 new end-sub-categories
+### 4. Update `src/components/layout/Footer.tsx`
+- Change `<a href="#">Privacy Policy</a>` → `<Link to="/privacy-policy">`
+- Change `<a href="#">Cookie Policy</a>` → `<Link to="/cookie-policy">`
 
-Each uncategorized product's source URL contains a slug (e.g., `series-cd07-directional-valves`). These will become new leaf categories under the correct parent:
-
-| URL Pattern | Parent Category | Products |
-|-------------|----------------|----------|
-| `*solenoid-valve*` | Solenoid Valves | ~2,300 |
-| `*directional-valve*` | Directional Control Valves | ~700 |
-| `*cylinder*`, `*actuator*`, `*bellows*`, `*guide*`, `*rodless*` | Pneumatic Cylinders & Actuators | ~280 |
-| `*coil*` | Solenoid Coils | 49 |
-| `*vacuum*` | Vacuum Components | 23 |
-| `*filter*`, `*regulator*`, `*lubricator*`, `*air-preparation*` | Pneumatic Air Preparation | ~30 |
-| `*sensor*`, `*proximity*`, `*pressure-switch*`, `*field-bus*` | Sensors & Switches | ~70 |
-| `*check*`, `*choke*`, `*non-return*`, `*exhaust*`, `*stop*`, `*lockout*` | Pneumatic Valves | ~100 |
-| `*lever*`, `*hand-or-foot*` | Manually Operated Valves | ~15 |
-| `*gauge*` | Pressure Gauges | ~4 |
-| `*fitting*`, `*mounting*`, `*clevis*` | Connectors & Fittings | ~20 |
-| `*supply-rail*`, `*valve-system*`, `*iso-15407*` | Valve Systems | ~75 |
-| Other valve-related | Pneumatic Valves | ~86 |
-
-### Step 2: Assign products to new categories
-
-For each new category, update all matching products' `category_id` using the URL slug pattern.
-
-### Step 3: Handle 37 Parker products from RS-Online
-
-These have different URL patterns (rs-online.it). Use product name keywords (solenoid → Solenoid Valves, hydraulic fitting → Hydraulic Fittings, etc.) to assign them.
-
-## Technical Implementation
-
-1. **Edge function or migration script** that:
-   - Queries all distinct URL slugs for uncategorized products
-   - Creates new category rows under the appropriate parent
-   - Updates products with the new category IDs
-   - Handles the 37 RS-Online products via name-based matching
-
-2. This will be implemented as a **database migration** with INSERT for new categories and UPDATE for product category assignments.
-
-## Expected Outcome
-
-- All 3,975 products get assigned to specific end-sub-categories
-- ~200 new leaf categories created (e.g., "Series CD07 Directional Valves" under "Directional Control Valves")
-- Brand pages will show complete product counts
-- Category navigation will surface all products
-
-## Files to modify
+### Files to modify
 | File | Change |
 |------|--------|
-| New migration | Create ~200 new subcategories + UPDATE products to assign category_id |
+| `src/pages/PrivacyPolicy.tsx` | New — full privacy policy page with IT/EN content |
+| `src/pages/CookiePolicy.tsx` | New — full cookie policy page with IT/EN content |
+| `src/App.tsx` | Add two new lazy routes |
+| `src/components/layout/Footer.tsx` | Link footer policy links to new pages |
 
