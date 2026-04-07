@@ -15,13 +15,32 @@ export default function AdminResetPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [validToken, setValidToken] = useState(true);
+  const [checking, setChecking] = useState(true);
+  const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
-    const hash = window.location.hash;
-    if (!hash || !hash.includes('type=recovery')) {
-      setValidToken(false);
-    }
+    // Supabase automatically picks up the recovery token from the URL
+    // and establishes a session. We just need to check if a session exists.
+    const checkSession = async () => {
+      // Give Supabase a moment to process the token from URL hash/params
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        setHasSession(true);
+      }
+      setChecking(false);
+    };
+
+    // Listen for auth state changes (recovery token processing)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+        setHasSession(true);
+        setChecking(false);
+      }
+    });
+
+    checkSession();
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,6 +67,14 @@ export default function AdminResetPassword() {
     setLoading(false);
   };
 
+  if (checking) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-muted/30">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
       <div className="w-full max-w-sm space-y-6">
@@ -72,7 +99,7 @@ export default function AdminResetPassword() {
                 <CheckCircle2 className="h-10 w-10 text-primary" />
                 <p className="text-sm text-muted-foreground">Password updated! Redirecting to login…</p>
               </div>
-            ) : !validToken ? (
+            ) : !hasSession ? (
               <div className="text-center py-4">
                 <p className="text-sm text-muted-foreground mb-4">Invalid or expired reset link. Please request a new one.</p>
                 <Link to="/admin/forgot-password" className="text-sm text-primary hover:underline">
