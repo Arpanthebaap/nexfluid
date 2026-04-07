@@ -77,8 +77,8 @@ const Footer = () => {
         <div className="mt-12 border-t border-primary-foreground/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-primary-foreground/40">
           <span>Nexfluid © {new Date().getFullYear()} | All Rights Reserve</span>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-primary-foreground/60 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-primary-foreground/60 transition-colors">Cookie Policy</a>
+            <Link to="/privacy-policy" className="hover:text-primary-foreground/60 transition-colors">Privacy Policy</Link>
+            <Link to="/cookie-policy" className="hover:text-primary-foreground/60 transition-colors">Cookie Policy</Link>
           </div>
         </div>
       </div>

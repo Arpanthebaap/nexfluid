@@ -19,6 +19,8 @@ const ProductListing = lazy(() => import("./pages/ProductListing"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
 const BrandPage = lazy(() => import("./pages/BrandPage"));
 const SearchResults = lazy(() => import("./pages/SearchResults"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Lazy-loaded admin pages
@@ -61,6 +63,8 @@ const App = () => (
                 <Route path="/brands/:brandName" element={<BrandPage />} />
                 <Route path="/brands/:brandName/:slug" element={<BrandPage />} />
                 <Route path="/search" element={<SearchResults />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                <Route path="/cookie-policy" element={<CookiePolicy />} />
               </Route>
 
               {/* Admin routes */}
