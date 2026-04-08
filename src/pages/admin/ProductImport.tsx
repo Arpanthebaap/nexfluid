@@ -123,9 +123,10 @@ export default function ProductImport() {
   useEffect(() => {
     fetchCounts();
     fetchSourceLinks();
-    const interval = setInterval(fetchCounts, 10000);
+    fetchSourceLinkStats();
+    const interval = setInterval(() => { fetchCounts(); fetchSourceLinkStats(); }, 10000);
     return () => clearInterval(interval);
-  }, [fetchCounts, fetchSourceLinks]);
+  }, [fetchCounts, fetchSourceLinks, fetchSourceLinkStats]);
 
   // Speed calculation
   useEffect(() => {
