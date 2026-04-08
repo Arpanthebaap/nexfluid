@@ -447,7 +447,7 @@ Deno.serve(async (req) => {
     const unique = [...new Set(allProductUrls)];
     console.log(`Total unique product URLs this call: ${unique.length} (${mapCalls} map, ${pagesScraped} scrapes, timedOut=${timedOut})`);
 
-    // Upsert into scrape_jobs
+    // Upsert into scrape_jobs with source_link tracking
     let inserted = 0;
     let requeued = 0;
     if (unique.length > 0) {
@@ -456,6 +456,7 @@ Deno.serve(async (req) => {
         const batch = unique.slice(i, i + batchSize).map(url => ({
           source_url: url,
           status: 'pending' as const,
+          source_link: categoryUrl,
         }));
         const { data, error } = await supabase
           .from('scrape_jobs')
@@ -466,6 +467,16 @@ Deno.serve(async (req) => {
         } else {
           inserted += (data?.length || 0);
         }
+      }
+
+      // Also update source_link for existing jobs that didn't have one
+      for (let i = 0; i < unique.length; i += batchSize) {
+        const batch = unique.slice(i, i + batchSize);
+        await supabase
+          .from('scrape_jobs')
+          .update({ source_link: categoryUrl })
+          .in('source_url', batch)
+          .is('source_link', null);
       }
 
       // Re-queue failed URLs (only transient failures)
@@ -489,8 +500,15 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Get accurate pending count for this source
+    const { count: actualPending } = await supabase
+      .from('scrape_jobs')
+      .select('id', { count: 'exact', head: true })
+      .eq('source_link', categoryUrl)
+      .eq('status', 'pending');
+
     const elapsed = Math.round((Date.now() - startTime) / 1000);
-    console.log(`Done in ${elapsed}s: ${unique.length} found, ${inserted} new, ${requeued} requeued, resumeFrom=${JSON.stringify(resumeFrom)}`);
+    console.log(`Done in ${elapsed}s: ${unique.length} found, ${inserted} new, ${requeued} requeued, actualPending=${actualPending}, resumeFrom=${JSON.stringify(resumeFrom)}`);
 
     return new Response(
       JSON.stringify({
@@ -499,6 +517,7 @@ Deno.serve(async (req) => {
         totalFound: unique.length,
         totalNew: inserted,
         totalRequeued: requeued,
+        actualPending: actualPending || 0,
         mapCalls,
         pagesScraped,
         timedOut,
