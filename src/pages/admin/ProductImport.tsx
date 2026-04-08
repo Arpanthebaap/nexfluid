@@ -163,12 +163,14 @@ export default function ProductImport() {
         const catUrl = urls[i];
         addLog(`🔍 [${i + 1}/${urls.length}] Discovering: ${catUrl}`);
         try {
-          const res = await firecrawlApi.discoverCategory(catUrl);
+        const res = await firecrawlApi.discoverCategory(catUrl);
           const data = res as any;
           if (res.success) {
             totalNewUrls += data.totalNew || 0;
             const requeuedInfo = data.totalRequeued ? `, ${data.totalRequeued} requeued from failed` : '';
-            addLog(`✅ Found ${data.totalFound || 0} products, ${data.totalNew || 0} new${requeuedInfo}${data.timedOut ? ' (partial — timed out)' : ''}`);
+            const expectedInfo = data.expectedTotal ? ` (source expects ~${data.expectedTotal.toLocaleString()})` : '';
+            const completeStatus = data.discoveryComplete === false ? ' ⚠️ PARTIAL' : '';
+            addLog(`✅ Found ${data.totalFound || 0} products, ${data.totalNew || 0} new${requeuedInfo}${data.timedOut ? ' (partial — timed out)' : ''}${expectedInfo}${completeStatus}`);
           } else {
             addLog(`⚠️ ${catUrl}: ${res.error}`);
           }
@@ -792,7 +794,9 @@ export default function ProductImport() {
                     totalRequeued += data.totalRequeued || 0;
                     totalPagesScraped += data.pagesScraped || 0;
                     
-                    addLog(`✅ Call #${callCount}: ${data.totalFound || 0} found, ${data.totalNew || 0} new (${data.pagesScraped || 0} pages scraped, ${data.elapsedSeconds || 0}s)`);
+                    const expectedInfo = data.expectedTotal ? ` (source has ~${data.expectedTotal.toLocaleString()})` : '';
+                    const subcatInfo = data.totalSubcategories ? `, ${data.totalSubcategories} subcats` : '';
+                    addLog(`✅ Call #${callCount}: ${data.totalFound || 0} found, ${data.totalNew || 0} new (${data.pagesScraped || 0} pages${subcatInfo}, ${data.elapsedSeconds || 0}s)${expectedInfo}`);
                     
                     if (data.resumeFrom && data.subcategories) {
                       resumeParams = {
@@ -800,7 +804,6 @@ export default function ProductImport() {
                         startPage: data.resumeFrom.page,
                         subcategories: data.subcategories,
                       };
-                      // Update running totals in UI
                       setSingleResult({
                         success: true,
                         totalFound,
@@ -810,10 +813,14 @@ export default function ProductImport() {
                         callCount,
                         timedOut: true,
                         inProgress: true,
+                        expectedTotal: data.expectedTotal,
+                        totalDiscoveredForSource: data.totalDiscoveredForSource,
+                        discoveryComplete: false,
                       });
                       await fetchCounts();
                     } else {
-                      // Complete!
+                      // All subcats exhausted
+                      const isComplete = data.discoveryComplete !== false;
                       setSingleResult({
                         success: true,
                         totalFound,
@@ -822,9 +829,16 @@ export default function ProductImport() {
                         pagesScraped: totalPagesScraped,
                         callCount,
                         timedOut: false,
+                        expectedTotal: data.expectedTotal,
+                        totalDiscoveredForSource: data.totalDiscoveredForSource,
+                        discoveryComplete: isComplete,
                       });
-                      addLog(`🎉 Discovery complete: ${totalFound} total found, ${totalNew} new, ${totalRequeued} requeued (${callCount} calls, ${totalPagesScraped} pages)`);
-                      toast({ title: `Discovery complete`, description: `${totalFound} found, ${totalNew} new, ${totalRequeued} requeued` });
+                      if (isComplete) {
+                        addLog(`🎉 Discovery complete: ${data.totalDiscoveredForSource || totalFound} total for source (${callCount} calls, ${totalPagesScraped} pages)`);
+                      } else {
+                        addLog(`⚠️ Discovery partial: ${data.totalDiscoveredForSource || totalFound} found of ~${data.expectedTotal?.toLocaleString() || '?'} expected. Use "Continue Discovery" or add sub-URLs manually.`);
+                      }
+                      toast({ title: isComplete ? 'Discovery complete' : 'Discovery partial', description: `${data.totalDiscoveredForSource || totalFound} found${data.expectedTotal ? ` of ~${data.expectedTotal.toLocaleString()}` : ''}` });
                       break;
                     }
                   }
@@ -834,6 +848,7 @@ export default function ProductImport() {
                 }
                 setDiscoveringSingle(false);
                 fetchCounts();
+                fetchSourceLinkStats();
               }}
               className="gap-2 whitespace-nowrap"
             >
@@ -845,13 +860,19 @@ export default function ProductImport() {
             <div className="flex flex-wrap gap-2 text-xs">
               {singleResult.success ? (
                 <>
-                  <Badge variant="outline">Found: {singleResult.totalFound || 0}</Badge>
-                  <Badge className="bg-green-500/20 text-green-700 border-green-300">New: {singleResult.totalNew || 0}</Badge>
+                  <Badge variant="outline">Found: {(singleResult.totalDiscoveredForSource || singleResult.totalFound || 0).toLocaleString()}</Badge>
+                  {singleResult.expectedTotal && (
+                    <Badge variant="outline">Expected: ~{singleResult.expectedTotal.toLocaleString()}</Badge>
+                  )}
+                  <Badge className="bg-green-500/20 text-green-700 border-green-300">New: {(singleResult.totalNew || 0).toLocaleString()}</Badge>
                   {(singleResult.totalRequeued || 0) > 0 && <Badge variant="secondary">Requeued: {singleResult.totalRequeued}</Badge>}
-                  {singleResult.pagesScraped > 0 && <Badge variant="outline">Pages scraped: {singleResult.pagesScraped}</Badge>}
-                  {singleResult.callCount > 1 && <Badge variant="outline">API calls: {singleResult.callCount}</Badge>}
+                  {singleResult.pagesScraped > 0 && <Badge variant="outline">Pages: {singleResult.pagesScraped}</Badge>}
+                  {singleResult.callCount > 1 && <Badge variant="outline">Calls: {singleResult.callCount}</Badge>}
                   {singleResult.inProgress && <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-300">Still discovering...</Badge>}
-                  {!singleResult.inProgress && !singleResult.timedOut && <Badge className="bg-green-500/20 text-green-700 border-green-300">✓ Complete</Badge>}
+                  {!singleResult.inProgress && singleResult.discoveryComplete && <Badge className="bg-green-500/20 text-green-700 border-green-300">✓ Complete</Badge>}
+                  {!singleResult.inProgress && !singleResult.discoveryComplete && (
+                    <Badge className="bg-orange-500/20 text-orange-700 border-orange-300">⚠ Partial — more products may exist</Badge>
+                  )}
                 </>
               ) : (
                 <Badge variant="destructive">{singleResult.error || 'Failed'}</Badge>
