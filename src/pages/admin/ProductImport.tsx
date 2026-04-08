@@ -40,6 +40,17 @@ type SourceLink = {
   product_count: number;
 };
 
+type SourceLinkStat = {
+  source_link: string;
+  total: number;
+  pending: number;
+  scraped: number;
+  processed: number;
+  imported: number;
+  failed: number;
+  failed_brand: number;
+};
+
 export default function ProductImport() {
   const { toast } = useToast();
   const [counts, setCounts] = useState<StatusCounts>({ pending: 0, scraped: 0, processed: 0, imported: 0, failed: 0, total: 0 });
