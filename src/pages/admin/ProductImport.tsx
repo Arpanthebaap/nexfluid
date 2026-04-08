@@ -163,12 +163,14 @@ export default function ProductImport() {
         const catUrl = urls[i];
         addLog(`🔍 [${i + 1}/${urls.length}] Discovering: ${catUrl}`);
         try {
-          const res = await firecrawlApi.discoverCategory(catUrl);
+        const res = await firecrawlApi.discoverCategory(catUrl);
           const data = res as any;
           if (res.success) {
             totalNewUrls += data.totalNew || 0;
             const requeuedInfo = data.totalRequeued ? `, ${data.totalRequeued} requeued from failed` : '';
-            addLog(`✅ Found ${data.totalFound || 0} products, ${data.totalNew || 0} new${requeuedInfo}${data.timedOut ? ' (partial — timed out)' : ''}`);
+            const expectedInfo = data.expectedTotal ? ` (source expects ~${data.expectedTotal.toLocaleString()})` : '';
+            const completeStatus = data.discoveryComplete === false ? ' ⚠️ PARTIAL' : '';
+            addLog(`✅ Found ${data.totalFound || 0} products, ${data.totalNew || 0} new${requeuedInfo}${data.timedOut ? ' (partial — timed out)' : ''}${expectedInfo}${completeStatus}`);
           } else {
             addLog(`⚠️ ${catUrl}: ${res.error}`);
           }
