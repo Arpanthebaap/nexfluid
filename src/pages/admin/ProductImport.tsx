@@ -70,6 +70,7 @@ export default function ProductImport() {
   const [discoveringSingle, setDiscoveringSingle] = useState(false);
   const [singleResult, setSingleResult] = useState<any>(null);
   const [sourceLinks, setSourceLinks] = useState<SourceLink[]>([]);
+  const [sourceLinkStats, setSourceLinkStats] = useState<SourceLinkStat[]>([]);
   const [newSourceUrl, setNewSourceUrl] = useState('');
   const [newSourceLabel, setNewSourceLabel] = useState('');
   const stopRef = useRef(false);
@@ -99,6 +100,15 @@ export default function ProductImport() {
       return results;
     } catch (err) {
       console.error('Count fetch error:', err);
+    }
+  }, []);
+
+  const fetchSourceLinkStats = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_source_link_stats');
+      if (!error && data) setSourceLinkStats(data as any);
+    } catch (err) {
+      console.error('Source link stats error:', err);
     }
   }, []);
 
