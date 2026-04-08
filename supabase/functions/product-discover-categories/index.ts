@@ -39,6 +39,7 @@ function isValvesDirectSubcategoryUrl(url: string, baseDomain: string): boolean 
     if (path.endsWith('.html')) return false;
     const segments = path.split('/').filter(Boolean);
     if (segments.length === 0) return false;
+    // Accept any depth of subcategory as long as first segment starts with digit-
     return /^\d+-/.test(segments[0]);
   } catch { return false; }
 }
@@ -63,6 +64,24 @@ function extractMaxPage(links: string[]): number {
     }
   }
   return maxPage;
+}
+
+// Extract expected total product count from page markdown (e.g. "Showing 1-48 of 11185 products")
+function extractExpectedTotal(markdown: string): number | null {
+  // Patterns like "of 11185", "11185 products", "11185 risultati", "Showing 1-48 of 11,185"
+  const patterns = [
+    /of\s+([\d,. ]+)\s*(products?|results?|items?|prodott|risultat)/i,
+    /(?:showing|mostra|affich).*?of\s+([\d,. ]+)/i,
+    /([\d,. ]+)\s*(products?|results?|items?|prodott|risultat)\s*(?:found|total|trouvé|trovat)/i,
+  ];
+  for (const p of patterns) {
+    const m = markdown.match(p);
+    if (m) {
+      const num = parseInt(m[1].replace(/[,.\s]/g, ''), 10);
+      if (!isNaN(num) && num > 0 && num < 1000000) return num;
+    }
+  }
+  return null;
 }
 
 async function mapUrls(url: string, firecrawlKey: string, limit = 5000): Promise<string[]> {
@@ -133,13 +152,47 @@ async function scrapeLinks(url: string, firecrawlKey: string): Promise<string[]>
   }
 }
 
+// Scrape a page and get both links and markdown (for extracting expected total)
+async function scrapeWithMarkdown(url: string, firecrawlKey: string): Promise<{ links: string[]; markdown: string }> {
+  try {
+    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${firecrawlKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        formats: ['links', 'markdown'],
+        onlyMainContent: false,
+        timeout: 45000,
+      }),
+    });
+
+    const text = await response.text();
+    let data: any;
+    try { data = JSON.parse(text); } catch {
+      return { links: [], markdown: '' };
+    }
+
+    if (!response.ok) return { links: [], markdown: '' };
+
+    return {
+      links: data.data?.links || data.links || [],
+      markdown: data.data?.markdown || data.markdown || '',
+    };
+  } catch {
+    return { links: [], markdown: '' };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   const startTime = Date.now();
-  const SAFETY_LIMIT_MS = 110000; // 110s to leave margin
+  const SAFETY_LIMIT_MS = 110000;
   function isTimeSafe(): boolean {
     return (Date.now() - startTime) < SAFETY_LIMIT_MS;
   }
@@ -178,6 +231,7 @@ Deno.serve(async (req) => {
     let pagesScraped = 0;
     let timedOut = false;
     let resumeFrom: { subcatIndex: number; page: number } | null = null;
+    let expectedTotal: number | null = null;
 
     const productFilter = isRsOnline ? isRsOnlineProductUrl : isValvesDirectProductUrl;
     const startIdx = startSubcatIndex || 0;
@@ -185,10 +239,14 @@ Deno.serve(async (req) => {
 
     // === Determine subcategories ===
     let subcatUrls: string[] = [];
+    const visitedSubcats = new Set<string>();
 
     if (providedSubcats && Array.isArray(providedSubcats) && providedSubcats.length > 0) {
-      // Resume call — reuse previously discovered subcategories
       subcatUrls = providedSubcats;
+      // Mark already-processed ones as visited
+      for (let i = 0; i < startIdx; i++) {
+        try { visitedSubcats.add(new URL(subcatUrls[i]).pathname); } catch {}
+      }
       console.log(`Using ${subcatUrls.length} provided subcategories`);
     } else {
       // Fresh call — discover subcategories via Map first, then scrape fallback
@@ -213,13 +271,25 @@ Deno.serve(async (req) => {
 
       // If Map returned nothing useful, scrape the parent page to find subcategories
       if (mapProducts.length === 0 && subcatUrls.length === 0) {
-        console.log('Map returned nothing useful, scraping parent page...');
-        let parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
+        console.log('Map returned nothing useful, scraping parent page with markdown...');
+        let parentResult = await scrapeWithMarkdown(categoryUrl, firecrawlKey);
         pagesScraped++;
+        
+        // Extract expected total from the parent page
+        if (parentResult.markdown) {
+          expectedTotal = extractExpectedTotal(parentResult.markdown);
+          if (expectedTotal) console.log(`📊 Expected total from page: ${expectedTotal}`);
+        }
+        
+        let parentLinks = parentResult.links;
         if (parentLinks.length === 0 && isTimeSafe()) {
           await new Promise(r => setTimeout(r, 2000));
-          parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
+          parentResult = await scrapeWithMarkdown(categoryUrl, firecrawlKey);
           pagesScraped++;
+          parentLinks = parentResult.links;
+          if (!expectedTotal && parentResult.markdown) {
+            expectedTotal = extractExpectedTotal(parentResult.markdown);
+          }
         }
 
         const directProducts = parentLinks.filter(l => productFilter(l) && !shouldExclude(l));
@@ -241,7 +311,7 @@ Deno.serve(async (req) => {
 
         console.log(`Scrape fallback: ${parentLinks.length} links, ${directProducts.length} products, ${subcatUrls.length} subcats`);
 
-        // Parent-page pagination for valves-direct (before subcategory loop)
+        // Parent-page pagination for valves-direct
         if (!isRsOnline && subcatUrls.length > 0) {
           const parentMaxPage = extractMaxPage(parentLinks);
           if (parentMaxPage > 1) {
@@ -249,11 +319,7 @@ Deno.serve(async (req) => {
             const parentPageLimit = Math.min(parentMaxPage, 500);
             let consecutiveEmpty = 0;
             for (let p = 2; p <= parentPageLimit; p++) {
-              if (!isTimeSafe()) {
-                timedOut = true;
-                console.log(`Timer expired at parent page ${p}`);
-                break;
-              }
+              if (!isTimeSafe()) { timedOut = true; break; }
               const pageUrl = `${categoryUrl}?page=${p}`;
               const pageLinks = await scrapeLinks(pageUrl, firecrawlKey);
               pagesScraped++;
@@ -281,25 +347,46 @@ Deno.serve(async (req) => {
             if (!isTimeSafe()) {
               timedOut = true;
               resumeFrom = { subcatIndex: 0, page: p };
-              console.log(`Timer expired at rs-online page ${p}`);
               break;
             }
             const pageUrl = categoryUrl.includes('?') ? `${categoryUrl}&pn=${p}` : `${categoryUrl}?pn=${p}`;
             const pageLinks = await scrapeLinks(pageUrl, firecrawlKey);
             pagesScraped++;
             const pageProducts = pageLinks.filter(l => isRsOnlineProductUrl(l) && !shouldExclude(l));
-            if (pageProducts.length === 0) {
-              console.log(`  rs-online page ${p}: 0 products, stopping`);
-              break;
-            }
+            if (pageProducts.length === 0) break;
             allProductUrls.push(...pageProducts);
             console.log(`  rs-online page ${p}: ${pageProducts.length} products`);
             await new Promise(r => setTimeout(r, 200));
           }
         }
+      } else if (!isRsOnline && mapProducts.length > 0) {
+        // Map returned products — also try to get expected total from parent page
+        const parentResult = await scrapeWithMarkdown(categoryUrl, firecrawlKey);
+        pagesScraped++;
+        if (parentResult.markdown) {
+          expectedTotal = extractExpectedTotal(parentResult.markdown);
+          if (expectedTotal) console.log(`📊 Expected total from page: ${expectedTotal}`);
+        }
+        // Also find subcategories from the parent page that Map may have missed
+        if (parentResult.links.length > 0) {
+          const extraSubcats = parentResult.links.filter(l => 
+            isValvesDirectSubcategoryUrl(l, baseDomain) && !shouldExclude(l) && l !== categoryUrl
+          );
+          const existingPaths = new Set(subcatUrls.map(u => { try { return new URL(u).pathname; } catch { return u; } }));
+          for (const s of extraSubcats) {
+            try {
+              const p = new URL(s).pathname;
+              if (!existingPaths.has(p)) {
+                existingPaths.add(p);
+                subcatUrls.push(s);
+              }
+            } catch {}
+          }
+          console.log(`After parent scrape: ${subcatUrls.length} total subcats`);
+        }
       }
 
-      // rs-online: also paginate when Map DID return products (but only page 1)
+      // rs-online: also paginate when Map DID return products
       if (isRsOnline && mapProducts.length > 0 && !resumeFrom) {
         console.log('rs-online: Map returned products, attempting pagination from parent...');
         const parentLinks = await scrapeLinks(categoryUrl, firecrawlKey);
@@ -318,10 +405,7 @@ Deno.serve(async (req) => {
             const pageLinks = await scrapeLinks(pageUrl, firecrawlKey);
             pagesScraped++;
             const pageProducts = pageLinks.filter(l => isRsOnlineProductUrl(l) && !shouldExclude(l));
-            if (pageProducts.length === 0) {
-              console.log(`  rs-online page ${p}: 0 products, stopping`);
-              break;
-            }
+            if (pageProducts.length === 0) break;
             allProductUrls.push(...pageProducts);
             console.log(`  rs-online page ${p}: ${pageProducts.length} products`);
             await new Promise(r => setTimeout(r, 200));
@@ -353,8 +437,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // === Scrape subcategories with pagination (resumable) ===
-
+    // === Scrape subcategories with pagination (resumable) + recursive child discovery ===
     for (let si = startIdx; si < subcatUrls.length; si++) {
       if (!isTimeSafe()) {
         timedOut = true;
@@ -364,14 +447,42 @@ Deno.serve(async (req) => {
       }
 
       const subcatUrl = subcatUrls[si];
+      const subcatPath = (() => { try { return new URL(subcatUrl).pathname; } catch { return subcatUrl; } })();
+      
+      // Skip if already visited (dedup for recursive discovery)
+      if (visitedSubcats.has(subcatPath)) {
+        continue;
+      }
+      visitedSubcats.add(subcatPath);
+
       const firstPage = (si === startIdx && startPg > 1) ? startPg : 1;
 
       if (firstPage === 1) {
-        // Scrape page 1
         const subcatLinks = await scrapeLinks(subcatUrl, firecrawlKey);
         pagesScraped++;
         const products = subcatLinks.filter(l => productFilter(l) && !shouldExclude(l));
         allProductUrls.push(...products);
+
+        // === Recursive: discover child subcategories ===
+        if (!isRsOnline) {
+          const childSubcats = subcatLinks.filter(l => 
+            isValvesDirectSubcategoryUrl(l, baseDomain) && !shouldExclude(l) && l !== subcatUrl && l !== categoryUrl
+          );
+          for (const childUrl of childSubcats) {
+            try {
+              const childPath = new URL(childUrl).pathname;
+              if (!visitedSubcats.has(childPath) && !subcatUrls.includes(childUrl)) {
+                // Only add if it's a deeper path than current
+                const currentDepth = subcatPath.split('/').filter(Boolean).length;
+                const childDepth = childPath.split('/').filter(Boolean).length;
+                if (childDepth >= currentDepth) {
+                  subcatUrls.push(childUrl);
+                  console.log(`  📂 Found nested subcat: ${childPath} (depth ${childDepth})`);
+                }
+              }
+            } catch {}
+          }
+        }
 
         // Check for pagination
         const maxPage = extractMaxPage(subcatLinks);
@@ -383,7 +494,6 @@ Deno.serve(async (req) => {
             if (!isTimeSafe()) {
               timedOut = true;
               resumeFrom = { subcatIndex: si, page: p };
-              console.log(`Timer expired at subcat ${si}, page ${p}`);
               break;
             }
             const pageUrl = `${subcatUrl}?page=${p}`;
@@ -392,11 +502,7 @@ Deno.serve(async (req) => {
             const pageProducts = pageLinks.filter(l => productFilter(l) && !shouldExclude(l));
             if (pageProducts.length === 0) {
               consecutiveEmpty++;
-              console.log(`  Page ${p}: 0 products (${consecutiveEmpty}/3 consecutive empty)`);
-              if (consecutiveEmpty >= 3) {
-                console.log(`  3 consecutive empty pages, stopping pagination`);
-                break;
-              }
+              if (consecutiveEmpty >= 3) break;
               await new Promise(r => setTimeout(r, 200));
               continue;
             }
@@ -408,7 +514,7 @@ Deno.serve(async (req) => {
           if (resumeFrom) break;
         }
       } else {
-        // Resuming mid-pagination: we need to know maxPage. Scrape page 1 just for pagination info.
+        // Resuming mid-pagination
         const subcatLinks = await scrapeLinks(subcatUrl, firecrawlKey);
         pagesScraped++;
         const maxPage = Math.min(extractMaxPage(subcatLinks), 500);
@@ -427,7 +533,6 @@ Deno.serve(async (req) => {
           const pageProducts = pageLinks.filter(l => productFilter(l) && !shouldExclude(l));
           if (pageProducts.length === 0) {
             consecutiveEmpty++;
-            console.log(`  Page ${p}: 0 products (${consecutiveEmpty}/3 consecutive empty)`);
             if (consecutiveEmpty >= 3) break;
             await new Promise(r => setTimeout(r, 200));
             continue;
@@ -469,7 +574,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Also update source_link for existing jobs that didn't have one
+      // Update source_link for existing jobs that didn't have one
       for (let i = 0; i < unique.length; i += batchSize) {
         const batch = unique.slice(i, i + batchSize);
         await supabase
@@ -507,8 +612,20 @@ Deno.serve(async (req) => {
       .eq('source_link', categoryUrl)
       .eq('status', 'pending');
 
+    // Get total discovered for this source (across all calls)
+    const { count: totalDiscoveredForSource } = await supabase
+      .from('scrape_jobs')
+      .select('id', { count: 'exact', head: true })
+      .eq('source_link', categoryUrl);
+
+    // Determine if discovery is truly complete
+    const allSubcatsExhausted = !resumeFrom;
+    const discoveryComplete = allSubcatsExhausted && (
+      expectedTotal === null || (totalDiscoveredForSource || 0) >= expectedTotal * 0.9
+    );
+
     const elapsed = Math.round((Date.now() - startTime) / 1000);
-    console.log(`Done in ${elapsed}s: ${unique.length} found, ${inserted} new, ${requeued} requeued, actualPending=${actualPending}, resumeFrom=${JSON.stringify(resumeFrom)}`);
+    console.log(`Done in ${elapsed}s: ${unique.length} found, ${inserted} new, ${requeued} requeued, actualPending=${actualPending}, totalForSource=${totalDiscoveredForSource}, expectedTotal=${expectedTotal}, complete=${discoveryComplete}`);
 
     return new Response(
       JSON.stringify({
@@ -518,10 +635,14 @@ Deno.serve(async (req) => {
         totalNew: inserted,
         totalRequeued: requeued,
         actualPending: actualPending || 0,
+        totalDiscoveredForSource: totalDiscoveredForSource || 0,
+        expectedTotal,
+        discoveryComplete,
         mapCalls,
         pagesScraped,
         timedOut,
         elapsedSeconds: elapsed,
+        totalSubcategories: subcatUrls.length,
         // Resumable fields
         resumeFrom,
         subcategories: resumeFrom ? subcatUrls : undefined,
