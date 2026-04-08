@@ -641,7 +641,7 @@ export default function ProductImport() {
             Source Links ({sourceLinks.length})
           </Button>
         </CollapsibleTrigger>
-        <CollapsibleContent>
+        <CollapsibleContent className="space-y-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Source Link Registry</CardTitle>
@@ -687,6 +687,56 @@ export default function ProductImport() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Per-Source Status Dashboard */}
+          {sourceLinkStats.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Per-Source Pipeline Status</CardTitle>
+                <CardDescription className="text-xs">Breakdown of scrape job status for each source link</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="py-2 pr-3 font-medium">Source</th>
+                        <th className="py-2 px-2 font-medium text-right">Total</th>
+                        <th className="py-2 px-2 font-medium text-right">Pending</th>
+                        <th className="py-2 px-2 font-medium text-right">Scraped</th>
+                        <th className="py-2 px-2 font-medium text-right">Processed</th>
+                        <th className="py-2 px-2 font-medium text-right">Imported</th>
+                        <th className="py-2 px-2 font-medium text-right">Failed</th>
+                        <th className="py-2 px-2 font-medium text-right">Brand-Rej.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sourceLinkStats.map((stat) => {
+                        const shortUrl = (() => {
+                          try {
+                            const u = new URL(stat.source_link);
+                            return u.pathname.length > 40 ? u.pathname.substring(0, 37) + '...' : u.pathname;
+                          } catch { return stat.source_link; }
+                        })();
+                        return (
+                          <tr key={stat.source_link} className="border-b border-muted/50 hover:bg-muted/30">
+                            <td className="py-1.5 pr-3 font-mono truncate max-w-[200px]" title={stat.source_link}>{shortUrl}</td>
+                            <td className="py-1.5 px-2 text-right font-medium">{stat.total.toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right">{stat.pending > 0 ? stat.pending.toLocaleString() : '—'}</td>
+                            <td className="py-1.5 px-2 text-right">{stat.scraped > 0 ? stat.scraped.toLocaleString() : '—'}</td>
+                            <td className="py-1.5 px-2 text-right">{stat.processed > 0 ? stat.processed.toLocaleString() : '—'}</td>
+                            <td className="py-1.5 px-2 text-right text-green-600 font-medium">{stat.imported > 0 ? stat.imported.toLocaleString() : '—'}</td>
+                            <td className="py-1.5 px-2 text-right text-destructive">{stat.failed > 0 ? stat.failed.toLocaleString() : '—'}</td>
+                            <td className="py-1.5 px-2 text-right text-muted-foreground">{stat.failed_brand > 0 ? stat.failed_brand.toLocaleString() : '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </CollapsibleContent>
       </Collapsible>
 
