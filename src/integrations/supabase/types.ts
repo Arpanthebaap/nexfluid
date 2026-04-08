@@ -306,6 +306,7 @@ export type Database = {
           id: string
           processed_data: Json | null
           raw_data: Json | null
+          source_link: string | null
           source_url: string
           status: Database["public"]["Enums"]["scrape_status"]
           updated_at: string
@@ -318,6 +319,7 @@ export type Database = {
           id?: string
           processed_data?: Json | null
           raw_data?: Json | null
+          source_link?: string | null
           source_url: string
           status?: Database["public"]["Enums"]["scrape_status"]
           updated_at?: string
@@ -330,6 +332,7 @@ export type Database = {
           id?: string
           processed_data?: Json | null
           raw_data?: Json | null
+          source_link?: string | null
           source_url?: string
           status?: Database["public"]["Enums"]["scrape_status"]
           updated_at?: string
@@ -408,6 +411,19 @@ export type Database = {
         }[]
       }
       get_scrape_job_counts: { Args: never; Returns: Json }
+      get_source_link_stats: {
+        Args: never
+        Returns: {
+          failed: number
+          failed_brand: number
+          imported: number
+          pending: number
+          processed: number
+          scraped: number
+          source_link: string
+          total: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
