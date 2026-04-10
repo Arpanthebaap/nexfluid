@@ -72,7 +72,7 @@ const Header = () => {
 
             {/* Logo */}
             <Link to="/" className="shrink-0">
-              <img src="/lovable-uploads/04244b88-7e59-4987-9f7a-81be85561eac.png" alt="Nexfluid - Automation in Stock" className="h-8 md:h-10 w-auto" />
+              <img src="/lovable-uploads/f98792b3-9ddb-4b96-b688-27ee7bbf2994.png" alt="Nexfluid - Automation in Stock" className="h-8 md:h-10 w-auto" />
             </Link>
 
             {/* Search bar with autocomplete */}
