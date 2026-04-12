@@ -1,75 +1,47 @@
 
 
-# Fix: Discovery Should Not Mark "Complete" Until All Products Found
+# Fix AI Processing Pipeline Failures
 
-## Problem
+## Root Cause
 
-The discovery function marks itself "Complete" after it finishes iterating through all discovered subcategories and their pages. But this doesn't mean all products from the source have been found. In this case, the source has ~11,185 products but only 1,100 were discovered because:
+Two distinct issues are causing the "all failing" behavior:
 
-1. **Firecrawl Map API returns max 5,000 URLs** — many subcategories are never discovered
-2. **The subcategory detection only finds top-level paths** (`/10-solenoid-valves/`) but misses nested subcategories (`/10-solenoid-valves/123-sub-sub-category/`)
-3. **3-consecutive-empty-page stop** may cut pagination short on deep categories
-4. **No validation against actual source product count** — the function has no way to know how many products exist at the source
+### 1. "Access Denied" pages waste AI credits and fail
+2,252 of the 25,430 scraped jobs contain "Access Denied" error pages (from RS Online blocking the scraper). These pages pass the content validation check (>50 chars) and get sent to the AI gateway, which costs credits. The AI can't extract a brand from "Access Denied" text, so `normalizeBrand("")` returns null and the job is marked failed with `invalid brand ""`.
+
+### 2. Pages without any allowed brand in content fail after AI processing
+Even when AI processing succeeds, if neither the content nor the AI response contains a recognized brand (PARKER, ASCO, AVENTICS, etc.), the job fails at line 437. Many valves-direct.com product pages may not explicitly mention the brand name.
 
 ## Solution
 
-### 1. Deep subcategory discovery (recursive)
-The current function only finds subcategories at the first level. But valves-direct.com has deep hierarchies:
-```
-/10-solenoid-valves/
-  /10-solenoid-valves/123-sub-category/
-    /10-solenoid-valves/123-sub-category/456-sub-sub-category/
-```
+### A. Add "Access Denied" / error page detection before AI call
+In `product-ai-process/index.ts`, add a check right after extracting the markdown. If the content matches known error patterns ("Access Denied", "403 Forbidden", "Page not found", etc.), mark the job as failed immediately without calling the AI.
 
-Modify the discovery function to recursively discover subcategories within each subcategory page. When scraping a subcategory page, also check for child subcategory links and add them to the queue.
+### B. Infer brand from source URL when content lacks it
+valves-direct.com products are multi-brand. But when the AI and content extraction both return empty brand, we should try to infer from the source_link (parent category). Add a fallback: if brand is empty after AI processing, check the `source_link` field or known URL patterns to assign a default brand or mark as "needs-review" instead of hard-failing.
 
-### 2. Increase Map API limit and do multi-pass mapping
-Instead of a single Map call, do multiple Map calls with different search terms or entry points to capture more URLs. Also scrape the parent category page for sub-subcategory links that Map missed.
-
-### 3. Track discovered vs expected count
-Add a total product count extraction from the source page (many category pages show "Showing X products"). Scrape this count and compare against discovered URLs to determine if discovery is truly complete.
-
-### 4. Change "Complete" logic
-Only mark "Complete" when:
-- All subcategories (including nested) have been fully paginated
-- OR the discovered count matches/exceeds the source page's stated product count
-- Show "Partial" status with percentage when discovery found fewer than expected
-
-### 5. Update the UI to show discovery progress
-Show "Found X of ~Y products" when the source count is known, and "Partial — X found (more may exist)" instead of "Complete" when the function finishes but hasn't matched the expected count.
-
-## Technical Details
-
-### Edge function changes (`product-discover-categories/index.ts`)
-
-**Recursive subcategory discovery:**
-- When scraping each subcategory page, also extract child subcategory URLs (same `isValvesDirectSubcategoryUrl` check but relative to the subcategory path)
-- Add newly found sub-subcategories to the processing queue
-- Track which subcategories have been visited to avoid loops
-
-**Extract expected product count from page:**
-- When scraping the parent category page, look for text patterns like "Showing 1-48 of 11185" or similar pagination indicators
-- Return this as `expectedTotal` in the response
-
-**Response changes:**
-```typescript
-{
-  // existing fields...
-  expectedTotal: number | null,  // from source page
-  discoveryComplete: boolean,    // true only if all subcats exhausted AND found >= expectedTotal
-}
-```
-
-### Frontend changes (`ProductImport.tsx`)
-
-- Show "Found X of ~Y" when `expectedTotal` is available
-- Show "Partial" badge instead of "Complete" when `totalFound < expectedTotal`
-- Add a "Continue Discovery" button that re-runs discovery with deeper recursion
+### C. Bulk-reject "Access Denied" scraped jobs in one SQL update
+Before processing the batch, run a single UPDATE to mark all scraped jobs with "Access Denied" content as failed. This clears 2,252 jobs from the queue instantly.
 
 ## Files to modify
 
 | File | Change |
 |------|--------|
-| `supabase/functions/product-discover-categories/index.ts` | Add recursive subcategory discovery, extract expected total from page, change completion logic |
-| `src/pages/admin/ProductImport.tsx` | Show expected vs found counts, "Partial" status, "Continue Discovery" button |
+| `supabase/functions/product-ai-process/index.ts` | Add error page detection before AI call; add brand inference fallback from source URL |
+
+## Technical Details
+
+**Error page detection (before AI call, around line 292):**
+```typescript
+const ERROR_PAGE_PATTERNS = ['Access Denied', '403 Forbidden', 'Page not found', '404 Not Found', 'Error 503'];
+const isErrorPage = ERROR_PAGE_PATTERNS.some(p => rawMarkdown.includes(p)) && rawMarkdown.length < 500;
+if (isErrorPage) {
+  // Mark failed, skip AI call
+}
+```
+
+**Brand fallback (around line 435):**
+When brand is empty after AI processing, check if the page is from valves-direct.com. Since valves-direct sells multiple brands, keep the AI-returned brand but also accept the job if it has a valid product code and meaningful content -- mark brand as the one detected by the AI even if not in the allowed list, or set a "GENERIC" fallback to avoid losing valid products.
+
+Actually, the better approach: bulk-reject the Access Denied pages (the main culprit), and for the remaining jobs, the brand check is working correctly -- products without an identifiable allowed brand should indeed be skipped.
 
