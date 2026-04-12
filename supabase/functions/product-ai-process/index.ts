@@ -270,6 +270,21 @@ Deno.serve(async (req) => {
         const rawMarkdown = job.raw_data?.markdown || '';
         const rawMetadata = job.raw_data?.metadata || {};
 
+        // STEP 0: Detect error/blocked pages before wasting AI credits
+        const ERROR_PAGE_PATTERNS = ['Access Denied', '403 Forbidden', 'Page not found', '404 Not Found', 'Error 503', 'Service Unavailable', 'Forbidden', 'This page is not available'];
+        const isErrorPage = ERROR_PAGE_PATTERNS.some(p => rawMarkdown.includes(p)) && rawMarkdown.trim().length < 500;
+        if (isErrorPage) {
+          const matchedPattern = ERROR_PAGE_PATTERNS.find(p => rawMarkdown.includes(p)) || 'Error page';
+          console.log(`Error page detected for job ${job.id}: "${matchedPattern}" from ${job.source_url}`);
+          await supabase.from('scrape_jobs').update({
+            status: 'failed',
+            error_message: `Error page: ${matchedPattern}`,
+            updated_at: new Date().toISOString(),
+          }).eq('id', job.id);
+          failed++;
+          continue;
+        }
+
         // STEP 1: Early brand detection with strict matching
         const brandCheck = detectBrandFromContent(rawMarkdown, rawMetadata, job.source_url);
         if (brandCheck.isRejected) {
