@@ -207,8 +207,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { batchSize = 2 } = await req.json();
-    const SAFETY_MS = 90_000;
+    const { batchSize = 1 } = await req.json();
+    const SAFETY_MS = 55_000;
+    const FETCH_TIMEOUT_MS = 45_000;
     const fnStart = Date.now();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -349,47 +350,65 @@ TASKS:
 6. Generate a clean product code/SKU if not available.
 7. Extract ALL technical specifications as an array of {name, value, unit} objects. Parse them from the markdown text.`;
 
-        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${lovableApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-lite',
-            messages: [
-              { role: 'system', content: 'You are a product content specialist. Return structured data via the provided tool.' },
-              { role: 'user', content: prompt }
-            ],
-            tools: [{
-              type: 'function',
-              function: {
-                name: 'save_product',
-                description: 'Save processed product data',
-                parameters: {
-                  type: 'object',
-                  properties: {
-                    name_en: { type: 'string', description: 'Product name in English' },
-                    name_it: { type: 'string', description: 'Product name in Italian' },
-                    description_en: { type: 'string', description: 'Rewritten description in English' },
-                    description_it: { type: 'string', description: 'Translated description in Italian' },
-                    meta_title_en: { type: 'string', description: 'SEO title English (max 60 chars)' },
-                    meta_title_it: { type: 'string', description: 'SEO title Italian (max 60 chars)' },
-                    meta_description_en: { type: 'string', description: 'SEO meta desc English (max 160 chars)' },
-                    meta_description_it: { type: 'string', description: 'SEO meta desc Italian (max 160 chars)' },
-                    category_id: { type: 'string', description: 'Best matching category UUID' },
-                    product_code: { type: 'string', description: 'Product code/SKU' },
-                    brand: { type: 'string', description: 'Brand name' },
-                    specifications: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, value: { type: 'string' }, unit: { type: 'string' } }, required: ['name', 'value'] }, description: 'Technical specifications' },
-                  },
-                  required: ['name_en', 'name_it', 'description_en', 'description_it', 'meta_title_en', 'meta_title_it', 'meta_description_en', 'meta_description_it', 'specifications'],
-                  additionalProperties: false
+        const abortController = new AbortController();
+        const fetchTimer = setTimeout(() => abortController.abort(), FETCH_TIMEOUT_MS);
+        let response: Response;
+        try {
+          response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            signal: abortController.signal,
+            headers: {
+              'Authorization': `Bearer ${lovableApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash-lite',
+              messages: [
+                { role: 'system', content: 'You are a product content specialist. Return structured data via the provided tool.' },
+                { role: 'user', content: prompt }
+              ],
+              tools: [{
+                type: 'function',
+                function: {
+                  name: 'save_product',
+                  description: 'Save processed product data',
+                  parameters: {
+                    type: 'object',
+                    properties: {
+                      name_en: { type: 'string', description: 'Product name in English' },
+                      name_it: { type: 'string', description: 'Product name in Italian' },
+                      description_en: { type: 'string', description: 'Rewritten description in English' },
+                      description_it: { type: 'string', description: 'Translated description in Italian' },
+                      meta_title_en: { type: 'string', description: 'SEO title English (max 60 chars)' },
+                      meta_title_it: { type: 'string', description: 'SEO title Italian (max 60 chars)' },
+                      meta_description_en: { type: 'string', description: 'SEO meta desc English (max 160 chars)' },
+                      meta_description_it: { type: 'string', description: 'SEO meta desc Italian (max 160 chars)' },
+                      category_id: { type: 'string', description: 'Best matching category UUID' },
+                      product_code: { type: 'string', description: 'Product code/SKU' },
+                      brand: { type: 'string', description: 'Brand name' },
+                      specifications: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, value: { type: 'string' }, unit: { type: 'string' } }, required: ['name', 'value'] }, description: 'Technical specifications' },
+                    },
+                    required: ['name_en', 'name_it', 'description_en', 'description_it', 'meta_title_en', 'meta_title_it', 'meta_description_en', 'meta_description_it', 'specifications'],
+                    additionalProperties: false
+                  }
                 }
-              }
-            }],
-            tool_choice: { type: 'function', function: { name: 'save_product' } }
-          }),
-        });
+              }],
+              tool_choice: { type: 'function', function: { name: 'save_product' } }
+            }),
+          });
+        } catch (fetchErr) {
+          clearTimeout(fetchTimer);
+          const isTimeout = fetchErr instanceof DOMException && fetchErr.name === 'AbortError';
+          console.error(`AI fetch ${isTimeout ? 'timeout' : 'error'} for job ${job.id}:`, fetchErr);
+          await supabase.from('scrape_jobs').update({
+            status: 'failed',
+            error_message: isTimeout ? 'AI call timed out (45s)' : `AI fetch error: ${fetchErr}`,
+            updated_at: new Date().toISOString(),
+          }).eq('id', job.id);
+          failed++;
+          continue;
+        }
+        clearTimeout(fetchTimer);
 
         if (!response.ok) {
           const errText = await response.text();
