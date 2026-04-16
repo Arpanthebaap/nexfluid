@@ -207,8 +207,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { batchSize = 2 } = await req.json();
-    const SAFETY_MS = 90_000;
+    const { batchSize = 1 } = await req.json();
+    const SAFETY_MS = 55_000;
+    const FETCH_TIMEOUT_MS = 45_000;
     const fnStart = Date.now();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
