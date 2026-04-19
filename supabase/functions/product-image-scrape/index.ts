@@ -13,7 +13,6 @@ function extractImageUrls(html: string, baseUrl: string): string[] {
   while ((match = imgRegex.exec(html)) !== null) {
     let src = match[1];
     
-    // Skip tiny icons, tracking pixels, logos, svgs
     if (src.includes('data:') || src.includes('.svg') || src.includes('logo') ||
         src.includes('icon') || src.includes('favicon') || src.includes('pixel') ||
         src.includes('tracking') || src.includes('banner') || src.includes('flag') ||
@@ -21,13 +20,11 @@ function extractImageUrls(html: string, baseUrl: string): string[] {
         src.includes('avatar') || src.includes('placeholder') ||
         src.length < 10) continue;
     
-    // Check for size indicators suggesting product images (not thumbnails)
     const widthMatch = match[0].match(/width=["']?(\d+)/i);
     const heightMatch = match[0].match(/height=["']?(\d+)/i);
     if (widthMatch && parseInt(widthMatch[1]) < 50) continue;
     if (heightMatch && parseInt(heightMatch[1]) < 50) continue;
 
-    // Make absolute URL
     if (src.startsWith('//')) src = 'https:' + src;
     else if (src.startsWith('/')) {
       try { src = new URL(src, baseUrl).href; } catch { continue; }
@@ -35,14 +32,37 @@ function extractImageUrls(html: string, baseUrl: string): string[] {
       try { src = new URL(src, baseUrl).href; } catch { continue; }
     }
     
-    // Only keep image file types
     if (src.match(/\.(jpg|jpeg|png|webp|gif)/i)) {
       urls.push(src);
     }
   }
   
-  // Deduplicate
   return [...new Set(urls)];
+}
+
+// Prefer high-quality variants (large_default) over thumbnails (cart_default, small_default, home_default)
+function rankImageUrl(url: string): number {
+  if (/large_default/i.test(url)) return 0;
+  if (/medium_default|category_default/i.test(url)) return 1;
+  if (/home_default/i.test(url)) return 2;
+  if (/small_default|cart_default|thumbnail/i.test(url)) return 4;
+  return 3;
+}
+
+function extractMarkdownImages(markdown: string): string[] {
+  const urls: string[] = [];
+  const mdImgRegex = /!\[[^\]]*\]\((https?:\/\/[^\s)]+\.(?:jpg|jpeg|png|webp|gif)[^\s)]*)\)/gi;
+  let match;
+  while ((match = mdImgRegex.exec(markdown)) !== null) {
+    const src = match[1];
+    if (/logo|icon|favicon|pixel|tracking|banner|flag|social|badge|cart-icon|avatar|placeholder/i.test(src)) continue;
+    urls.push(src);
+  }
+  // Also pick up plain <img> tags inside markdown
+  for (const u of extractImageUrls(markdown, 'https://valves-direct.com/')) urls.push(u);
+  
+  // Deduplicate, then sort by quality preference
+  return [...new Set(urls)].sort((a, b) => rankImageUrl(a) - rankImageUrl(b));
 }
 
 async function downloadAndUpload(
@@ -61,7 +81,6 @@ async function downloadAndUpload(
     const contentType = response.headers.get('content-type') || 'image/jpeg';
     const buffer = await response.arrayBuffer();
     
-    // Skip very small images (likely icons)
     if (buffer.byteLength < 5000) return null;
     
     const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
@@ -96,14 +115,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { batchSize = 5 } = await req.json();
+    const { batchSize = 50, useFirecrawl = false } = await req.json().catch(() => ({}));
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Find products with source_url but no images
     const { data: products, error: fetchErr } = await supabase
       .from('products')
       .select('id, source_url, images, product_code')
@@ -133,27 +151,23 @@ Deno.serve(async (req) => {
       try {
         let imageUrls: string[] = [];
 
-        // First try: check if scrape_jobs has raw_data with image URLs already
         const { data: job } = await supabase
           .from('scrape_jobs')
           .select('raw_data')
           .eq('source_url', product.source_url)
           .eq('status', 'imported')
-          .single();
+          .maybeSingle();
 
         if (job?.raw_data?.markdown) {
-          // Extract image URLs from markdown
-          const mdImgRegex = /!\[.*?\]\((https?:\/\/[^\s)]+\.(jpg|jpeg|png|webp|gif))/gi;
-          let match;
-          while ((match = mdImgRegex.exec(job.raw_data.markdown)) !== null) {
-            imageUrls.push(match[1]);
-          }
+          imageUrls = extractMarkdownImages(job.raw_data.markdown);
+        }
+        if (imageUrls.length === 0 && job?.raw_data?.html) {
+          imageUrls = extractImageUrls(job.raw_data.html, product.source_url);
         }
 
-        // If no images found from existing data, scrape with Firecrawl
-        if (imageUrls.length === 0 && firecrawlKey) {
+        // Only call Firecrawl if explicitly enabled and key is present
+        if (imageUrls.length === 0 && useFirecrawl && firecrawlKey) {
           console.log(`Scraping images for ${product.product_code}: ${product.source_url}`);
-          
           const scrapeRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
             method: 'POST',
             headers: {
@@ -166,24 +180,19 @@ Deno.serve(async (req) => {
               onlyMainContent: true,
             }),
           });
-
           if (scrapeRes.ok) {
             const scrapeData = await scrapeRes.json();
             const html = scrapeData.data?.html || scrapeData.html || '';
             imageUrls = extractImageUrls(html, product.source_url);
           }
-          
-          // Rate limit courtesy
           await new Promise(r => setTimeout(r, 500));
         }
 
         if (imageUrls.length === 0) {
-          console.log(`No images found for ${product.product_code}`);
           failed++;
           continue;
         }
 
-        // Download and upload first 3 images max
         const uploadedUrls: string[] = [];
         for (let i = 0; i < Math.min(imageUrls.length, 3); i++) {
           const publicUrl = await downloadAndUpload(imageUrls[i], product.id, i, supabase);
@@ -196,7 +205,7 @@ Deno.serve(async (req) => {
             .update({ images: uploadedUrls, updated_at: new Date().toISOString() })
             .eq('id', product.id);
           
-          console.log(`✅ ${product.product_code}: ${uploadedUrls.length} images stored`);
+          console.log(`✅ ${product.product_code}: ${uploadedUrls.length} images`);
           processed++;
         } else {
           failed++;
