@@ -1,79 +1,109 @@
 
+## Audit Result
 
-## Goal
+I checked the current code against your screenshots, and the main issue is clear:
 
-Make every product's featured image actually render by mirroring the externally-hotlinked images into our own `product-images` bucket and rewriting the DB URLs to point at our storage. Also harden the listing-card component so a broken image cleanly falls back to the branded placeholder.
+1. The new main category listing page is now `src/pages/Categories.tsx`.
+2. That page is **not using** `BrandedProductImage` for product cards anymore.
+3. Instead it renders a plain `<img src={imgUrl}>`, so when imported product URLs fail, the browser shows a broken image icon exactly like in your screenshot.
+4. The fallback logic you specifically wanted already exists in `BrandedProductImage.tsx`:
+   - product image
+   - category image
+   - branded placeholder
+5. But that logic is currently only used in some older pages (`ProductListing.tsx`, `ProductDetail.tsx`, `BrandPage.tsx`) and is being bypassed on the page users are actually viewing.
 
-## Scope (data audit)
+So the real problem is not only the image import source; it is also that the latest listing UI stopped using the fallback component.
 
-| Group | Count | Action |
-|---|---:|---|
-| Products with `valves-direct.com` URLs (403 hotlink-blocked) | 35,276 | Mirror to bucket, rewrite URLs |
-| Products with `rs-online` URLs | 691 | Mirror to bucket, rewrite URLs |
-| Products with no usable image after mirror fails | residual | Set `images = []` so `BrandedProductImage` falls back to category image / branded placeholder |
-| Products already mirrored | 0 today | — |
+## Best Fix
 
-## Approach
+I will fix this in two layers so the catalog becomes reliable everywhere:
 
-### 1. Front-end safety net (immediate render fix, ships now)
+### 1. Immediate UI fix on all public product views
+Replace every raw product-card image rendering with the common fallback component so imported products never show broken icons again.
 
-Patch `src/components/shared/BrandedProductImage.tsx` so a 403/404/network failure on the `<img>` swaps in the placeholder instead of staying blank:
+Targets:
+- `src/pages/Categories.tsx`
+- `src/pages/BrandPage.tsx`
+- `src/pages/ProductDetail.tsx` related products
+- `src/pages/SearchResults.tsx` product results
+- any remaining direct product thumbnail renderers
 
-- Add `onError` handler that flips state to "broken" and re-renders `<ProductPlaceholder>`.
-- Add a hidden `<img>` preloader so the placeholder shows the moment the real one fails (no broken-icon flash).
+Implementation:
+- use `BrandedProductImage` everywhere for product cards
+- pass `categoryImageUrl` / `categoryName` consistently
+- if product image fails, it will automatically show category image or branded placeholder
+- ensure small-card layout still looks clean on desktop and mobile
 
-This alone gives every card a clean visual today, even before mirroring runs.
-
-### 2. Backend mirror pipeline (real fix)
-
-Refactor `supabase/functions/product-image-scrape/index.ts` into a true **mirror**:
-
-For each product in a batch:
-1. Read `products.images` (array of external URLs).
-2. For each URL:
-   - Fetch with a realistic browser `User-Agent` and `Referer: https://www.valves-direct.com/` headers (these defeat the Cloudflare hotlink challenge — verified via curl test pattern).
-   - Stream the bytes to `storage.product-images/<product_code>/<index>.<ext>` using the service-role client.
-   - Capture the public URL: `${SUPABASE_URL}/storage/v1/object/public/product-images/<product_code>/<i>.<ext>`.
-3. Update `products.images` to the new array of internal URLs.
-4. If every fetch fails → set `images = []` (lets the category-image / branded-placeholder fallback chain take over).
-
-Idempotent: skip a URL if the target storage path already exists.
-
-Add a new `mirror_status` column (`pending` / `done` / `failed`) to `products` so the worker is resumable across the 120s edge-function limit.
-
-### 3. Batch driver
-
-Add a one-shot admin route action that loops invocation of the mirror function until `pending` is drained:
+### 2. Strengthen the fallback chain exactly as you requested
+Right now `BrandedProductImage` falls back to `ProductPlaceholder` when the main image fails, even if a category image exists but the product image alone is broken. I will improve it so it behaves more intelligently:
 
 ```text
-total = 35,967
-batch = 50 products / invocation (~150 image fetches)
-runs  = ~720 invocations
-ETA   = ~25 minutes background
+product image works        -> show product image
+product image broken       -> try category image
+category image broken      -> show branded placeholder
+no product image at all    -> use category image first
+no category image either   -> show branded placeholder
 ```
 
-Progress shown in the existing admin dashboard.
+This matches your instruction: if product featured image is unavailable, use the end-category image as featured.
 
-### 4. Verification
+### 3. Make the category image fallback usable for all imported products
+I will standardize category fallback data flow so listing pages always have access to the nearest valid category image:
+- leaf category page: current category image or nearest parent image
+- brand/category listing: resolved current branch image
+- related products: inherit current product’s category chain image if product has none
 
-- SQL: `COUNT(*) FILTER (WHERE images::text LIKE '%valves-direct.com%')` → expect **0**.
-- Visual: open `/categories/series-551-552-hand-or-foot-valves` → all cards show real product photos (or branded placeholder if mirror failed).
-- Network tab: image requests now go to `xhejomioyecdfpvmohqh.supabase.co/storage/...` and return 200.
+That way every imported product can still look complete even without a unique photo.
 
-## Files / Operations
+### 4. Keep the mirror pipeline, but stop depending on it for visual stability
+The existing mirror pipeline and `mirror_status` are still useful, but it should not be the only thing preventing broken images.
 
-| Operation | Target |
+I will keep this principle:
+- mirrored image if available
+- otherwise category image
+- otherwise branded placeholder
+
+So even if mirroring is incomplete or a source URL fails, the site still looks professional.
+
+### 5. Optional unique-tweaked image approach within current system
+You asked whether category images can be used or tweaked uniquely without wasting cost. The safest and fastest professional solution here is:
+
+- use category image as fallback featured image for all products missing a valid image
+- keep the branding/watermark overlay already built into the shared component
+- avoid generating or cloning new per-product images right now
+- this gives a unique branded presentation without extra API/image-generation cost
+
+That is the best choice for this project at this stage.
+
+## Files to Update
+
+| File | Change |
 |---|---|
-| Edit | `src/components/shared/BrandedProductImage.tsx` (onError → placeholder fallback) |
-| Rewrite | `supabase/functions/product-image-scrape/index.ts` (true mirror with browser headers) |
-| Migration | Add `products.mirror_status text default 'pending'` + index |
-| New admin action | "Mirror product images" button + progress polling |
-| Verify | SQL count of remaining external URLs |
+| `src/pages/Categories.tsx` | Replace raw `<img>` product thumbnail with `BrandedProductImage`; pass category fallback props |
+| `src/components/shared/BrandedProductImage.tsx` | Improve fallback sequence so broken product image can still fall through to category image before placeholder |
+| `src/pages/BrandPage.tsx` | Normalize `src` handling and fallback props |
+| `src/pages/ProductDetail.tsx` | Ensure related products and main image use same robust fallback behavior |
+| `src/pages/SearchResults.tsx` | Add consistent product thumbnail rendering instead of generic icon-only result cards |
 
-## Result
+## Expected Result
 
-- All 42,995 products show either their real photo (mirrored, 200 OK from our storage) or the branded category placeholder — no more broken thumbnails.
-- Independent of valves-direct.com / rs-online uptime and hotlink rules.
-- Faster page loads (Supabase CDN vs scraping origin).
-- One-time ~25-minute background job; new imports automatically mirror on insert going forward.
+After this fix:
+- no broken image icons on listing pages
+- imported products always show one of:
+  - their own image
+  - their end-category image
+  - branded placeholder
+- category pages look consistent and complete
+- mobile and desktop listings both stay professional
+- image mirroring can continue in the background, but the frontend will already be visually correct
 
+## Technical Notes
+
+The key regression is in `src/pages/Categories.tsx` lines around the current product card image block, where the page uses:
+```tsx
+{imgUrl ? <img src={imgUrl} ... /> : <Package ... />}
+```
+
+That must be replaced with the shared fallback component so the category-image inheritance system is actually used.
+
+I will implement this without changing the catalog structure or product assignments.
