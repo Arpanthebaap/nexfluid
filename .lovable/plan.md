@@ -1,95 +1,79 @@
 
 
-## Audit Findings
+## Goal
 
-Looking at the two screenshots and the code (`ProductListing.tsx`, `CategoryFilters.tsx`):
+Make every product's featured image actually render by mirroring the externally-hotlinked images into our own `product-images` bucket and rewriting the DB URLs to point at our storage. Also harden the listing-card component so a broken image cleanly falls back to the branded placeholder.
 
-**Mobile overlap** (Screenshot 2):
-- H1 "SERIES 551/552 HAND OR FOOT VALVES" wraps one word per line because the sort `<Select>` next to it consumes width on the same flex row (`justify-between`).
-- Breadcrumb overflows horizontally (forces a scrollbar) — last crumb is clipped.
-- WhatsApp FAB sits on top of the first product card.
-- The product card collapses to vertical but image + name + qty controls stack awkwardly.
+## Scope (data audit)
 
-**Filters** (both screenshots):
-- `CategoryFilters` component exists but **is never imported or rendered** in `ProductListing.tsx`. So the filters seen in the screenshots are coming from somewhere else / are not wired.
-- Filters are auto-generated per-category (when wired), so each category has totally different filter labels — inconsistent UX across the catalog.
-- Selected filter values do **not** filter the product query — even when checked, results don't change.
-- No mobile entry point (no "Filters" button / drawer on mobile).
+| Group | Count | Action |
+|---|---:|---|
+| Products with `valves-direct.com` URLs (403 hotlink-blocked) | 35,276 | Mirror to bucket, rewrite URLs |
+| Products with `rs-online` URLs | 691 | Mirror to bucket, rewrite URLs |
+| Products with no usable image after mirror fails | residual | Set `images = []` so `BrandedProductImage` falls back to category image / branded placeholder |
+| Products already mirrored | 0 today | — |
 
-**Sort / Relevance**:
-- `Select` only has Relevance / Name / Code; "Relevance" silently maps to `created_at desc` (misleading).
-- Doesn't include the sorts a B2B catalog actually needs (code A→Z, brand, recently added).
+## Approach
 
-## Plan
+### 1. Front-end safety net (immediate render fix, ships now)
 
-### 1. Mobile layout fix (`ProductListing.tsx`)
-- Stack header vertically on mobile: H1 full width on its own row, sort `Select` on a second row right-aligned. Use `flex-col sm:flex-row sm:items-center sm:justify-between gap-3`.
-- Cap H1 with `text-xl sm:text-2xl break-words` so it wraps naturally.
-- Wrap breadcrumb in `overflow-x-auto` with `whitespace-nowrap` so it scrolls cleanly without pushing layout.
-- Add bottom padding `pb-24` to the listing container so content clears the WhatsApp FAB.
-- Re-tune product card: image on top (full-width thumbnail) on mobile, qty + quote button as a single full-width row beneath the title.
+Patch `src/components/shared/BrandedProductImage.tsx` so a 403/404/network failure on the `<img>` swaps in the placeholder instead of staying blank:
 
-### 2. Global, professional filter system
+- Add `onError` handler that flips state to "broken" and re-renders `<ProductPlaceholder>`.
+- Add a hidden `<img>` preloader so the placeholder shows the moment the real one fails (no broken-icon flash).
 
-Define **one curated, ordered filter schema** used on every leaf-category page (replace the per-category dynamic generation). Based on attribute coverage in the DB, the universal set is:
+This alone gives every card a clean visual today, even before mirroring runs.
 
-| # | Filter | Type | Source attribute(s) |
-|---|--------|------|---------------------|
-| 1 | Brand | checkbox | `products.brand` |
-| 2 | Series | checkbox (search-in-list when >15) | `Series` |
-| 3 | Body Material | checkbox | `Body Material`, `Material` |
-| 4 | Port Size / Connection | checkbox | `Port Size`, `Port Connection`, `Pneumatic port` |
-| 5 | Voltage | checkbox | `Voltage` |
-| 6 | Working Pressure (bar) | range slider min–max | `Working Pressure Min/Max` |
-| 7 | Operating Temperature (°C) | range slider | `Ambient Temperature Min/Max` |
-| 8 | Function / Acting Principle | checkbox | `Function`, `Acting principle` |
-| 9 | Actuation Type | checkbox | `Actuation Type` |
-| 10 | Orifice Size | checkbox | `Orifice Size` |
+### 2. Backend mirror pipeline (real fix)
 
-Filters auto-hide on a given page if the current category has zero products that carry that attribute (so a "Coils" page won't show "Stroke", but the **set of possible filters and their order** is the same site-wide — exactly how RS / Parker / valves-direct present them).
+Refactor `supabase/functions/product-image-scrape/index.ts` into a true **mirror**:
 
-**Wiring** (the missing piece):
-- Refactor `CategoryFilters` to use this fixed schema and emit `{ brand: [...], 'Working Pressure': {min, max}, ... }`.
-- Render it in `ProductListing.tsx` as a left rail on `lg+` and as a bottom-sheet drawer (Shadcn `Sheet`) triggered by a mobile "Filters (n)" button on `<lg`.
-- Make the product query actually consume the filters: `brand` via `.in('brand', […])`; attribute filters via a join through `product_attributes` (single RPC `filter_products(category_id, filters jsonb, sort, page)` keeps it fast and avoids the 1000-row limit).
-- Show active filter chips above the product list with individual X to remove + a "Clear all" link.
-- URL-sync filters via `useSearchParams` so links are shareable and back-button works.
+For each product in a batch:
+1. Read `products.images` (array of external URLs).
+2. For each URL:
+   - Fetch with a realistic browser `User-Agent` and `Referer: https://www.valves-direct.com/` headers (these defeat the Cloudflare hotlink challenge — verified via curl test pattern).
+   - Stream the bytes to `storage.product-images/<product_code>/<index>.<ext>` using the service-role client.
+   - Capture the public URL: `${SUPABASE_URL}/storage/v1/object/public/product-images/<product_code>/<i>.<ext>`.
+3. Update `products.images` to the new array of internal URLs.
+4. If every fetch fails → set `images = []` (lets the category-image / branded-placeholder fallback chain take over).
 
-### 3. Sort dropdown — proper B2B set
+Idempotent: skip a URL if the target storage path already exists.
 
-Replace the 3-option select with these 6, all functional and mapped server-side:
+Add a new `mirror_status` column (`pending` / `done` / `failed`) to `products` so the worker is resumable across the 120s edge-function limit.
+
+### 3. Batch driver
+
+Add a one-shot admin route action that loops invocation of the mirror function until `pending` is drained:
 
 ```text
-Relevance         → trigram match on category name + boost in-stock products (default)
-Code A → Z        → product_code asc
-Code Z → A        → product_code desc
-Name A → Z        → name_{lang} asc
-Brand A → Z       → brand asc, then product_code asc
-Recently added    → created_at desc
+total = 35,967
+batch = 50 products / invocation (~150 image fetches)
+runs  = ~720 invocations
+ETA   = ~25 minutes background
 ```
 
-The current "Relevance" silently meant "newest" — fix that mismatch.
+Progress shown in the existing admin dashboard.
 
-### 4. Polish to match a professional catalog
-- Per-page size selector (10 / 25 / 50) next to sort.
-- "X of Y products" counter on the left, pagination centered, page size on the right.
-- Sticky filter rail on desktop (`lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto`).
-- Empty-state message updates when filters return 0 results, with a "Clear filters" CTA.
+### 4. Verification
 
-## Files to Change
+- SQL: `COUNT(*) FILTER (WHERE images::text LIKE '%valves-direct.com%')` → expect **0**.
+- Visual: open `/categories/series-551-552-hand-or-foot-valves` → all cards show real product photos (or branded placeholder if mirror failed).
+- Network tab: image requests now go to `xhejomioyecdfpvmohqh.supabase.co/storage/...` and return 200.
 
-| File | Change |
+## Files / Operations
+
+| Operation | Target |
 |---|---|
-| `src/components/shared/CategoryFilters.tsx` | Rewrite to use fixed schema, range sliders, mobile drawer support, search-in-list for long lists |
-| `src/pages/ProductListing.tsx` | Mobile layout fix, mount `CategoryFilters`, wire filter state, URL sync, full sort set, page-size selector, FAB clearance |
-| `src/pages/SearchResults.tsx` | Same mobile header polish (header overflow there too) |
-| New RPC migration | `filter_products(category_id uuid, filters jsonb, sort text, page int, page_size int)` returning paginated rows + total count, joining `product_attributes` |
-| `src/components/ui/sheet.tsx` | Already exists — used for mobile filter drawer |
+| Edit | `src/components/shared/BrandedProductImage.tsx` (onError → placeholder fallback) |
+| Rewrite | `supabase/functions/product-image-scrape/index.ts` (true mirror with browser headers) |
+| Migration | Add `products.mirror_status text default 'pending'` + index |
+| New admin action | "Mirror product images" button + progress polling |
+| Verify | SQL count of remaining external URLs |
 
 ## Result
 
-- Mobile view: clean stacked header, no overlap, scrollable breadcrumb, FAB no longer covers cards.
-- Same 10-filter vocabulary appears on every category page (only auto-hidden when irrelevant) — consistent across the whole catalog like a real industrial distributor.
-- Filters and sort actually change the product list, are URL-shareable, and have a proper mobile drawer.
-- Sort offers the 6 options a B2B buyer expects, all working.
+- All 42,995 products show either their real photo (mirrored, 200 OK from our storage) or the branded category placeholder — no more broken thumbnails.
+- Independent of valves-direct.com / rs-online uptime and hotlink rules.
+- Faster page loads (Supabase CDN vs scraping origin).
+- One-time ~25-minute background job; new imports automatically mirror on insert going forward.
 
