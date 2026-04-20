@@ -167,6 +167,7 @@ export type Database = {
           meta_description_it: string | null
           meta_title_en: string | null
           meta_title_it: string | null
+          mirror_status: string
           name_en: string
           name_it: string
           product_code: string
@@ -192,6 +193,7 @@ export type Database = {
           meta_description_it?: string | null
           meta_title_en?: string | null
           meta_title_it?: string | null
+          mirror_status?: string
           name_en: string
           name_it: string
           product_code: string
@@ -217,6 +219,7 @@ export type Database = {
           meta_description_it?: string | null
           meta_title_en?: string | null
           meta_title_it?: string | null
+          mirror_status?: string
           name_en?: string
           name_it?: string
           product_code?: string
