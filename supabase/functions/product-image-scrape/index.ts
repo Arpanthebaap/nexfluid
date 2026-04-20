@@ -121,7 +121,12 @@ Deno.serve(async (req) => {
     for (const p of products) {
       const original = Array.isArray(p.images) ? (p.images as string[]) : [];
       const externalUrls = original.filter(
-        (u) => typeof u === 'string' && /^https?:\/\//i.test(u) && !u.includes('xhejomioyecdfpvmohqh.supabase.co')
+        (u) =>
+          typeof u === 'string' &&
+          /^https?:\/\//i.test(u) &&
+          !u.includes('xhejomioyecdfpvmohqh.supabase.co') &&
+          // Skip RS-Online brand banner logos (e.g. /brand/M2150-01.jpg) — never product images
+          !/media\.rs-online\.com\/brand\//i.test(u)
       );
 
       // No external URLs to mirror — mark done
