@@ -74,6 +74,18 @@ const Categories = () => {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // Resolved nearest-ancestor image for the current category (used as product image fallback)
+  const resolvedCategoryImage = useMemo(() => {
+    for (let i = breadcrumbs.length - 1; i >= 0; i--) {
+      if (breadcrumbs[i].image_url) return breadcrumbs[i].image_url!;
+    }
+    return currentCategory?.image_url || null;
+  }, [breadcrumbs, currentCategory]);
+
+  const currentCategoryName = currentCategory
+    ? (lang === 'it' ? currentCategory.name_it : currentCategory.name_en)
+    : undefined;
+
   // URL-synced state
   const page = Math.max(0, parseInt(searchParams.get('page') || '0', 10));
   const sortBy = searchParams.get('sort') || 'relevance';
