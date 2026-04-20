@@ -414,11 +414,16 @@ const Categories = () => {
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                             <Link to={`/products/${product.slug}`} className="shrink-0 self-center sm:self-auto">
-                              <div className="h-[120px] w-[120px] rounded border bg-muted/50 flex items-center justify-center overflow-hidden">
-                                {imgUrl
-                                  ? <img src={imgUrl} alt={`${product.product_code} ${lang === 'it' ? product.name_it : product.name_en}`} className="h-full w-full object-contain p-2" loading="lazy" />
-                                  : <Package className="h-10 w-10 text-muted-foreground/30" />}
-                              </div>
+                              <BrandedProductImage
+                                src={imgUrl}
+                                alt={`${product.product_code} ${lang === 'it' ? product.name_it : product.name_en}`}
+                                productCode={product.product_code}
+                                brand={product.brand}
+                                categoryName={currentCategoryName}
+                                categoryImageUrl={resolvedCategoryImage}
+                                size="sm"
+                                className="!h-[120px] !w-[120px]"
+                              />
                             </Link>
 
                             <div className="flex-1 min-w-0">
