@@ -403,6 +403,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      filter_products: {
+        Args: {
+          _category_id: string
+          _filters?: Json
+          _lang?: string
+          _page?: number
+          _page_size?: number
+          _sort?: string
+        }
+        Returns: {
+          brand: string
+          description_en: string
+          description_it: string
+          id: string
+          images: Json
+          name_en: string
+          name_it: string
+          product_code: string
+          slug: string
+          total_count: number
+        }[]
+      }
       get_brand_category_counts: {
         Args: { _brand: string }
         Returns: {
