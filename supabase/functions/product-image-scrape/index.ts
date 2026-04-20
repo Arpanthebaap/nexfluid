@@ -5,129 +5,95 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-function extractImageUrls(html: string, baseUrl: string): string[] {
-  const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-  const urls: string[] = [];
-  let match;
-  
-  while ((match = imgRegex.exec(html)) !== null) {
-    let src = match[1];
-    
-    if (src.includes('data:') || src.includes('.svg') || src.includes('logo') ||
-        src.includes('icon') || src.includes('favicon') || src.includes('pixel') ||
-        src.includes('tracking') || src.includes('banner') || src.includes('flag') ||
-        src.includes('social') || src.includes('badge') || src.includes('cart') ||
-        src.includes('avatar') || src.includes('placeholder') ||
-        src.length < 10) continue;
-    
-    const widthMatch = match[0].match(/width=["']?(\d+)/i);
-    const heightMatch = match[0].match(/height=["']?(\d+)/i);
-    if (widthMatch && parseInt(widthMatch[1]) < 50) continue;
-    if (heightMatch && parseInt(heightMatch[1]) < 50) continue;
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    if (src.startsWith('//')) src = 'https:' + src;
-    else if (src.startsWith('/')) {
-      try { src = new URL(src, baseUrl).href; } catch { continue; }
-    } else if (!src.startsWith('http')) {
-      try { src = new URL(src, baseUrl).href; } catch { continue; }
-    }
-    
-    if (src.match(/\.(jpg|jpeg|png|webp|gif)/i)) {
-      urls.push(src);
-    }
+const BROWSER_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9,it;q=0.8',
+};
+
+function refererFor(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.protocol}//${u.host}/`;
+  } catch {
+    return 'https://www.valves-direct.com/';
   }
-  
-  return [...new Set(urls)];
 }
 
-// Prefer high-quality variants (large_default) over thumbnails (cart_default, small_default, home_default)
-function rankImageUrl(url: string): number {
-  if (/large_default/i.test(url)) return 0;
-  if (/medium_default|category_default/i.test(url)) return 1;
-  if (/home_default/i.test(url)) return 2;
-  if (/small_default|cart_default|thumbnail/i.test(url)) return 4;
-  return 3;
+function pickExt(contentType: string, url: string): string {
+  if (contentType.includes('png')) return 'png';
+  if (contentType.includes('webp')) return 'webp';
+  if (contentType.includes('gif')) return 'gif';
+  if (contentType.includes('svg')) return 'svg';
+  if (/\.png(\?|$)/i.test(url)) return 'png';
+  if (/\.webp(\?|$)/i.test(url)) return 'webp';
+  if (/\.gif(\?|$)/i.test(url)) return 'gif';
+  return 'jpg';
 }
 
-function extractMarkdownImages(markdown: string): string[] {
-  const urls: string[] = [];
-  const mdImgRegex = /!\[[^\]]*\]\((https?:\/\/[^\s)]+\.(?:jpg|jpeg|png|webp|gif)[^\s)]*)\)/gi;
-  let match;
-  while ((match = mdImgRegex.exec(markdown)) !== null) {
-    const src = match[1];
-    if (/logo|icon|favicon|pixel|tracking|banner|flag|social|badge|cart-icon|avatar|placeholder/i.test(src)) continue;
-    urls.push(src);
-  }
-  // Also pick up plain <img> tags inside markdown
-  for (const u of extractImageUrls(markdown, 'https://valves-direct.com/')) urls.push(u);
-  
-  // Deduplicate, then sort by quality preference
-  return [...new Set(urls)].sort((a, b) => rankImageUrl(a) - rankImageUrl(b));
+function safeKey(s: string): string {
+  return (s || 'unknown').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
 }
 
-async function downloadAndUpload(
+async function mirrorOne(
   imageUrl: string,
-  productId: string,
+  productCode: string,
   index: number,
   supabase: any
 ): Promise<string | null> {
   try {
-    const response = await fetch(imageUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
+    const res = await fetch(imageUrl, {
+      headers: { ...BROWSER_HEADERS, 'Referer': refererFor(imageUrl) },
+      redirect: 'follow',
     });
-    
-    if (!response.ok) return null;
-    
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    const buffer = await response.arrayBuffer();
-    
-    if (buffer.byteLength < 5000) return null;
-    
-    const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
-    const filePath = `${productId}/${index}.${ext}`;
-    
-    const { error } = await supabase.storage
-      .from('product-images')
-      .upload(filePath, buffer, {
-        contentType,
-        upsert: true,
-      });
-    
-    if (error) {
-      console.error(`Upload error for ${filePath}:`, error.message);
+    if (!res.ok) {
+      console.log(`fetch ${res.status} for ${imageUrl}`);
       return null;
     }
-    
+    const contentType = res.headers.get('content-type') || 'image/jpeg';
+    if (!contentType.startsWith('image/')) return null;
+
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.byteLength < 2000) return null; // skip pixel/spinner
+
+    const ext = pickExt(contentType, imageUrl);
+    const filePath = `${safeKey(productCode)}/${index}.${ext}`;
+
+    const { error: upErr } = await supabase.storage
+      .from('product-images')
+      .upload(filePath, buf, { contentType, upsert: true });
+
+    if (upErr) {
+      console.error(`upload err ${filePath}: ${upErr.message}`);
+      return null;
+    }
+
     const { data: urlData } = supabase.storage
       .from('product-images')
       .getPublicUrl(filePath);
-    
     return urlData?.publicUrl || null;
-  } catch (err) {
-    console.error(`Download error for ${imageUrl}:`, err);
+  } catch (e) {
+    console.error(`mirrorOne error: ${e}`);
     return null;
   }
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    const { batchSize = 50, useFirecrawl = false } = await req.json().catch(() => ({}));
+    const { batchSize = 25 } = await req.json().catch(() => ({}));
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
+    // Pull pending products that have at least one external image
     const { data: products, error: fetchErr } = await supabase
       .from('products')
-      .select('id, source_url, images, product_code')
-      .not('source_url', 'is', null)
+      .select('id, product_code, images')
+      .eq('mirror_status', 'pending')
       .eq('is_active', true)
-      .or('images.is.null,images.eq.[]')
       .limit(batchSize);
 
     if (fetchErr) {
@@ -138,92 +104,86 @@ Deno.serve(async (req) => {
     }
 
     if (!products?.length) {
+      // Report remaining count so the driver knows when to stop
+      const { count } = await supabase
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .eq('mirror_status', 'pending');
       return new Response(
-        JSON.stringify({ success: true, processed: 0, message: 'No products need images' }),
+        JSON.stringify({ success: true, processed: 0, mirrored: 0, failed: 0, remaining: count ?? 0, done: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    let processed = 0;
+    let mirrored = 0;
     let failed = 0;
 
-    for (const product of products) {
-      try {
-        let imageUrls: string[] = [];
+    for (const p of products) {
+      const original = Array.isArray(p.images) ? (p.images as string[]) : [];
+      const externalUrls = original.filter(
+        (u) => typeof u === 'string' && /^https?:\/\//i.test(u) && !u.includes('xhejomioyecdfpvmohqh.supabase.co')
+      );
 
-        const { data: job } = await supabase
-          .from('scrape_jobs')
-          .select('raw_data')
-          .eq('source_url', product.source_url)
-          .eq('status', 'imported')
-          .maybeSingle();
+      // No external URLs to mirror — mark done
+      if (externalUrls.length === 0) {
+        await supabase
+          .from('products')
+          .update({ mirror_status: 'done', updated_at: new Date().toISOString() })
+          .eq('id', p.id);
+        continue;
+      }
 
-        if (job?.raw_data?.markdown) {
-          imageUrls = extractMarkdownImages(job.raw_data.markdown);
-        }
-        if (imageUrls.length === 0 && job?.raw_data?.html) {
-          imageUrls = extractImageUrls(job.raw_data.html, product.source_url);
-        }
+      const newUrls: string[] = [];
+      // Cap at 3 images per product
+      for (let i = 0; i < Math.min(externalUrls.length, 3); i++) {
+        const publicUrl = await mirrorOne(externalUrls[i], p.product_code, i, supabase);
+        if (publicUrl) newUrls.push(publicUrl);
+      }
 
-        // Only call Firecrawl if explicitly enabled and key is present
-        if (imageUrls.length === 0 && useFirecrawl && firecrawlKey) {
-          console.log(`Scraping images for ${product.product_code}: ${product.source_url}`);
-          const scrapeRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${firecrawlKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              url: product.source_url,
-              formats: ['html'],
-              onlyMainContent: true,
-            }),
-          });
-          if (scrapeRes.ok) {
-            const scrapeData = await scrapeRes.json();
-            const html = scrapeData.data?.html || scrapeData.html || '';
-            imageUrls = extractImageUrls(html, product.source_url);
-          }
-          await new Promise(r => setTimeout(r, 500));
-        }
-
-        if (imageUrls.length === 0) {
-          failed++;
-          continue;
-        }
-
-        const uploadedUrls: string[] = [];
-        for (let i = 0; i < Math.min(imageUrls.length, 3); i++) {
-          const publicUrl = await downloadAndUpload(imageUrls[i], product.id, i, supabase);
-          if (publicUrl) uploadedUrls.push(publicUrl);
-        }
-
-        if (uploadedUrls.length > 0) {
-          await supabase
-            .from('products')
-            .update({ images: uploadedUrls, updated_at: new Date().toISOString() })
-            .eq('id', product.id);
-          
-          console.log(`✅ ${product.product_code}: ${uploadedUrls.length} images`);
-          processed++;
-        } else {
-          failed++;
-        }
-      } catch (err) {
-        console.error(`Error processing ${product.product_code}:`, err);
+      if (newUrls.length > 0) {
+        await supabase
+          .from('products')
+          .update({
+            images: newUrls,
+            mirror_status: 'done',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', p.id);
+        mirrored++;
+      } else {
+        // Mirror failed entirely → wipe images so frontend falls back to placeholder
+        await supabase
+          .from('products')
+          .update({
+            images: [],
+            mirror_status: 'failed',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', p.id);
         failed++;
       }
     }
 
+    const { count: remaining } = await supabase
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('mirror_status', 'pending');
+
     return new Response(
-      JSON.stringify({ success: true, processed, failed, total: products.length }),
+      JSON.stringify({
+        success: true,
+        processed: products.length,
+        mirrored,
+        failed,
+        remaining: remaining ?? 0,
+        done: (remaining ?? 0) === 0,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Image scrape error:', error);
+    console.error('Image mirror error:', error);
     return new Response(
-      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unknown' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
