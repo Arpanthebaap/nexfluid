@@ -1,116 +1,57 @@
 
 
-## Problem
+## Audit Result (concise)
 
-The 166 re-parented categories (and ~152 other older orphans — 318 total leaf-L2s) currently sit at **depth 2** directly under L1 sub-categories. The correct catalog depth for end-categories is **depth 3**, sibling to existing series-level leaves like `Series 307 Push Button Valves` which lives under `Valves > Manually Operated Valves > Manually Operated > Series 307…`.
+After analyzing the 620-category tree end-to-end, **only 60 misplaced end-categories remain**, all under two L1 branches in `valves`:
 
-Example of the mismatch under `Manually Operated Valves`:
+| L1 branch | Misplaced series-leaves at depth 2 | Existing depth-3 grouping siblings (where they belong) |
+|---|---:|---|
+| `valves > solenoid-valves` | 35 | `general-purpose-solenoid-valves`, `miniature-solenoid-valves`, `fuel-gas-valves`, `pilot-valves`, `dust-collector-valves`, `explosion-proof-valves-atex`, `cryogenic-service-valves`, `hot-water-steam-valves`, `general-service-valves`, `coils`, `solenoid-valves-accessories` |
+| `valves > valve-systems` | 25 | `directional-control-valves` (47 children already), `modular-valve-systems`, `standardized-valves`, `safety-valves`, `fieldbus`, `electrical-connection-technologies` |
 
+**Zero new categories will be created.** Every misplaced leaf maps cleanly into an existing curated grouping that already holds dozens of similar `series-*` end-categories. The 620-category structure is preserved exactly as-is.
+
+## Mapping (deterministic, name-based)
+
+### Under `solenoid-valves` → existing grouping
 ```text
-GOOD (depth 3 — where series-level end-categories belong)
-  valves > manually-operated-valves > manually-operated > series-307-push-button-valves-22mm-panel-mount
-  valves > manually-operated-valves > manually-operated > series-310-push-button-valves
-  valves > manually-operated-valves > mechanically-operated > series-309-roller-pilot-valves-4mm
-
-BAD (depth 2 — orphan leaves that need to be moved one level deeper)
-  valves > manually-operated-valves > series-408-manual-reset-valves          ← move under "manually-operated"
-  valves > manually-operated-valves > series-vl-vt-manually-operated-lockout-valves
-  valves > manually-operated-valves > series-551-552-lever-valves
-  valves > manually-operated-valves > valvole-a-controllo-manuale-per-pneumatica
+series-551-552-553-…             → general-purpose-solenoid-valves   (matches Series 551/553 ATEX sibling pattern, but pure-GP series)
+series-l###-…general-purpose…    → general-purpose-solenoid-valves   (L127/L131/L133/L139/L140/L145/L182/L208/L256/L282 etc.)
+series-342-general-service-…     → general-service-valves
+series-221-slow-closing-water    → hot-water-steam-valves
+series-260-plastic-body          → general-purpose-solenoid-valves
+series-264-poppet / 344-piston-poppet / 345 / 340 / 327 / 296-bellows → general-purpose-solenoid-valves
+series-266-direct-operated-lever / 320-3-way / 381 / 383 / 384       → general-purpose-solenoid-valves
+series-287-coaxial-high-pressure → general-purpose-solenoid-valves
+series-l01 / l1 / i12-i23 / jspa → pilot-valves
+series-c12-c23-c34-spool         → general-purpose-solenoid-valves
+series-v366 / v367 micro          → miniature-solenoid-valves
 ```
 
-## Scope
-
-| L1 parent | Orphan leaf-L2s to re-home |
-|---|---:|
-| pneumatic-cylinders-actuators | 50 |
-| solenoid-valves | 46 |
-| proportional-valves | 43 |
-| pneumatic-air-preparation | 33 |
-| vacuum-components | 27 |
-| valve-systems | 25 |
-| pinch-valves | 18 |
-| hydraulic-fittings-tubing | 13 |
-| pneumatic-valves (under valves) | 13 |
-| hydraulic-valves-manifolds-1 | 10 |
-| pneumatic-valves-1 (under pneumatic) | 10 |
-| sensors-switches | 7 |
-| manually-operated-valves | 6 |
-| pneumatic-connectors-fittings-hose | 5 |
-| hydraulic-fluids-filtration | 4 |
-| hydraulic-instrumentation-switches | 4 |
-| hydraulic-cylinders-pumps-power-units | 2 |
-| pneumatic-hydraulic-pressure-gauges | 1 |
-| pneumatic-counters-logic-controllers-timers | 1 |
-| **Total** | **318** |
-
-Products attached to these 318 categories keep their `category_id` — only the category's `parent_id` moves.
-
-## Approach
-
-For each orphan leaf-L2, pick the best **grouping-L2 sibling** (same L1, has children) by keyword scoring on slug + `name_en`, then re-parent.
-
-### Classification rules (per L1)
-
+### Under `valve-systems` → existing grouping
 ```text
-manually-operated-valves:
-  hand|foot|lever|pulsante|push-button|panel|spool|reset|lockout|hand or foot|valvole-…manuale  → manually-operated
-  roller|cam|stem|mechan                                                                          → mechanically-operated
-
-solenoid-valves:
-  coil                                            → coils
-  cryogen|lt-                                     → cryogenic-service-valves
-  dust|pulse|tank|c20|353|355|357|110            → dust-collector-valves
-  atex|explosion|flameproof|126|195|215|262-263  → explosion-proof-valves-atex
-  general/process/direct/pilot/diaphragm/poppet  → general-purpose-solenoid-valves
-  (else)                                         → general-purpose-solenoid-valves (default)
-
-pneumatic-cylinders-actuators:
-  iso-15552|iso-6432|tie-rod|167|trb|its|ccl     → tie-rod-cylinders / iso-cylinders (best match)
-  diaphragm|piston-actuator|rdc                  → diaphragm-piston-actuators
-  rotary|rack-pinion|swivel                      → rotary-actuators
-  compact|short-stroke                           → compact-cylinders
-  guide|guided                                   → guided-cylinders
-  (else)                                         → pneumatic-cylinder-accessories
-
-pneumatic-air-preparation:
-  filter-regulator-lub|frl                       → filter-regulator-lubricators
-  filter-regulator                               → filter-regulators
-  filter (alone)                                 → pneumatic-filters
-  regulator                                      → pneumatic-regulators
-  lubricator                                     → pneumatic-lubricators
-  dryer                                          → pneumatic-air-dryers
-  element|cartridge                              → pneumatic-replacement-filter-elements
-  (else)                                         → air-preparation-accessories
-
-(similar deterministic keyword rules for the other 14 L1s, using their existing grouping-L2 children as targets)
+series-5##-spool-valves / 540-… / 541-542-543-iso / 538 / 539 / 562 / 519 / 520 / 521 / 518-micro → directional-control-valves
+series-067-rocker / 068-flapper / 055-isolation / 226-fluidic / 140      → directional-control-valves
+series-343-lockout / 651-652-653-lockout / 881-supply-rail               → directional-control-valves
+series-490-579-589 / msv8                                                → directional-control-valves
+series-cd02-al-iso-15407-1 / cl18 / cl26 / e12-e23-e34-iso              → standardized-valves
+series-rb-miniature                                                      → modular-valve-systems
+fine-setting-valves / flow-valves-block-valves                          → modular-valve-systems
 ```
 
-For any L1 that has **no** existing grouping-L2 (very rare — found only on small branches like `pinch-valves`), create a single curated grouping L2 (e.g. `pinch-valve-series`, `proportional-valve-series`) and dump its orphans under it. This keeps depth = 3 everywhere.
+## Execution
 
-### Execution steps
-
-1. **Snapshot** — read all 318 orphan leaves + existing grouping-L2 IDs per L1 (one read query).
-2. **Classify** in a Node script using the keyword tables above; produce `(leaf_id → new_l2_parent_id)` mapping.
-3. **Sanity preview** — print first ~5 mappings per L1 + count of unmatched defaults.
-4. **Bulk re-parent** — grouped `UPDATE categories SET parent_id = $new WHERE id IN (…)` per target.
-5. **Image refresh** — recursive ancestor-image SQL so the moved leaves inherit the new closest L2 image.
-6. **Verify** — `SELECT COUNT(*) FROM tree WHERE depth = 2 AND no children` should drop from 318 → 0; depth-3 count rises by 318.
+1. Build the 60-row mapping `(leaf_id → existing_grouping_id)` from the names above (no fuzzy AI — pure rule table).
+2. Sanity preview: print all 60 mappings grouped by target.
+3. Single transactional `UPDATE categories SET parent_id = $grouping_id WHERE id IN (…)` per target grouping (≤14 statements).
+4. Recursive image refresh so the 60 moved leaves inherit the closest ancestor `image_url`.
+5. Verification query: `WHERE depth=2 AND no_children` → expect **0** (currently 60); products on those leaves stay attached.
 
 ## Result
 
-- All series-level end-categories live at the correct depth (3 levels under root, matching `Series 307…` example).
-- Breadcrumbs become consistent 4-level: `Home > Valves > Manually Operated Valves > Manually Operated > Series 408 Manual Reset Valves`.
-- Zero product downtime — `category_id` references untouched.
-- Sidebar navigation under each L1 cleans up: only true grouping L2s show as expandable, no flat clutter.
-- 11,915+ products keep working URLs.
-
-## Files / Operations
-
-| Operation | Target |
-|-----------|--------|
-| Read | `categories` (snapshot orphan leaves + grouping L2s) |
-| Update | `categories.parent_id` for 318 rows (data op via insert/update) |
-| Update | `categories.image_url` recursive refresh for moved subtree |
-| Verify | depth-distribution query confirming 0 leaf-L2s remain |
+- All 60 series-level end-categories sit at depth 3 alongside their existing siblings (e.g. `valves > solenoid-valves > general-purpose-solenoid-valves > series-l140-…`).
+- Breadcrumbs become consistent: `Home > Valves > Solenoid Valves > General Purpose Solenoid Valves > Series L140 General Purpose Solenoid Valves`.
+- The 620-category curated structure is **untouched** — no new groupings, no renames, no merges.
+- The ~3,800 products on the 60 leaves keep their `category_id` — zero product downtime.
+- Sidebar under `solenoid-valves` and `valve-systems` cleans up: only the 10–14 real grouping L2s show, no flat clutter.
 
