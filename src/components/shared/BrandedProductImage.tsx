@@ -1,9 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import ProductPlaceholder from './ProductPlaceholder';
 
 /**
- * Displays a product image with a Nexfluid branding overlay,
- * or falls back to the branded placeholder if no image exists or it fails to load.
+ * Displays a product image with branded watermark and a 3-tier fallback chain:
+ *   1. Real product image (if it loads)
+ *   2. End-category image (if product image is missing or fails)
+ *   3. Branded Nexfluid placeholder (final fallback)
+ *
+ * The fallback is staged: if the product image errors, we automatically
+ * try the category image; if that also errors, we fall back to the placeholder.
  */
 const BrandedProductImage = ({
   src,
@@ -24,16 +29,29 @@ const BrandedProductImage = ({
   size?: 'sm' | 'md' | 'lg';
   className?: string;
 }) => {
-  // Fallback chain: product image → category image → branded placeholder
-  const effectiveSrc = src || categoryImageUrl || null;
-  const [broken, setBroken] = useState(false);
+  // Build the staged fallback chain (filtered & deduped)
+  const chain = useMemo(() => {
+    const list: string[] = [];
+    if (src && typeof src === 'string' && src.trim()) list.push(src);
+    if (categoryImageUrl && typeof categoryImageUrl === 'string' && categoryImageUrl.trim() && !list.includes(categoryImageUrl)) {
+      list.push(categoryImageUrl);
+    }
+    return list;
+  }, [src, categoryImageUrl]);
 
-  // Reset error state when source changes
-  useEffect(() => {
-    setBroken(false);
-  }, [effectiveSrc]);
+  const [stage, setStage] = useState(0);
 
-  if (!effectiveSrc || broken) {
+  // Reset stage whenever the chain changes (new product / new category)
+  useEffect(() => { setStage(0); }, [chain.join('|')]);
+
+  const sizeClasses = {
+    sm: 'h-24 w-24',
+    md: 'h-40 w-40',
+    lg: 'w-full aspect-square',
+  };
+
+  // Exhausted chain → branded placeholder
+  if (chain.length === 0 || stage >= chain.length) {
     return (
       <ProductPlaceholder
         productCode={productCode}
@@ -45,31 +63,30 @@ const BrandedProductImage = ({
     );
   }
 
-  const sizeClasses = {
-    sm: 'h-24 w-24',
-    md: 'h-40 w-40',
-    lg: 'w-full aspect-square',
-  };
+  const currentSrc = chain[stage];
+  const isCategoryFallback = stage > 0; // visually mark category fallback
 
   return (
     <div className={`relative overflow-hidden rounded-lg bg-muted ${sizeClasses[size]} ${className}`}>
       <img
-        src={effectiveSrc}
+        // key forces a fresh <img> each stage so onError fires reliably
+        key={currentSrc}
+        src={currentSrc}
         alt={alt}
-        className="w-full h-full object-contain p-2"
+        className={`w-full h-full p-2 ${isCategoryFallback ? 'object-cover' : 'object-contain'}`}
         loading="lazy"
-        onError={() => setBroken(true)}
+        onError={() => setStage(s => s + 1)}
         referrerPolicy="no-referrer"
       />
-      {/* Nexfluid branding overlay — bottom-right watermark */}
+      {/* Nexfluid branding overlay — bottom watermark */}
       <div className="absolute bottom-0 right-0 left-0 flex items-end justify-between px-2 py-1.5 bg-gradient-to-t from-foreground/10 to-transparent pointer-events-none">
-        <span className="text-[8px] font-mono text-foreground/30 uppercase tracking-wider">
+        <span className="text-[8px] font-mono text-foreground/30 uppercase tracking-wider truncate">
           {productCode}
         </span>
         <img
           src="/lovable-uploads/04244b88-7e59-4987-9f7a-81be85561eac.png"
           alt="Nexfluid"
-          className="h-3 w-auto opacity-30"
+          className="h-3 w-auto opacity-30 shrink-0"
         />
       </div>
     </div>

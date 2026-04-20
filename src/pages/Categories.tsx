@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
 import BrandsSidebar from '@/components/shared/BrandsSidebar';
+import BrandedProductImage from '@/components/shared/BrandedProductImage';
 import CategoryFilters, { FilterState, emptyFilters } from '@/components/shared/CategoryFilters';
 import SpeakWithUs from '@/components/shared/SpeakWithUs';
 import ShippingSecurity from '@/components/shared/ShippingSecurity';
@@ -72,6 +73,18 @@ const Categories = () => {
   const [productsLoading, setProductsLoading] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Resolved nearest-ancestor image for the current category (used as product image fallback)
+  const resolvedCategoryImage = useMemo(() => {
+    for (let i = breadcrumbs.length - 1; i >= 0; i--) {
+      if (breadcrumbs[i].image_url) return breadcrumbs[i].image_url!;
+    }
+    return currentCategory?.image_url || null;
+  }, [breadcrumbs, currentCategory]);
+
+  const currentCategoryName = currentCategory
+    ? (lang === 'it' ? currentCategory.name_it : currentCategory.name_en)
+    : undefined;
 
   // URL-synced state
   const page = Math.max(0, parseInt(searchParams.get('page') || '0', 10));
@@ -401,11 +414,16 @@ const Categories = () => {
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                             <Link to={`/products/${product.slug}`} className="shrink-0 self-center sm:self-auto">
-                              <div className="h-[120px] w-[120px] rounded border bg-muted/50 flex items-center justify-center overflow-hidden">
-                                {imgUrl
-                                  ? <img src={imgUrl} alt={`${product.product_code} ${lang === 'it' ? product.name_it : product.name_en}`} className="h-full w-full object-contain p-2" loading="lazy" />
-                                  : <Package className="h-10 w-10 text-muted-foreground/30" />}
-                              </div>
+                              <BrandedProductImage
+                                src={imgUrl}
+                                alt={`${product.product_code} ${lang === 'it' ? product.name_it : product.name_en}`}
+                                productCode={product.product_code}
+                                brand={product.brand}
+                                categoryName={currentCategoryName}
+                                categoryImageUrl={resolvedCategoryImage}
+                                size="sm"
+                                className="!h-[120px] !w-[120px]"
+                              />
                             </Link>
 
                             <div className="flex-1 min-w-0">
