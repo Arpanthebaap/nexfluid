@@ -1,8 +1,9 @@
+import { useState, useEffect } from 'react';
 import ProductPlaceholder from './ProductPlaceholder';
 
 /**
  * Displays a product image with a Nexfluid branding overlay,
- * or falls back to the branded placeholder if no image exists.
+ * or falls back to the branded placeholder if no image exists or it fails to load.
  */
 const BrandedProductImage = ({
   src,
@@ -25,8 +26,14 @@ const BrandedProductImage = ({
 }) => {
   // Fallback chain: product image → category image → branded placeholder
   const effectiveSrc = src || categoryImageUrl || null;
+  const [broken, setBroken] = useState(false);
 
-  if (!effectiveSrc) {
+  // Reset error state when source changes
+  useEffect(() => {
+    setBroken(false);
+  }, [effectiveSrc]);
+
+  if (!effectiveSrc || broken) {
     return (
       <ProductPlaceholder
         productCode={productCode}
@@ -51,6 +58,8 @@ const BrandedProductImage = ({
         alt={alt}
         className="w-full h-full object-contain p-2"
         loading="lazy"
+        onError={() => setBroken(true)}
+        referrerPolicy="no-referrer"
       />
       {/* Nexfluid branding overlay — bottom-right watermark */}
       <div className="absolute bottom-0 right-0 left-0 flex items-end justify-between px-2 py-1.5 bg-gradient-to-t from-foreground/10 to-transparent pointer-events-none">
