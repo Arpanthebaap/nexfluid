@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet-async';
-import { Search, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import BrandedProductImage from '@/components/shared/BrandedProductImage';
 
 type Product = {
   id: string;
@@ -93,26 +94,38 @@ const SearchResults = () => {
               {totalPages > 1 && ` — ${lang === 'it' ? 'Pagina' : 'Page'} ${page}/${totalPages}`}
             </p>
             <div className="mt-6 space-y-3">
-              {products.map((product) => (
-                <Link
-                  key={product.id}
-                  to={`/products/${product.slug}`}
-                  className="group flex items-center gap-4 rounded-lg border bg-card p-4 hover:shadow-sm hover:border-primary/30 transition-all"
-                >
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-muted">
-                    <Package className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-sm font-semibold text-primary">{product.product_code}</p>
-                    <p className="text-sm text-foreground truncate group-hover:text-primary transition-colors">
-                      {lang === 'it' ? product.name_it : product.name_en}
-                    </p>
-                  </div>
-                  {product.brand && (
-                    <span className="hidden text-xs text-muted-foreground sm:block">{product.brand}</span>
-                  )}
-                </Link>
-              ))}
+              {products.map((product) => {
+                const imgUrl = Array.isArray(product.images) && product.images.length > 0
+                  ? (typeof product.images[0] === 'string' ? product.images[0] : (product.images[0] as any)?.url)
+                  : null;
+                return (
+                  <Link
+                    key={product.id}
+                    to={`/products/${product.slug}`}
+                    className="group flex items-center gap-4 rounded-lg border bg-card p-3 hover:shadow-sm hover:border-primary/30 transition-all"
+                  >
+                    <div className="shrink-0">
+                      <BrandedProductImage
+                        src={imgUrl}
+                        alt={`${product.product_code} ${lang === 'it' ? product.name_it : product.name_en}`}
+                        productCode={product.product_code}
+                        brand={product.brand}
+                        size="sm"
+                        className="!h-16 !w-16"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono text-sm font-semibold text-primary">{product.product_code}</p>
+                      <p className="text-sm text-foreground truncate group-hover:text-primary transition-colors">
+                        {lang === 'it' ? product.name_it : product.name_en}
+                      </p>
+                    </div>
+                    {product.brand && (
+                      <span className="hidden text-xs text-muted-foreground sm:block">{product.brand}</span>
+                    )}
+                  </Link>
+                );
+              })}
             </div>
 
             {/* Pagination */}
