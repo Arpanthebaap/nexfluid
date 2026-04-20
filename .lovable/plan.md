@@ -1,109 +1,55 @@
 
-## Audit Result
 
-I checked the current code against your screenshots, and the main issue is clear:
+## Audit (Root Cause Found)
 
-1. The new main category listing page is now `src/pages/Categories.tsx`.
-2. That page is **not using** `BrandedProductImage` for product cards anymore.
-3. Instead it renders a plain `<img src={imgUrl}>`, so when imported product URLs fail, the browser shows a broken image icon exactly like in your screenshot.
-4. The fallback logic you specifically wanted already exists in `BrandedProductImage.tsx`:
-   - product image
-   - category image
-   - branded placeholder
-5. But that logic is currently only used in some older pages (`ProductListing.tsx`, `ProductDetail.tsx`, `BrandPage.tsx`) and is being bypassed on the page users are actually viewing.
+The Parker products **don't** have a missing/broken image — they have a **bad first image**. The rs-online importer captured the Parker brand banner (`https://media.rs-online.com/brand/M2150-01.jpg`) as `images[0]`, and the actual product photo as `images[1]`.
 
-So the real problem is not only the image import source; it is also that the latest listing UI stopped using the fallback component.
-
-## Best Fix
-
-I will fix this in two layers so the catalog becomes reliable everywhere:
-
-### 1. Immediate UI fix on all public product views
-Replace every raw product-card image rendering with the common fallback component so imported products never show broken icons again.
-
-Targets:
-- `src/pages/Categories.tsx`
-- `src/pages/BrandPage.tsx`
-- `src/pages/ProductDetail.tsx` related products
-- `src/pages/SearchResults.tsx` product results
-- any remaining direct product thumbnail renderers
-
-Implementation:
-- use `BrandedProductImage` everywhere for product cards
-- pass `categoryImageUrl` / `categoryName` consistently
-- if product image fails, it will automatically show category image or branded placeholder
-- ensure small-card layout still looks clean on desktop and mobile
-
-### 2. Strengthen the fallback chain exactly as you requested
-Right now `BrandedProductImage` falls back to `ProductPlaceholder` when the main image fails, even if a category image exists but the product image alone is broken. I will improve it so it behaves more intelligently:
-
-```text
-product image works        -> show product image
-product image broken       -> try category image
-category image broken      -> show branded placeholder
-no product image at all    -> use category image first
-no category image either   -> show branded placeholder
+```
+images = [
+  "https://media.rs-online.com/brand/M2150-01.jpg",   ← Parker logo (always [0])
+  "https://media.rs-online.com/.../Y2633035-01"        ← real product image
+]
 ```
 
-This matches your instruction: if product featured image is unavailable, use the end-category image as featured.
+`BrandedProductImage` always uses `images[0]`, the logo loads with HTTP 200, the `onError` fallback never fires, so every Parker card shows the Parker logo. Affects exactly **691 products** (all rs-online Parker imports). Valves-direct products (42,304) are unaffected.
 
-### 3. Make the category image fallback usable for all imported products
-I will standardize category fallback data flow so listing pages always have access to the nearest valid category image:
-- leaf category page: current category image or nearest parent image
-- brand/category listing: resolved current branch image
-- related products: inherit current product’s category chain image if product has none
+## Fix — Two Layers
 
-That way every imported product can still look complete even without a unique photo.
+### 1. Data cleanup (one SQL migration, instant fix for all 691)
+Strip any `media.rs-online.com/brand/...` URLs out of every product's `images` array. After this, `images[0]` becomes the real product image.
 
-### 4. Keep the mirror pipeline, but stop depending on it for visual stability
-The existing mirror pipeline and `mirror_status` are still useful, but it should not be the only thing preventing broken images.
+```sql
+UPDATE products
+SET images = (
+  SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
+  FROM jsonb_array_elements_text(images) AS elem
+  WHERE elem NOT LIKE '%media.rs-online.com/brand/%'
+),
+mirror_status = 'pending'
+WHERE images::text LIKE '%media.rs-online.com/brand/%';
+```
 
-I will keep this principle:
-- mirrored image if available
-- otherwise category image
-- otherwise branded placeholder
+After this runs:
+- Products that had `[logo, real_image]` → become `[real_image]` → real photo shows.
+- The handful with only the logo → become `[]` → fallback chain kicks in → end-category image shows (`/categories/hydraulic.jpg` for the Raccordi page) → branded placeholder if even that fails.
 
-So even if mirroring is incomplete or a source URL fails, the site still looks professional.
+### 2. Importer guard (prevent recurrence)
+Patch `supabase/functions/product-image-scrape/index.ts` (and any rs-online image extraction) to filter out `media.rs-online.com/brand/` URLs at ingest time so future imports never re-introduce the logo.
 
-### 5. Optional unique-tweaked image approach within current system
-You asked whether category images can be used or tweaked uniquely without wasting cost. The safest and fastest professional solution here is:
+### 3. Bonus — kick off the mirror job
+After cleanup, the cleaned rs-online URLs are still external and may hotlink-fail. The existing "Mirror pending" admin button will now mirror the **correct** image to our bucket. Since cleanup resets `mirror_status='pending'` for the 691 affected rows, the next mirror run will replace them with internal Supabase URLs.
 
-- use category image as fallback featured image for all products missing a valid image
-- keep the branding/watermark overlay already built into the shared component
-- avoid generating or cloning new per-product images right now
-- this gives a unique branded presentation without extra API/image-generation cost
+## Files / Operations
 
-That is the best choice for this project at this stage.
-
-## Files to Update
-
-| File | Change |
+| Operation | Target |
 |---|---|
-| `src/pages/Categories.tsx` | Replace raw `<img>` product thumbnail with `BrandedProductImage`; pass category fallback props |
-| `src/components/shared/BrandedProductImage.tsx` | Improve fallback sequence so broken product image can still fall through to category image before placeholder |
-| `src/pages/BrandPage.tsx` | Normalize `src` handling and fallback props |
-| `src/pages/ProductDetail.tsx` | Ensure related products and main image use same robust fallback behavior |
-| `src/pages/SearchResults.tsx` | Add consistent product thumbnail rendering instead of generic icon-only result cards |
+| Migration | One UPDATE on `products` to strip brand-logo URLs from `images` (691 rows) |
+| Edit | `supabase/functions/product-image-scrape/index.ts` — skip `/brand/` URLs during scrape |
+| (Optional, user-triggered) | Click "Mirror pending" in admin Dashboard to permanently mirror the now-correct images |
 
 ## Expected Result
 
-After this fix:
-- no broken image icons on listing pages
-- imported products always show one of:
-  - their own image
-  - their end-category image
-  - branded placeholder
-- category pages look consistent and complete
-- mobile and desktop listings both stay professional
-- image mirroring can continue in the background, but the frontend will already be visually correct
+- **Immediately**: All 691 Parker product cards on `/categories/raccordi-per-idraulica` (and everywhere else) show the real product photo instead of the Parker logo. Where the real photo fails to load, the end-category image (Hydraulic) shows as the branded fallback, then placeholder.
+- **Going forward**: New rs-online imports will never capture brand logos again.
+- **No new images generated**, no AI cost, no extra storage beyond the existing mirror pipeline.
 
-## Technical Notes
-
-The key regression is in `src/pages/Categories.tsx` lines around the current product card image block, where the page uses:
-```tsx
-{imgUrl ? <img src={imgUrl} ... /> : <Package ... />}
-```
-
-That must be replaced with the shared fallback component so the category-image inheritance system is actually used.
-
-I will implement this without changing the catalog structure or product assignments.
