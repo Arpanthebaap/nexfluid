@@ -199,6 +199,19 @@ const BrandPage = () => {
     return ids;
   }
 
+  // Walk up the category tree to find the nearest image (end-category fallback)
+  const resolveCategoryImage = (categoryId: string | null): string | null => {
+    if (!categoryId) return null;
+    let cur = allCategories.find(c => c.id === categoryId);
+    let depth = 0;
+    while (cur && depth < 10) {
+      if (cur.image_url) return cur.image_url;
+      cur = cur.parent_id ? allCategories.find(c => c.id === cur!.parent_id) : undefined;
+      depth++;
+    }
+    return null;
+  };
+
   const displayCategories = (): CategoryWithCount[] => {
     const parentId = currentCategory?.id || null;
     let cats: Category[];
