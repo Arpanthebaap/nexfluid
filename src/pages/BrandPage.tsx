@@ -347,7 +347,7 @@ const BrandPage = () => {
                               productCode={product.product_code}
                               brand={product.brand}
                               size="sm"
-                              categoryImageUrl={categoryImageUrl}
+                              categoryImageUrl={resolveCategoryImage(product.category_id) || categoryImageUrl}
                             />
                           </Link>
                           <div className="flex-1 min-w-0">
