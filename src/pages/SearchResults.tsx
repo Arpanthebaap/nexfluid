@@ -32,6 +32,22 @@ const SearchResults = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  const [catMap, setCatMap] = useState<Map<string, CatLite>>(new Map());
+
+  useEffect(() => {
+    // Load all categories once for image fallback resolution
+    supabase
+      .from('categories')
+      .select('id, image_url, parent_id')
+      .then(({ data }) => {
+        if (data) {
+          const m = new Map<string, CatLite>();
+          (data as CatLite[]).forEach(c => m.set(c.id, c));
+          setCatMap(m);
+        }
+      });
+  }, []);
+
   useEffect(() => {
     const search = async () => {
       if (!query.trim()) { setProducts([]); setTotalCount(0); setLoading(false); return; }
@@ -42,7 +58,7 @@ const SearchResults = () => {
 
       const baseQuery = supabase
         .from('products')
-        .select('id, product_code, name_it, name_en, slug, brand, images', { count: 'exact' })
+        .select('id, product_code, name_it, name_en, slug, brand, images, category_id', { count: 'exact' })
         .or(`product_code.ilike.%${query}%,name_it.ilike.%${query}%,name_en.ilike.%${query}%`)
         .eq('is_active', true)
         .eq('status', 'published')
@@ -50,12 +66,24 @@ const SearchResults = () => {
 
       const { data, count } = await baseQuery;
 
-      setProducts(data || []);
+      setProducts((data as Product[]) || []);
       setTotalCount(count || 0);
       setLoading(false);
     };
     search();
   }, [query, page]);
+
+  const resolveCategoryImage = (categoryId: string | null): string | null => {
+    if (!categoryId) return null;
+    let cur = catMap.get(categoryId);
+    let depth = 0;
+    while (cur && depth < 10) {
+      if (cur.image_url) return cur.image_url;
+      cur = cur.parent_id ? catMap.get(cur.parent_id) : undefined;
+      depth++;
+    }
+    return null;
+  };
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
