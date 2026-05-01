@@ -15,7 +15,10 @@ type Product = {
   slug: string;
   brand: string | null;
   images: any;
+  category_id: string | null;
 };
+
+type CatLite = { id: string; image_url: string | null; parent_id: string | null };
 
 const PAGE_SIZE = 30;
 
