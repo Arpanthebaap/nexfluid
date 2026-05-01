@@ -69,16 +69,20 @@ Deno.serve(async (req) => {
           try {
             const urlPath = new URL(job.source_url).pathname;
             const segments = urlPath.split('/').filter(Boolean);
-            // Try multiple slug strategies
+            const isRsOnline = /rs-online\.com/i.test(job.source_url);
+            // Try multiple slug strategies (in priority order)
             const slugsToTry: string[] = [];
+            if (isRsOnline && segments.length >= 3) {
+              // rs-online: /web/p/<category-slug>/<product-id>
+              slugsToTry.push(segments[2].replace(/^\d+-/, ''));
+            }
             if (segments.length >= 2) {
               const parentSlug = segments[segments.length - 2];
               slugsToTry.push(parentSlug);
               slugsToTry.push(parentSlug.replace(/^\d+-/, ''));
             }
             if (segments.length >= 1) {
-              const topSlug = segments[0];
-              slugsToTry.push(topSlug.replace(/^\d+-/, ''));
+              slugsToTry.push(segments[0].replace(/^\d+-/, ''));
             }
             for (const slug of slugsToTry) {
               if (!slug) continue;
@@ -89,7 +93,35 @@ Deno.serve(async (req) => {
                 .maybeSingle();
               if (cat) { categoryId = cat.id; break; }
             }
-          } catch {}
+            // Auto-create category if still none matched (prevents uncategorized products)
+            if (!categoryId) {
+              const primarySlug = (isRsOnline && segments.length >= 3
+                ? segments[2]
+                : segments[0] || ''
+              ).replace(/^\d+-/, '');
+              if (primarySlug) {
+                const humanName = primarySlug
+                  .split('-')
+                  .map((w) => w ? w.charAt(0).toUpperCase() + w.slice(1) : w)
+                  .join(' ');
+                const { data: newCat } = await supabase
+                  .from('categories')
+                  .insert({
+                    slug: primarySlug,
+                    name_en: humanName,
+                    name_it: humanName,
+                    parent_id: null,
+                    is_active: true,
+                    sort_order: 0,
+                  })
+                  .select('id')
+                  .single();
+                if (newCat) categoryId = newCat.id;
+              }
+            }
+          } catch (e) {
+            console.error('Category resolution error:', e);
+          }
         }
 
         const baseSlug = slugify(pd.name_en);
