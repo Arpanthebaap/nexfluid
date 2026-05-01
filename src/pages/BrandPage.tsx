@@ -373,9 +373,6 @@ const BrandPage = () => {
                             >
                               {prodName(product)}
                             </Link>
-                            {prodDesc(product) && (
-                              <p className="hidden lg:block text-xs text-muted-foreground mt-1.5 line-clamp-2">{prodDesc(product)}</p>
-                            )}
                           </div>
 
                           {/* Actions — full row on mobile, inline on desktop */}
