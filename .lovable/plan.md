@@ -1,55 +1,98 @@
+## Audit Result
 
+The catalog has **52,986 products total**, of which **753 are uncategorized** (`category_id IS NULL`). This is the gap you spotted.
 
-## Audit (Root Cause Found)
+### Breakdown of the 753 uncategorized
 
-The Parker products **don't** have a missing/broken image — they have a **bad first image**. The rs-online importer captured the Parker brand banner (`https://media.rs-online.com/brand/M2150-01.jpg`) as `images[0]`, and the actual product photo as `images[1]`.
+| Brand | Uncategorized |
+|---|---:|
+| ASCO | 336 |
+| AVENTICS | 323 |
+| PARKER | 90 |
+| NUMATICS | 4 |
+| **Total** | **753** |
+
+### Root cause
+
+The bulk-insert function (`product-bulk-insert/index.ts`) tries to assign a category from the source URL's slug (e.g., `series-j-tri-point-miniature-pressure-switches`). It looks that slug up in the `categories` table and, **if no row matches, leaves `category_id` NULL**. That is exactly what happened here: these 753 products belong to **product series the catalog never had a category for** (e.g., Series H/J Tri-Point Pressure Switches, Series CGT Guide Slide, Series CCI-SC Stopper Compact Cylinders, RS-Online Italian slugs like `valvole-di-controllo-direzionale`, `gruppi-frl`, `guarnizioni-e-o-ring`, etc.).
+
+The previously categorized 42K+ products worked because their URL slug already had a matching category row (e.g., `series-cci-compact-cylinders`, `series-551-552-553-solenoid-valves`).
+
+### Top missing series (representative)
 
 ```
-images = [
-  "https://media.rs-online.com/brand/M2150-01.jpg",   ← Parker logo (always [0])
-  "https://media.rs-online.com/.../Y2633035-01"        ← real product image
-]
+145  series-cgt-guide-slide                          (valves-direct)
+129  series-j-tri-point-miniature-pressure-switches  (valves-direct)
+119  series-h-tri-point-miniature-pressure-switches  (valves-direct)
+ 91  rs-online (valvole-di-controllo-direzionale, gruppi-frl, ...)
+ 84  series-cci-sc-stopper-compact-cylinders
+ 37  series-kpz-sc-stopper-compact-cylinders
+ 33  series-af2-flow-sensors
+ 26  series-189-solenoid-valves
+ 22  series-257-solenoid-valves
+ 12  series-2035-directional-control-valves
+ 11  series-088-miniature-solenoid-valves
+... (the rest in long tail)
 ```
 
-`BrandedProductImage` always uses `images[0]`, the logo loads with HTTP 200, the `onError` fallback never fires, so every Parker card shows the Parker logo. Affects exactly **691 products** (all rs-online Parker imports). Valves-direct products (42,304) are unaffected.
+## Fix Plan
 
-## Fix — Two Layers
+### Step 1 — Auto-create the missing categories (one SQL migration)
 
-### 1. Data cleanup (one SQL migration, instant fix for all 691)
-Strip any `media.rs-online.com/brand/...` URLs out of every product's `images` array. After this, `images[0]` becomes the real product image.
+For every distinct URL slug among the 753 uncategorized products that has no matching category, insert a new row into `categories` with:
+- `slug` = the URL slug (e.g., `series-j-tri-point-miniature-pressure-switches`)
+- `name_en` / `name_it` = a humanized version of the slug (e.g., "Series J Tri-Point Miniature Pressure Switches"), matching the existing convention where 42K+ valves-direct categories were created the same way
+- `parent_id` = NULL (top-level for now — same as how the existing valves-direct series categories were stored; you can re-parent them later from the admin Categories page if you want a tighter tree)
+- `is_active` = true, `sort_order` = 0
+
+Expected result: ~25–30 new category rows created (one per distinct missing slug).
+
+### Step 2 — Backfill `category_id` on the 753 products
+
+In the same migration, run:
 
 ```sql
-UPDATE products
-SET images = (
-  SELECT COALESCE(jsonb_agg(elem), '[]'::jsonb)
-  FROM jsonb_array_elements_text(images) AS elem
-  WHERE elem NOT LIKE '%media.rs-online.com/brand/%'
-),
-mirror_status = 'pending'
-WHERE images::text LIKE '%media.rs-online.com/brand/%';
+UPDATE products p
+SET category_id = c.id
+FROM categories c
+WHERE p.category_id IS NULL
+  AND c.slug = regexp_replace(
+        split_part(regexp_replace(p.source_url, '^https?://[^/]+/', ''), '/', 
+          CASE WHEN p.source_url ILIKE '%rs-online%' THEN 3 ELSE 1 END),
+        '^\d+-', '');
 ```
 
-After this runs:
-- Products that had `[logo, real_image]` → become `[real_image]` → real photo shows.
-- The handful with only the logo → become `[]` → fallback chain kicks in → end-category image shows (`/categories/hydraulic.jpg` for the Raccordi page) → branded placeholder if even that fails.
+This maps each uncategorized product to the (now-existing) category derived from its URL.
 
-### 2. Importer guard (prevent recurrence)
-Patch `supabase/functions/product-image-scrape/index.ts` (and any rs-online image extraction) to filter out `media.rs-online.com/brand/` URLs at ingest time so future imports never re-introduce the logo.
+### Step 3 — Harden the importer (prevent recurrence)
 
-### 3. Bonus — kick off the mirror job
-After cleanup, the cleaned rs-online URLs are still external and may hotlink-fail. The existing "Mirror pending" admin button will now mirror the **correct** image to our bucket. Since cleanup resets `mirror_status='pending'` for the 691 affected rows, the next mirror run will replace them with internal Supabase URLs.
+Patch `supabase/functions/product-bulk-insert/index.ts` so that when the URL-derived slug doesn't match an existing category, it **auto-creates the category** instead of leaving `category_id` NULL. Same logic as Step 1, applied at insert time. This means future imports will never produce uncategorized products again.
+
+### Step 4 — Verify
+
+After the migration runs:
+
+```sql
+SELECT COUNT(*) FROM products WHERE category_id IS NULL;
+-- Expected: 0
+```
+
+I'll also confirm via spot-check that the new categories appear in the admin Categories page and that the affected products show up under their assigned category on the public site.
 
 ## Files / Operations
 
 | Operation | Target |
 |---|---|
-| Migration | One UPDATE on `products` to strip brand-logo URLs from `images` (691 rows) |
-| Edit | `supabase/functions/product-image-scrape/index.ts` — skip `/brand/` URLs during scrape |
-| (Optional, user-triggered) | Click "Mirror pending" in admin Dashboard to permanently mirror the now-correct images |
+| Migration | INSERT new categories + UPDATE products.category_id (one transaction) |
+| Edit | `supabase/functions/product-bulk-insert/index.ts` — auto-create category on URL-slug miss |
 
 ## Expected Result
 
-- **Immediately**: All 691 Parker product cards on `/categories/raccordi-per-idraulica` (and everywhere else) show the real product photo instead of the Parker logo. Where the real photo fails to load, the end-category image (Hydraulic) shows as the branded fallback, then placeholder.
-- **Going forward**: New rs-online imports will never capture brand logos again.
-- **No new images generated**, no AI cost, no extra storage beyond the existing mirror pipeline.
+- **All 52,986 products categorized** (uncategorized count drops from 753 → 0).
+- **~25–30 new series categories** added under the existing structure, named consistently with the existing 42K-product convention.
+- **Future imports** will never leave a product uncategorized — the importer creates the category on the fly.
+- **No new images, no AI cost, no scraping work.** Pure data + one importer patch.
 
+## Optional (after Step 1–4)
+
+If you want a cleaner tree, you can later re-parent the auto-created categories from the admin Categories page (e.g., put `series-h-tri-point-miniature-pressure-switches` under a "Pressure Switches" parent). I can also do that as a follow-up batch if you tell me the desired groupings.
