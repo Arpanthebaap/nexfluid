@@ -35,6 +35,7 @@ type Product = {
   images: any;
   description_it: string | null;
   description_en: string | null;
+  category_id: string | null;
 };
 
 const PAGE_SIZE = 10;
