@@ -35,6 +35,7 @@ type Product = {
   images: any;
   description_it: string | null;
   description_en: string | null;
+  category_id: string | null;
 };
 
 const PAGE_SIZE = 10;
@@ -154,7 +155,7 @@ const BrandPage = () => {
 
       let query = supabase
         .from('products')
-        .select('id, product_code, name_it, name_en, slug, brand, images, description_it, description_en', { count: 'exact' })
+        .select('id, product_code, name_it, name_en, slug, brand, images, description_it, description_en, category_id', { count: 'exact' })
         .eq('is_active', true)
         .eq('status', 'published')
         .ilike('brand', brand);
@@ -197,6 +198,19 @@ const BrandPage = () => {
     }
     return ids;
   }
+
+  // Walk up the category tree to find the nearest image (end-category fallback)
+  const resolveCategoryImage = (categoryId: string | null): string | null => {
+    if (!categoryId) return null;
+    let cur = allCategories.find(c => c.id === categoryId);
+    let depth = 0;
+    while (cur && depth < 10) {
+      if (cur.image_url) return cur.image_url;
+      cur = cur.parent_id ? allCategories.find(c => c.id === cur!.parent_id) : undefined;
+      depth++;
+    }
+    return null;
+  };
 
   const displayCategories = (): CategoryWithCount[] => {
     const parentId = currentCategory?.id || null;
@@ -333,7 +347,7 @@ const BrandPage = () => {
                               productCode={product.product_code}
                               brand={product.brand}
                               size="sm"
-                              categoryImageUrl={categoryImageUrl}
+                              categoryImageUrl={resolveCategoryImage(product.category_id) || categoryImageUrl}
                             />
                           </Link>
                           <div className="flex-1 min-w-0">
