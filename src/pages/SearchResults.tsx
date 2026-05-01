@@ -141,6 +141,7 @@ const SearchResults = () => {
                         alt={`${product.product_code} ${lang === 'it' ? product.name_it : product.name_en}`}
                         productCode={product.product_code}
                         brand={product.brand}
+                        categoryImageUrl={resolveCategoryImage(product.category_id)}
                         size="sm"
                         className="!h-16 !w-16"
                       />
