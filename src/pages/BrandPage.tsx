@@ -334,40 +334,60 @@ const BrandPage = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4 sm:gap-3">
                     {products.map(product => {
                       const qty = quantities[product.id] || 1;
                       const imgs = Array.isArray(product.images) ? product.images : [];
+                      const resolvedCatImg = resolveCategoryImage(product.category_id) || categoryImageUrl;
                       return (
-                        <div key={product.id} className="flex items-center gap-4 rounded-lg border bg-card p-4 hover:shadow-md transition-shadow">
-                          <Link to={`/products/${product.slug}`} className="shrink-0 w-20 h-20 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                        <div
+                          key={product.id}
+                          className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4 rounded-lg border bg-card p-4 hover:shadow-md transition-shadow"
+                        >
+                          {/* Image — large/centered on mobile, small thumb on desktop */}
+                          <Link
+                            to={`/products/${product.slug}`}
+                            className="block mx-auto lg:mx-0 shrink-0 w-full max-w-[240px] aspect-square lg:w-20 lg:h-20 lg:aspect-auto rounded-md bg-muted overflow-hidden"
+                          >
                             <BrandedProductImage
                               src={imgs.length > 0 ? imgs[0] : null}
                               alt={prodName(product)}
                               productCode={product.product_code}
                               brand={product.brand}
-                              size="sm"
-                              categoryImageUrl={resolveCategoryImage(product.category_id) || categoryImageUrl}
+                              size="lg"
+                              categoryImageUrl={resolvedCatImg}
+                              className="!h-full !w-full"
                             />
                           </Link>
-                          <div className="flex-1 min-w-0">
-                            <Link to={`/products/${product.slug}`} className="font-semibold text-sm text-foreground hover:text-primary transition-colors line-clamp-1">
+
+                          {/* Text info */}
+                          <div className="flex-1 min-w-0 text-center lg:text-left">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                              <span className="font-semibold text-foreground/70">{product.brand}</span>
+                              <span className="mx-1">·</span>
+                              <span>{product.product_code}</span>
+                            </p>
+                            <Link
+                              to={`/products/${product.slug}`}
+                              className="block mt-1 font-semibold text-base lg:text-sm text-primary hover:underline line-clamp-2 lg:line-clamp-1"
+                            >
                               {prodName(product)}
                             </Link>
-                            <p className="text-xs text-muted-foreground mt-0.5">{product.product_code}</p>
                             {prodDesc(product) && (
-                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{prodDesc(product)}</p>
+                              <p className="hidden lg:block text-xs text-muted-foreground mt-1 line-clamp-2">{prodDesc(product)}</p>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
+
+                          {/* Actions — full row on mobile, inline on desktop */}
+                          <div className="flex items-center justify-between lg:justify-end gap-2 shrink-0 mt-1 lg:mt-0">
                             <div className="flex items-center border rounded-md">
-                              <button onClick={() => handleQuantity(product.id, -1)} className="px-2 py-1 text-sm hover:bg-muted transition-colors">−</button>
-                              <span className="px-2 py-1 text-sm min-w-[2rem] text-center">{qty}</span>
-                              <button onClick={() => handleQuantity(product.id, 1)} className="px-2 py-1 text-sm hover:bg-muted transition-colors">+</button>
+                              <button onClick={() => handleQuantity(product.id, -1)} className="px-3 py-1.5 text-base lg:text-sm hover:bg-muted transition-colors">−</button>
+                              <span className="px-3 py-1.5 text-base lg:text-sm min-w-[2.5rem] text-center">{qty}</span>
+                              <button onClick={() => handleQuantity(product.id, 1)} className="px-3 py-1.5 text-base lg:text-sm hover:bg-muted transition-colors">+</button>
                             </div>
-                            <Button size="sm" asChild>
+                            <Button size="sm" asChild className="uppercase font-semibold tracking-wide">
                               <Link to={`/products/${product.slug}`}>
-                                {lang === 'it' ? 'Richiedi Preventivo' : 'Request a Quote'}
+                                {lang === 'it' ? 'Preventivo' : 'Quote'}
                               </Link>
                             </Button>
                           </div>
