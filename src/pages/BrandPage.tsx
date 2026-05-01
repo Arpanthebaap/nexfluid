@@ -155,7 +155,7 @@ const BrandPage = () => {
 
       let query = supabase
         .from('products')
-        .select('id, product_code, name_it, name_en, slug, brand, images, description_it, description_en', { count: 'exact' })
+        .select('id, product_code, name_it, name_en, slug, brand, images, description_it, description_en, category_id', { count: 'exact' })
         .eq('is_active', true)
         .eq('status', 'published')
         .ilike('brand', brand);
