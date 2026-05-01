@@ -342,12 +342,12 @@ const BrandPage = () => {
                       return (
                         <div
                           key={product.id}
-                          className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4 rounded-lg border bg-card p-4 hover:shadow-md transition-shadow"
+                          className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-5 rounded-lg border bg-card p-4 lg:p-4 hover:shadow-md transition-shadow"
                         >
-                          {/* Image — large/centered on mobile, small thumb on desktop */}
+                          {/* Image — large/centered on mobile, comfortable square on desktop */}
                           <Link
                             to={`/products/${product.slug}`}
-                            className="block mx-auto lg:mx-0 shrink-0 w-full max-w-[240px] aspect-square lg:w-20 lg:h-20 lg:aspect-auto rounded-md bg-muted overflow-hidden"
+                            className="block mx-auto lg:mx-0 shrink-0 w-full max-w-[240px] aspect-square lg:w-[120px] lg:h-[120px] lg:aspect-auto rounded-md bg-muted overflow-hidden border lg:border-border"
                           >
                             <BrandedProductImage
                               src={imgs.length > 0 ? imgs[0] : null}
@@ -362,30 +362,30 @@ const BrandPage = () => {
 
                           {/* Text info */}
                           <div className="flex-1 min-w-0 text-center lg:text-left">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                            <p className="text-xs lg:text-sm text-muted-foreground uppercase tracking-wide">
                               <span className="font-semibold text-foreground/70">{product.brand}</span>
-                              <span className="mx-1">·</span>
+                              <span className="mx-1.5">·</span>
                               <span>{product.product_code}</span>
                             </p>
                             <Link
                               to={`/products/${product.slug}`}
-                              className="block mt-1 font-semibold text-base lg:text-sm text-primary hover:underline line-clamp-2 lg:line-clamp-1"
+                              className="block mt-1.5 font-semibold text-base lg:text-base text-primary hover:underline line-clamp-2"
                             >
                               {prodName(product)}
                             </Link>
                             {prodDesc(product) && (
-                              <p className="hidden lg:block text-xs text-muted-foreground mt-1 line-clamp-2">{prodDesc(product)}</p>
+                              <p className="hidden lg:block text-xs text-muted-foreground mt-1.5 line-clamp-2">{prodDesc(product)}</p>
                             )}
                           </div>
 
                           {/* Actions — full row on mobile, inline on desktop */}
-                          <div className="flex items-center justify-between lg:justify-end gap-2 shrink-0 mt-1 lg:mt-0">
+                          <div className="flex items-center justify-between lg:justify-end gap-2 lg:gap-3 shrink-0 mt-1 lg:mt-0">
                             <div className="flex items-center border rounded-md">
-                              <button onClick={() => handleQuantity(product.id, -1)} className="px-3 py-1.5 text-base lg:text-sm hover:bg-muted transition-colors">−</button>
-                              <span className="px-3 py-1.5 text-base lg:text-sm min-w-[2.5rem] text-center">{qty}</span>
-                              <button onClick={() => handleQuantity(product.id, 1)} className="px-3 py-1.5 text-base lg:text-sm hover:bg-muted transition-colors">+</button>
+                              <button onClick={() => handleQuantity(product.id, -1)} className="px-3 py-1.5 lg:px-3 lg:py-2 text-base hover:bg-muted transition-colors">−</button>
+                              <span className="px-3 py-1.5 lg:px-4 lg:py-2 text-base min-w-[2.5rem] text-center">{qty}</span>
+                              <button onClick={() => handleQuantity(product.id, 1)} className="px-3 py-1.5 lg:px-3 lg:py-2 text-base hover:bg-muted transition-colors">+</button>
                             </div>
-                            <Button size="sm" asChild className="uppercase font-semibold tracking-wide">
+                            <Button asChild className="uppercase font-bold tracking-wide lg:px-6 lg:py-2 lg:h-auto lg:text-sm">
                               <Link to={`/products/${product.slug}`}>
                                 {lang === 'it' ? 'Preventivo' : 'Quote'}
                               </Link>
