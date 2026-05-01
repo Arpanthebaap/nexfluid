@@ -500,6 +500,8 @@ const ProductDetail = () => {
                           alt={`${rp.product_code} ${rpName}`}
                           productCode={rp.product_code}
                           brand={rp.brand}
+                          categoryName={categoryLastName}
+                          categoryImageUrl={categoryImageUrl}
                           size="lg"
                         />
                         <p className="font-mono text-xs font-semibold text-primary">{rp.product_code}</p>

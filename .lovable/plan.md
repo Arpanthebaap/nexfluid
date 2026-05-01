@@ -1,75 +1,124 @@
-## Verification Report
+## What I found
 
-### 1. Categorization — all 753 are placed under existing end-categories ✅
+Your concern is valid. The current catalog is not fully aligned with your guidance yet.
 
-- Total products: **52,986**
-- Uncategorized (`category_id IS NULL`): **0**
-- No new top-level categories were created — every product sits under an existing leaf inside the original tree.
+### 1) Some end-categories are still not English
+I verified the specific end-categories you listed, and these leaf categories still have non-English values in `name_en`:
 
-**Category chains where the previously-uncategorized products landed** (top placements, sorted by product count):
+- Raccordi Per Idraulica
+- Morsetti Stringitubo
+- Accessori Per Raccordi Idraulici
+- Giunti Idraulici A Innesto Rapido
+- Kit Di Guarnizioni E O Ring
+- Elettrovalvole Per Pneumatica
+- Valvole A Controllo Manuale Per Pneumatica
+- Tubi Idraulici Assemblati
+- Elementi Filtranti Idraulici
+- Manometri
 
-| Products | Brand | Full Category Chain (root → leaf) |
-|---:|---|---|
-| 2,081 | AVENTICS, PARKER | Hydraulic › Hydraulic Fittings & Tubing › Hydraulic Fittings › **Raccordi Per Idraulica** |
-| 250 | ASCO | Vacuum › Vacuum Components › Vacuum Switches › **Pressure Switch** |
-| 163 | PARKER | Hydraulic › Hydraulic Fittings & Tubing › Hydraulic Hose Assemblies › **Morsetti Stringitubo** |
-| 162 | AVENTICS | Pneumatic › Pneumatic Cylinders & Actuators › Short Stroke & Compact Cylinders › **Series CCI Compact Cylinders** |
-| 145 | AVENTICS | Pneumatic › Pneumatic Cylinders & Actuators › Cylinder Mountings & Accessories › **Guide Units** |
-| 82 | PARKER | Hydraulic › Hydraulic Fittings & Tubing › Hydraulic Fitting Accessories › **Accessori Per Raccordi Idraulici** |
-| 59 | PARKER | Hydraulic › Hydraulic Fittings & Tubing › Hydraulic Quick Connect Couplings › **Giunti Idraulici A Innesto Rapido** |
-| 55 | PARKER | Hydraulic › Hydraulic Cylinders, Pumps & Power Units › Hydraulic Gear Pumps › **Inverter** |
-| 45 | ASCO/AVENTICS/PARKER | Valves › Pneumatic Valves › Pneumatic Manual Control Valves › **Pneumatic Solenoid Valves** |
-| 37 | AVENTICS, PARKER | Valves › Sensors & Switches › **Flow Sensors** |
-| 37 | ASCO | Valves › Solenoid Valves › **Miniature Solenoid Valves** |
-| 35 | PARKER | Hydraulic › Hydraulic Fluids & Filtration › Hydraulic Filters › **Kit Di Guarnizioni E O Ring** |
-| 26 | PARKER | Pneumatic › Pneumatic Valves › Pneumatic Valves Series › **Elettrovalvole Per Pneumatica** |
-| 23 | PARKER | Valves › Manually Operated Valves › Manually Operated › **Valvole A Controllo Manuale Per Pneumatica** |
-| 23 | PARKER | Hydraulic › Hydraulic Fittings & Tubing › Hydraulic Hose Assemblies › **Tubi Idraulici Assemblati** |
-| 18 | AVENTICS | Pneumatic › Pneumatic Cylinders & Actuators › **Guided Cylinders** |
-| 17 | PARKER | Hydraulic › Hydraulic Fluids & Filtration › Replacement Hydraulic Filter Elements › **Elementi Filtranti Idraulici** |
-| 15 | PARKER | Valves › Pneumatic Valves › Pneumatic Manual Control Valves › **Pneumatic Non-Return Valves** |
-| 14 | PARKER | Hydraulic › Hydraulic Fluids & Filtration › Hydraulic Filters › **Hydraulic Filter** |
-| 13 | PARKER | Hydraulic › Hydraulic Instrumentation & Switches › Hydraulic Test Points › **Manometri** |
-| … | … | (long tail of smaller leaves, all existing end-categories) |
+So yes: the English category chain is currently polluted by Italian leaf names.
 
-Every chain ends at a **pre-existing leaf** (end-category) — no rogue parents, no new top-levels.
+### 2) The category image problem is real
+I found two separate image issues:
 
-### 2. Featured images — 99.76% covered, the rest already inherit category image ✅
+- Several affected end-categories use generic umbrella images like:
+  - `/categories/hydraulic.jpg`
+  - `/categories/pneumatic.jpg`
+  - `/categories/valves.jpg`
+- Several other leaves use the exact same image as their parent, so sibling cards repeat the same image across the whole section.
 
-Image audit across all 52,986 active products:
+Examples confirmed:
+- `Pressure Switch` under `Vacuum Switches` is using the same image as the whole parent branch.
+- `Morsetti Stringitubo` and nearby leaves under `Hydraulic Hose Assemblies` are showing mismatched repeated imagery.
 
-| Metric | Count |
-|---|---:|
-| Total active products | 52,986 |
-| Have their own product image | 52,858 (99.76%) |
-| Missing product image | **128** |
-| → leaf category has `image_url` (inherited automatically) | **128** (100%) |
-| → leaf has no image (would fall to placeholder) | 0 |
+### 3) The “brand logo only” fallback can still happen in some places
+The product image fallback is not wired consistently across the app.
 
-**The 128 without their own image already inherit the end-category featured image** via `BrandedProductImage.tsx`, which has a 3-tier chain:
-1. Product image
-2. Leaf category `image_url` ← this kicks in
-3. Branded Nexfluid placeholder
+I verified in code:
+- `Categories`, `BrandPage`, `ProductListing`, and `ProductDetail` already pass category fallback in some flows.
+- `SearchResults` and `Related Products` do not pass category image context into `BrandedProductImage`.
 
-Breakdown of the 128 (all leaves verified to have `image_url`):
+That means a product without its own image can still fall all the way to the Nexfluid placeholder/brand-logo view in some screens, even when its end-category has an image.
 
-| Missing | End-category (leaf) |
-|---:|---|
-| 97 | Series TC08 Valve Systems |
-| 16 | Directional Control Valves |
-| 6 | Series ISO 5599-1 Standardized Valves |
-| 3 | Series ISO 5599-2 Standardized Valves |
-| 1 each | Series 353 Pulse Solenoid Valve, Series 463 Cylinders With Rod Locking Device, Series CCI Compact Cylinders, Series 316 Solenoid Valve, Easter Clearance, Series 320 3 Way Solenoid Valves |
+### 4) Product placement itself is mostly fine
+The problem is not mainly placement now. The bigger remaining issues are:
+- wrong/non-English end-category names
+- wrong or generic end-category images
+- inconsistent product image fallback across pages
 
-So on the public site these 128 cards/details already render the proper end-category image — exactly the behaviour you described as "use the end-category featured image like other existing products do."
+## Plan
 
-### Conclusion
+### Step 1 — Fix the affected end-category names in the database
+I will update the affected leaf categories so `name_en` is fully English and consistent with the existing catalog.
 
-- **Categorization:** ✅ Done correctly. All ex-uncategorized products are routed into the existing tree's end-categories (full chains in the table above). No new top-levels, no tree changes.
-- **Featured images:** ✅ Working correctly. 99.76% have their own image; the remaining 128 already inherit their end-category's `image_url` automatically via the existing fallback in `BrandedProductImage`.
+Rules:
+- keep the existing hierarchy exactly as-is
+- do not create or nurture new primary/group categories
+- do not move products unless I find a clearly wrong leaf during the final audit
+- use clear English end-category labels, not literal translations that create awkward duplicates
 
-### Optional small hardening (only if you want it)
+### Step 2 — Correct the affected end-category featured images
+For the affected leaf categories, I will clean up `image_url` so they stop showing generic or mismatched images.
 
-The fallback in `BrandedProductImage.tsx` only checks the **direct leaf** `image_url`. If a future leaf is ever created without an `image_url`, the card would skip straight to the Nexfluid placeholder. I can add a server-side resolver (or a simple recursive parent walk in the listing/detail queries) so the chain becomes: product → leaf → parent → grandparent → placeholder. Today this isn't needed (every affected leaf has its own image), so this is purely defensive for future imports.
+Approach:
+- if a correct existing branch/leaf image already exists, reuse that
+- if a leaf currently points to a generic umbrella image, replace it with a more suitable category image
+- if a leaf is only inheriting a visually wrong image, assign the correct end-category image instead of leaving the mismatch
+- avoid random image assignment
 
-**No code changes required right now** — the system is already behaving exactly as you specified. Approve this plan if you want me to apply the optional recursive image-inheritance hardening; otherwise I'll close this out as verified.
+### Step 3 — Harden product image fallback everywhere
+I will make the fallback behavior consistent across the whole frontend so products do this everywhere:
+
+```text
+product image -> end-category image -> parent category image -> grandparent image -> branded placeholder
+```
+
+This will be applied to:
+- category listings
+- brand listings
+- product detail related-products section
+- search results
+- any shared product-card flow using `BrandedProductImage`
+
+### Step 4 — Fix subcategory card image resolution
+I will replace the current shallow subcategory-card logic so category cards use a proper nearest-valid-category-image resolver, instead of raw `cat.image_url || currentCategory.image_url` behavior.
+
+This is the main reason entire rows currently show the same wrong image.
+
+### Step 5 — Re-audit after changes
+After the fixes, I will verify:
+- affected end-categories show English names in chains and breadcrumbs
+- the listed leaves no longer use generic/mismatched images
+- products without their own images no longer fall to brand-logo placeholder when a category image exists
+- spot-check the problem areas you pointed at, including:
+  - `/categories/vacuum-switches`
+  - `/categories/hydraulic-hose-assemblies`
+  - representative product detail pages
+  - search results / related products
+
+## Technical details
+
+Files likely involved:
+- `src/components/shared/BrandedProductImage.tsx`
+- `src/pages/Categories.tsx`
+- `src/pages/BrandPage.tsx`
+- `src/pages/ProductDetail.tsx`
+- `src/pages/SearchResults.tsx`
+- database data updates for `categories`
+
+Data changes:
+- update `categories.name_en` for the affected leaf categories
+- update `categories.image_url` for the affected leaf categories where images are generic or mismatched
+
+Code changes:
+- centralize category image resolution
+- pass resolved category image into all product-card contexts
+- ensure related/search/product listing views behave the same way
+
+## Result after implementation
+
+When this is done:
+- all those end-category chains will read in English
+- end-category cards will stop showing obviously wrong repeated images
+- products missing their own image will use the correct end-category image more consistently
+- the catalog stays in the same structure you wanted, without revamping or nurturing the hierarchy
