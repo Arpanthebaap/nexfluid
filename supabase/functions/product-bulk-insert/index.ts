@@ -93,32 +93,10 @@ Deno.serve(async (req) => {
                 .maybeSingle();
               if (cat) { categoryId = cat.id; break; }
             }
-            // Auto-create category if still none matched (prevents uncategorized products)
-            if (!categoryId) {
-              const primarySlug = (isRsOnline && segments.length >= 3
-                ? segments[2]
-                : segments[0] || ''
-              ).replace(/^\d+-/, '');
-              if (primarySlug) {
-                const humanName = primarySlug
-                  .split('-')
-                  .map((w) => w ? w.charAt(0).toUpperCase() + w.slice(1) : w)
-                  .join(' ');
-                const { data: newCat } = await supabase
-                  .from('categories')
-                  .insert({
-                    slug: primarySlug,
-                    name_en: humanName,
-                    name_it: humanName,
-                    parent_id: null,
-                    is_active: true,
-                    sort_order: 0,
-                  })
-                  .select('id')
-                  .single();
-                if (newCat) categoryId = newCat.id;
-              }
-            }
+            // IMPORTANT: do NOT auto-create new top-level categories here.
+            // If no existing leaf category matches, leave category_id NULL — these
+            // products will surface in the admin Dashboard as "uncategorized" so an
+            // admin can route them into the correct existing end-category manually.
           } catch (e) {
             console.error('Category resolution error:', e);
           }
