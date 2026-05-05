@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import valveCollage from '@/assets/valve-collage-404.jpg';
