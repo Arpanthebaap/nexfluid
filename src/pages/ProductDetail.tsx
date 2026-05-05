@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet-async';
 import { CheckCircle, Send } from 'lucide-react';
@@ -25,6 +25,7 @@ type Product = {
   name_en: string;
   slug: string;
   brand: string | null;
+  brands: string[] | null;
   images: any;
   description_it: string | null;
   description_en: string | null;
@@ -65,6 +66,8 @@ const ProductDetail = () => {
   const { i18n } = useTranslation();
   const lang = i18n.language as 'it' | 'en';
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
+  const fromBrand = searchParams.get('from');
   const { toast } = useToast();
   const [product, setProduct] = useState<Product | null>(null);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
