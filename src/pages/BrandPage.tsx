@@ -244,8 +244,13 @@ const BrandPage = () => {
   return (
     <>
       <Helmet>
+        <html lang={lang} />
         <title>{`${pageTitle} | Nexfluid`}</title>
         <meta name="description" content={`${lang === 'it' ? 'Scopri i prodotti' : 'Discover products from'} ${brand}${currentCategory ? ` - ${catName(currentCategory)}` : ''}`} />
+        <link rel="canonical" href={`https://nexfluid.${lang === 'it' ? 'it' : 'com'}/brands/${encodeURIComponent(brand)}${slug ? `/${slug}` : ''}`} />
+        <link rel="alternate" hrefLang="it" href={`https://nexfluid.it/brands/${encodeURIComponent(brand)}${slug ? `/${slug}` : ''}`} />
+        <link rel="alternate" hrefLang="en" href={`https://nexfluid.com/brands/${encodeURIComponent(brand)}${slug ? `/${slug}` : ''}`} />
+        <link rel="alternate" hrefLang="x-default" href={`https://nexfluid.it/brands/${encodeURIComponent(brand)}${slug ? `/${slug}` : ''}`} />
       </Helmet>
 
       <div className="container mx-auto px-4 py-8">
