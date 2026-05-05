@@ -1,124 +1,107 @@
-## What I found
+## Goal
 
-Your concern is valid. The current catalog is not fully aligned with your guidance yet.
+Let one product belong to multiple authorized brands so co-branded items (e.g. *"ASCO JOUCOMATIC 356..."*) appear on **both** brand pages, while keeping a single product row, single product code, and clean SEO.
 
-### 1) Some end-categories are still not English
-I verified the specific end-categories you listed, and these leaf categories still have non-English values in `name_en`:
+Authorized brands only: `PARKER, ASCO, AVENTICS, JOUCOMATIC, NUMATICS, EMERSON, SIRAI`.
 
-- Raccordi Per Idraulica
-- Morsetti Stringitubo
-- Accessori Per Raccordi Idraulici
-- Giunti Idraulici A Innesto Rapido
-- Kit Di Guarnizioni E O Ring
-- Elettrovalvole Per Pneumatica
-- Valvole A Controllo Manuale Per Pneumatica
-- Tubi Idraulici Assemblati
-- Elementi Filtranti Idraulici
-- Manometri
-
-So yes: the English category chain is currently polluted by Italian leaf names.
-
-### 2) The category image problem is real
-I found two separate image issues:
-
-- Several affected end-categories use generic umbrella images like:
-  - `/categories/hydraulic.jpg`
-  - `/categories/pneumatic.jpg`
-  - `/categories/valves.jpg`
-- Several other leaves use the exact same image as their parent, so sibling cards repeat the same image across the whole section.
-
-Examples confirmed:
-- `Pressure Switch` under `Vacuum Switches` is using the same image as the whole parent branch.
-- `Morsetti Stringitubo` and nearby leaves under `Hydraulic Hose Assemblies` are showing mismatched repeated imagery.
-
-### 3) The “brand logo only” fallback can still happen in some places
-The product image fallback is not wired consistently across the app.
-
-I verified in code:
-- `Categories`, `BrandPage`, `ProductListing`, and `ProductDetail` already pass category fallback in some flows.
-- `SearchResults` and `Related Products` do not pass category image context into `BrandedProductImage`.
-
-That means a product without its own image can still fall all the way to the Nexfluid placeholder/brand-logo view in some screens, even when its end-category has an image.
-
-### 4) Product placement itself is mostly fine
-The problem is not mainly placement now. The bigger remaining issues are:
-- wrong/non-English end-category names
-- wrong or generic end-category images
-- inconsistent product image fallback across pages
+Detail page stays clean — no "Also available under" line. Multi-brand stays internal/filter-only.
 
 ## Plan
 
-### Step 1 — Fix the affected end-category names in the database
-I will update the affected leaf categories so `name_en` is fully English and consistent with the existing catalog.
+### Step 1 — Database migration
+- Add `brands text[] NOT NULL DEFAULT '{}'` to `products`.
+- Add a GIN index on `brands` for fast brand-page filtering.
+- Backfill in the same migration:
+  - For every published product, set `brands` to the **deduped union** of:
+    - the existing `brand` value (if any), and
+    - every authorized brand token detected (case-insensitive, word-boundary) in `name_en` and `name_it`.
+  - Forbidden brands are ignored (already filtered out at import).
 
-Rules:
-- keep the existing hierarchy exactly as-is
-- do not create or nurture new primary/group categories
-- do not move products unless I find a clearly wrong leaf during the final audit
-- use clear English end-category labels, not literal translations that create awkward duplicates
+### Step 2 — Update brand-page query
+- `src/pages/BrandPage.tsx` currently filters `WHERE brand ILIKE :brand`.
+- Switch to: `WHERE :brand = ANY(brands) OR brand ILIKE :brand` (the OR keeps it safe for any product whose `brands` array hasn't been backfilled yet).
+- Update the `get_brand_category_counts` RPC the same way so per-category counts on the brand page include co-branded products.
 
-### Step 2 — Correct the affected end-category featured images
-For the affected leaf categories, I will clean up `image_url` so they stop showing generic or mismatched images.
+### Step 3 — Update import / AI pipeline
+- `supabase/functions/product-bulk-insert/index.ts`: after determining `brand`, scan `name_en` + `name_it` for authorized brand tokens and write the deduped union into `brands` on both INSERT and UPDATE paths.
+- `supabase/functions/product-ai-process/index.ts`: include the same detection so newly processed products are co-branded automatically before they reach bulk-insert.
 
-Approach:
-- if a correct existing branch/leaf image already exists, reuse that
-- if a leaf currently points to a generic umbrella image, replace it with a more suitable category image
-- if a leaf is only inheriting a visually wrong image, assign the correct end-category image instead of leaving the mismatch
-- avoid random image assignment
+### Step 4 — Search + filters
+- `src/pages/SearchResults.tsx`: brand filter chip uses `brands` array (`brands @> ARRAY[:brand]` semantics) so a JOUCOMATIC filter also returns ASCO+JOUCOMATIC products.
+- Any other shared brand filter reads from the `brands` array.
 
-### Step 3 — Harden product image fallback everywhere
-I will make the fallback behavior consistent across the whole frontend so products do this everywhere:
+### Step 5 — Display logic (intentionally minimal)
+- Product cards and product detail page keep showing only the **primary** `brand`. No "Also available under" line.
+- No visible UI change for single-brand products.
 
-```text
-product image -> end-category image -> parent category image -> grandparent image -> branded placeholder
-```
-
-This will be applied to:
-- category listings
-- brand listings
-- product detail related-products section
-- search results
-- any shared product-card flow using `BrandedProductImage`
-
-### Step 4 — Fix subcategory card image resolution
-I will replace the current shallow subcategory-card logic so category cards use a proper nearest-valid-category-image resolver, instead of raw `cat.image_url || currentCategory.image_url` behavior.
-
-This is the main reason entire rows currently show the same wrong image.
-
-### Step 5 — Re-audit after changes
-After the fixes, I will verify:
-- affected end-categories show English names in chains and breadcrumbs
-- the listed leaves no longer use generic/mismatched images
-- products without their own images no longer fall to brand-logo placeholder when a category image exists
-- spot-check the problem areas you pointed at, including:
-  - `/categories/vacuum-switches`
-  - `/categories/hydraulic-hose-assemblies`
-  - representative product detail pages
-  - search results / related products
+### Step 6 — Audit
+- Verify on the JOUCOMATIC brand page: previously ASCO-only co-branded products now appear.
+- Verify ASCO page still shows the same products (no loss).
+- Spot-check counts on the brand-page category sidebar.
+- Confirm `product_code` uniqueness is intact and no duplicate rows were created.
 
 ## Technical details
 
-Files likely involved:
-- `src/components/shared/BrandedProductImage.tsx`
-- `src/pages/Categories.tsx`
+**DB migration**
+```sql
+ALTER TABLE public.products
+  ADD COLUMN brands text[] NOT NULL DEFAULT '{}';
+
+CREATE INDEX idx_products_brands ON public.products USING GIN (brands);
+
+-- Backfill: union of existing brand + authorized tokens detected in names
+WITH detected AS (
+  SELECT p.id,
+    ARRAY(
+      SELECT DISTINCT b FROM unnest(ARRAY[
+        'PARKER','ASCO','AVENTICS','JOUCOMATIC','NUMATICS','EMERSON','SIRAI'
+      ]) AS b
+      WHERE (p.name_en ILIKE '%'||b||'%' OR p.name_it ILIKE '%'||b||'%')
+         OR upper(coalesce(p.brand,'')) = b
+    ) AS brand_list
+  FROM public.products p
+)
+UPDATE public.products p
+SET brands = d.brand_list
+FROM detected d
+WHERE p.id = d.id;
+```
+
+**Brand-page count RPC** (`get_brand_category_counts`) — change predicate to:
+```
+WHERE p.is_active = true
+  AND p.status = 'published'
+  AND (_brand = ANY(p.brands) OR p.brand ILIKE _brand)
+  AND p.category_id IS NOT NULL
+```
+
+**Edge function brand-detection helper** (used in both `product-bulk-insert` and `product-ai-process`):
+```ts
+const AUTHORIZED = ['PARKER','ASCO','AVENTICS','JOUCOMATIC','NUMATICS','EMERSON','SIRAI'];
+function detectBrands(name: string, primary?: string | null): string[] {
+  const u = (name || '').toUpperCase();
+  const found = AUTHORIZED.filter(b => new RegExp(`\\b${b}\\b`).test(u));
+  if (primary) {
+    const p = primary.toUpperCase();
+    if (AUTHORIZED.includes(p) && !found.includes(p)) found.push(p);
+  }
+  return found;
+}
+```
+
+**Files edited**
+- DB migration (new) — column, index, backfill, RPC update.
+- `supabase/functions/product-bulk-insert/index.ts`
+- `supabase/functions/product-ai-process/index.ts`
 - `src/pages/BrandPage.tsx`
-- `src/pages/ProductDetail.tsx`
 - `src/pages/SearchResults.tsx`
-- database data updates for `categories`
 
-Data changes:
-- update `categories.name_en` for the affected leaf categories
-- update `categories.image_url` for the affected leaf categories where images are generic or mismatched
+**Files NOT touched**
+- `categories`, images, listing card layouts, mobile/tablet views, product detail UI.
+- `product_code` uniqueness — preserved.
 
-Code changes:
-- centralize category image resolution
-- pass resolved category image into all product-card contexts
-- ensure related/search/product listing views behave the same way
+## Result
 
-## Result after implementation
-
-When this is done:
-- all those end-category chains will read in English
-- end-category cards will stop showing obviously wrong repeated images
-- products missing their own image will use the correct end-category image more consistently
-- the catalog stays in the same structure you wanted, without revamping or nurturing the hierarchy
+- A product named *"ASCO JOUCOMATIC 356-0001"* with `brand = 'ASCO'` will appear on both `/brands/ASCO` and `/brands/JOUCOMATIC`.
+- Same for any future co-brand combinations across the 7 authorized brands (e.g. ASCO+NUMATICS, AVENTICS+EMERSON).
+- One row per product. Clean SEO, clean analytics, clean quotes. No visible UI change for single-brand products.
