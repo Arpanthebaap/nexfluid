@@ -353,7 +353,7 @@ const ProductDetail = () => {
                     src={productImage}
                     alt={`${product.product_code} ${productName}`}
                     productCode={product.product_code}
-                    brand={product.brand}
+                    brand={displayBrand}
                     categoryName={categoryLastName}
                     categoryImageUrl={categoryImageUrl}
                     size="lg"
@@ -417,7 +417,7 @@ const ProductDetail = () => {
                 <div className="sticky top-24">
                   {/* Product info card */}
                   <div className="rounded-lg border bg-card p-6 mb-6">
-                    <p className="text-sm text-muted-foreground">{product.brand} {product.product_code}</p>
+                    <p className="text-sm text-muted-foreground">{displayBrand} {product.product_code}</p>
                     <h1 className="text-xl font-bold font-display mt-1 text-primary">{productName}</h1>
 
                     <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-green-600 text-white px-3 py-1 text-xs font-medium">
