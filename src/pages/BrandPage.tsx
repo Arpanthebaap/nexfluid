@@ -346,7 +346,7 @@ const BrandPage = () => {
                         >
                           {/* Image — large/centered on mobile, comfortable square on desktop */}
                           <Link
-                            to={`/products/${product.slug}`}
+                            to={`/products/${product.slug}?from=${encodeURIComponent(brand)}`}
                             className="block mx-auto lg:mx-0 shrink-0 w-full max-w-[240px] aspect-square lg:w-[120px] lg:h-[120px] lg:aspect-auto rounded-md bg-muted overflow-hidden border lg:border-border"
                           >
                             <BrandedProductImage
@@ -368,7 +368,7 @@ const BrandPage = () => {
                               <span>{product.product_code}</span>
                             </p>
                             <Link
-                              to={`/products/${product.slug}`}
+                              to={`/products/${product.slug}?from=${encodeURIComponent(brand)}`}
                               className="block mt-1.5 font-semibold text-base lg:text-base text-primary hover:underline line-clamp-2"
                             >
                               {prodName(product)}
@@ -383,7 +383,7 @@ const BrandPage = () => {
                               <button onClick={() => handleQuantity(product.id, 1)} className="px-3 py-1.5 lg:px-3 lg:py-2 text-base hover:bg-muted transition-colors">+</button>
                             </div>
                             <Button asChild className="uppercase font-bold tracking-wide lg:px-6 lg:py-2 lg:h-auto lg:text-sm">
-                              <Link to={`/products/${product.slug}`}>
+                              <Link to={`/products/${product.slug}?from=${encodeURIComponent(brand)}`}>
                                 {lang === 'it' ? 'Preventivo' : 'Quote'}
                               </Link>
                             </Button>
