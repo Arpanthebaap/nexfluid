@@ -15,6 +15,20 @@ function slugify(text: string): string {
     .slice(0, 100);
 }
 
+const AUTHORIZED_BRANDS = ['PARKER','ASCO','AVENTICS','JOUCOMATIC','NUMATICS','EMERSON','SIRAI'];
+function detectBrands(primary: string | null | undefined, ...names: (string | null | undefined)[]): string[] {
+  const haystack = names.filter(Boolean).join(' ').toUpperCase();
+  const found = new Set<string>();
+  for (const b of AUTHORIZED_BRANDS) {
+    if (new RegExp(`\\b${b}\\b`).test(haystack)) found.add(b);
+  }
+  if (primary) {
+    const p = primary.toUpperCase();
+    if (AUTHORIZED_BRANDS.includes(p)) found.add(p);
+  }
+  return Array.from(found);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
