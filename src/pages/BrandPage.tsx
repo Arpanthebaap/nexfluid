@@ -74,7 +74,7 @@ const BrandPage = () => {
       const [{ data: cats }, { data: counts }, { count: total }] = await Promise.all([
         supabase.from('categories').select('id, slug, name_it, name_en, parent_id, image_url').eq('is_active', true).order('sort_order'),
         supabase.rpc('get_brand_category_counts', { _brand: brand }),
-        supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('status', 'published').ilike('brand', brand),
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('status', 'published').contains('brands', [brand]),
       ]);
 
       setAllCategories(cats || []);
