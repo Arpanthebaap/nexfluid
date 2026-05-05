@@ -504,7 +504,7 @@ const ProductDetail = () => {
                     return (
                       <Link
                         key={rp.id}
-                        to={`/products/${rp.slug}`}
+                        to={`/products/${rp.slug}${matchedFrom ? `?from=${encodeURIComponent(matchedFrom)}` : ''}`}
                         className="group rounded-lg border bg-card p-3 hover:shadow-sm hover:border-primary/30 transition-all"
                       >
                         <BrandedProductImage
