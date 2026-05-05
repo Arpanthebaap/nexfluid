@@ -6,7 +6,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const SITE_URL = "https://nexfluid.it";
+const IT = "https://nexfluid.it";
+const EN = "https://nexfluid.com";
+
+const xmlEscape = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+
+const buildAlt = (path: string) =>
+  `    <xhtml:link rel="alternate" hreflang="it" href="${IT}${path}" />
+    <xhtml:link rel="alternate" hreflang="en" href="${EN}${path}" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="${IT}${path}" />`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -19,13 +28,11 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch all active categories
     const { data: categories } = await supabase
       .from("categories")
       .select("slug, updated_at")
       .eq("is_active", true);
 
-    // Fetch all published products in batches (may exceed 1000)
     let allProducts: { slug: string; updated_at: string }[] = [];
     let offset = 0;
     const batchSize = 1000;
@@ -42,46 +49,49 @@ Deno.serve(async (req) => {
       offset += batchSize;
     }
 
-    // Build XML
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${SITE_URL}/</loc>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>${SITE_URL}/contact</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>${SITE_URL}/about</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>`;
+    const staticPaths = [
+      { path: "/", priority: "1.0", changefreq: "daily" },
+      { path: "/categories", priority: "0.8", changefreq: "weekly" },
+      { path: "/contact", priority: "0.6", changefreq: "monthly" },
+      { path: "/about", priority: "0.5", changefreq: "monthly" },
+    ];
 
-    // Category URLs
-    for (const cat of categories || []) {
-      const lastmod = cat.updated_at ? cat.updated_at.split("T")[0] : "";
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">`;
+
+    for (const s of staticPaths) {
       xml += `
   <url>
-    <loc>${SITE_URL}/categories/${cat.slug}</loc>
-    ${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <loc>${IT}${s.path}</loc>
+    <changefreq>${s.changefreq}</changefreq>
+    <priority>${s.priority}</priority>
+${buildAlt(s.path)}
   </url>`;
     }
 
-    // Product URLs
+    for (const cat of categories || []) {
+      const path = `/categories/${xmlEscape(cat.slug)}`;
+      const lastmod = cat.updated_at ? cat.updated_at.split("T")[0] : "";
+      xml += `
+  <url>
+    <loc>${IT}${path}</loc>
+    ${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+${buildAlt(path)}
+  </url>`;
+    }
+
     for (const prod of allProducts) {
+      const path = `/products/${xmlEscape(prod.slug)}`;
       const lastmod = prod.updated_at ? prod.updated_at.split("T")[0] : "";
       xml += `
   <url>
-    <loc>${SITE_URL}/products/${prod.slug}</loc>
+    <loc>${IT}${path}</loc>
     ${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+${buildAlt(path)}
   </url>`;
     }
 
@@ -92,11 +102,12 @@ Deno.serve(async (req) => {
       headers: {
         "Content-Type": "application/xml; charset=utf-8",
         "Cache-Control": "public, max-age=3600",
+        "X-Robots-Tag": "noindex",
         ...corsHeaders,
       },
     });
   } catch (error) {
     console.error("Sitemap generation error:", error);
-    return new Response(`Error: ${error.message}`, { status: 500, headers: corsHeaders });
+    return new Response(`Error: ${(error as Error).message}`, { status: 500, headers: corsHeaders });
   }
 });
