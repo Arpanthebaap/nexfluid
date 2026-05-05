@@ -54,11 +54,16 @@ const About = () => {
   return (
     <>
       <Helmet>
+        <html lang={lang} />
         <title>{lang === 'it' ? 'Chi Siamo | Nexfluid' : 'About Us | Nexfluid'}</title>
         <meta name="description" content={lang === 'it'
           ? 'Nexfluid: il tuo partner per soluzioni industriali di precisione. Oltre 85.000 prodotti, 50+ brand, spedizione express.'
           : 'Nexfluid: your partner for precision industrial solutions. 85,000+ products, 50+ brands, express shipping.'
         } />
+        <link rel="canonical" href={`https://nexfluid.${lang === 'it' ? 'it' : 'com'}/about`} />
+        <link rel="alternate" hrefLang="it" href="https://nexfluid.it/about" />
+        <link rel="alternate" hrefLang="en" href="https://nexfluid.com/about" />
+        <link rel="alternate" hrefLang="x-default" href="https://nexfluid.it/about" />
       </Helmet>
 
       {/* Hero Section */}

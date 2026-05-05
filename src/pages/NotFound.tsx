@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Helmet } from 'react-helmet-async';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import valveCollage from '@/assets/valve-collage-404.jpg';
@@ -20,6 +21,10 @@ const NotFound = () => {
 
   return (
     <div className="container mx-auto px-4 py-16">
+      <Helmet>
+        <title>{lang === 'it' ? '404 — Pagina non trovata | Nexfluid' : '404 — Page Not Found | Nexfluid'}</title>
+        <meta name="robots" content="noindex, follow" />
+      </Helmet>
       <div className="grid gap-12 lg:grid-cols-2 items-center">
         {/* Left - Text + Search */}
         <div>

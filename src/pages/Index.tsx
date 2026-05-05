@@ -54,6 +54,7 @@ const Index = () => {
   return (
     <>
       <Helmet>
+        <html lang={lang} />
         <title>{lang === 'it' ? 'Nexfluid — Automazione in Stock' : 'Nexfluid — Automation in Stock'}</title>
         <meta name="description" content={lang === 'it'
           ? 'Oltre 85.000 componenti industriali: valvole, pneumatica, idraulica, automazione. Preventivi rapidi, ricambi originali, spedizione express in Italia e UE.'

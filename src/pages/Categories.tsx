@@ -245,6 +245,7 @@ const Categories = () => {
   return (
     <>
       <Helmet>
+        <html lang={lang} />
         <title>{metaTitle}</title>
         {currentCategory && (
           <meta name="description" content={catDesc(currentCategory) || `${catName(currentCategory)} — ${lang === 'it' ? 'Prodotti industriali su Nexfluid' : 'Industrial products at Nexfluid'}`} />

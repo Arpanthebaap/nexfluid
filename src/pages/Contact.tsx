@@ -58,6 +58,7 @@ const Contact = () => {
   return (
     <div className="py-12 md:py-16">
       <Helmet>
+        <html lang={lang} />
         <title>{lang === 'it' ? 'Contatti | Nexfluid' : 'Contact Us | Nexfluid'}</title>
         <meta name="description" content={lang === 'it'
           ? 'Contattaci per un preventivo su valvole, pneumatica, idraulica e automazione industriale.'
