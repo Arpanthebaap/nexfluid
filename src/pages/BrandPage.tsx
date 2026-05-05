@@ -158,7 +158,7 @@ const BrandPage = () => {
         .select('id, product_code, name_it, name_en, slug, brand, images, description_it, description_en, category_id', { count: 'exact' })
         .eq('is_active', true)
         .eq('status', 'published')
-        .ilike('brand', brand);
+        .contains('brands', [brand]);
 
       // If viewing a specific category, filter by descendant IDs
       if (!isAllProducts && currentCategory) {
