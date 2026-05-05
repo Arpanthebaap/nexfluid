@@ -258,6 +258,14 @@ const ProductDetail = () => {
   const productName = lang === 'it' ? product.name_it : product.name_en;
   const productDesc = lang === 'it' ? product.description_it : product.description_en;
   const productImage = getProductImage();
+
+  // Contextual brand display: when arriving via a specific brand page (?from=BRAND),
+  // show that brand if it's one of the product's brands. SEO/canonical stays on primary.
+  const productBrandList = Array.isArray(product.brands) ? product.brands : [];
+  const matchedFrom = fromBrand
+    ? productBrandList.find(b => b.toLowerCase() === fromBrand.toLowerCase())
+    : null;
+  const displayBrand = matchedFrom || product.brand;
   const jsonSpecs = attributes.length === 0 ? getTechnicalSpecsFromJson() : [];
   const specsFallback = jsonSpecs.length > 0 ? jsonSpecs : (attributes.length === 0 ? getSpecsFromDescription() : []);
   const categoryLastName = categoryChain.length > 0 ? categoryChain[categoryChain.length - 1].name : undefined;
