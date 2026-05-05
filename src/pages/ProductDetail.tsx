@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet-async';
 import { CheckCircle, Send } from 'lucide-react';
@@ -25,6 +25,7 @@ type Product = {
   name_en: string;
   slug: string;
   brand: string | null;
+  brands: string[] | null;
   images: any;
   description_it: string | null;
   description_en: string | null;
@@ -65,6 +66,8 @@ const ProductDetail = () => {
   const { i18n } = useTranslation();
   const lang = i18n.language as 'it' | 'en';
   const { slug } = useParams();
+  const [searchParams] = useSearchParams();
+  const fromBrand = searchParams.get('from');
   const { toast } = useToast();
   const [product, setProduct] = useState<Product | null>(null);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
@@ -255,6 +258,14 @@ const ProductDetail = () => {
   const productName = lang === 'it' ? product.name_it : product.name_en;
   const productDesc = lang === 'it' ? product.description_it : product.description_en;
   const productImage = getProductImage();
+
+  // Contextual brand display: when arriving via a specific brand page (?from=BRAND),
+  // show that brand if it's one of the product's brands. SEO/canonical stays on primary.
+  const productBrandList = Array.isArray(product.brands) ? product.brands : [];
+  const matchedFrom = fromBrand
+    ? productBrandList.find(b => b.toLowerCase() === fromBrand.toLowerCase())
+    : null;
+  const displayBrand = matchedFrom || product.brand;
   const jsonSpecs = attributes.length === 0 ? getTechnicalSpecsFromJson() : [];
   const specsFallback = jsonSpecs.length > 0 ? jsonSpecs : (attributes.length === 0 ? getSpecsFromDescription() : []);
   const categoryLastName = categoryChain.length > 0 ? categoryChain[categoryChain.length - 1].name : undefined;
@@ -304,6 +315,7 @@ const ProductDetail = () => {
           (lang === 'it' ? product.meta_description_it : product.meta_description_en)
           || `${product.product_code} ${product.brand || ''} — ${productName}. ${lang === 'it' ? 'Disponibile su Nexfluid.' : 'Available at Nexfluid.'}`
         } />
+        <link rel="canonical" href={`https://nexfluid.${lang === 'it' ? 'it' : 'com'}/products/${product.slug}`} />
         <link rel="alternate" hrefLang="it" href={`https://nexfluid.it/products/${product.slug}`} />
         <link rel="alternate" hrefLang="en" href={`https://nexfluid.com/products/${product.slug}`} />
         <link rel="alternate" hrefLang="x-default" href={`https://nexfluid.it/products/${product.slug}`} />
@@ -342,7 +354,7 @@ const ProductDetail = () => {
                     src={productImage}
                     alt={`${product.product_code} ${productName}`}
                     productCode={product.product_code}
-                    brand={product.brand}
+                    brand={displayBrand}
                     categoryName={categoryLastName}
                     categoryImageUrl={categoryImageUrl}
                     size="lg"
@@ -406,7 +418,7 @@ const ProductDetail = () => {
                 <div className="sticky top-24">
                   {/* Product info card */}
                   <div className="rounded-lg border bg-card p-6 mb-6">
-                    <p className="text-sm text-muted-foreground">{product.brand} {product.product_code}</p>
+                    <p className="text-sm text-muted-foreground">{displayBrand} {product.product_code}</p>
                     <h1 className="text-xl font-bold font-display mt-1 text-primary">{productName}</h1>
 
                     <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-green-600 text-white px-3 py-1 text-xs font-medium">
@@ -492,7 +504,7 @@ const ProductDetail = () => {
                     return (
                       <Link
                         key={rp.id}
-                        to={`/products/${rp.slug}`}
+                        to={`/products/${rp.slug}${matchedFrom ? `?from=${encodeURIComponent(matchedFrom)}` : ''}`}
                         className="group rounded-lg border bg-card p-3 hover:shadow-sm hover:border-primary/30 transition-all"
                       >
                         <BrandedProductImage
