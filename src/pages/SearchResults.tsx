@@ -97,6 +97,7 @@ const SearchResults = () => {
   return (
     <div className="py-12 md:py-16">
       <Helmet>
+        <html lang={lang} />
         <title>{`"${query}" — ${lang === 'it' ? 'Risultati ricerca' : 'Search results'} | Nexfluid`}</title>
         <meta name="robots" content="noindex" />
         <link rel="alternate" hrefLang="it" href={`https://nexfluid.it/search?q=${encodeURIComponent(query)}`} />

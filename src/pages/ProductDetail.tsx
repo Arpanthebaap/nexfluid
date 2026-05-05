@@ -310,6 +310,7 @@ const ProductDetail = () => {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
 
       <Helmet>
+        <html lang={lang} />
         <title>{`${product.product_code} ${product.brand || ''} — ${productName} | Nexfluid`}</title>
         <meta name="description" content={
           (lang === 'it' ? product.meta_description_it : product.meta_description_en)
