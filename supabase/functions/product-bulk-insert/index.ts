@@ -15,6 +15,20 @@ function slugify(text: string): string {
     .slice(0, 100);
 }
 
+const AUTHORIZED_BRANDS = ['PARKER','ASCO','AVENTICS','JOUCOMATIC','NUMATICS','EMERSON','SIRAI'];
+function detectBrands(primary: string | null | undefined, ...names: (string | null | undefined)[]): string[] {
+  const haystack = names.filter(Boolean).join(' ').toUpperCase();
+  const found = new Set<string>();
+  for (const b of AUTHORIZED_BRANDS) {
+    if (new RegExp(`\\b${b}\\b`).test(haystack)) found.add(b);
+  }
+  if (primary) {
+    const p = primary.toUpperCase();
+    if (AUTHORIZED_BRANDS.includes(p)) found.add(p);
+  }
+  return Array.from(found);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -120,6 +134,7 @@ Deno.serve(async (req) => {
               name_en: pd.name_en,
               name_it: pd.name_it || pd.name_en,
               brand: pd.brand || null,
+              brands: detectBrands(pd.brand, pd.name_en, pd.name_it),
               category_id: categoryId,
               description_en: pd.description_en || null,
               description_it: pd.description_it || null,
@@ -174,6 +189,7 @@ Deno.serve(async (req) => {
               slug: uniqueSlug,
               product_code: pd.product_code,
               brand: pd.brand || null,
+              brands: detectBrands(pd.brand, pd.name_en, pd.name_it),
               category_id: categoryId,
               description_en: pd.description_en || null,
               description_it: pd.description_it || null,
