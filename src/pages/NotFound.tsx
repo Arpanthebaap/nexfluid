@@ -21,6 +21,10 @@ const NotFound = () => {
 
   return (
     <div className="container mx-auto px-4 py-16">
+      <Helmet>
+        <title>{lang === 'it' ? '404 — Pagina non trovata | Nexfluid' : '404 — Page Not Found | Nexfluid'}</title>
+        <meta name="robots" content="noindex, follow" />
+      </Helmet>
       <div className="grid gap-12 lg:grid-cols-2 items-center">
         {/* Left - Text + Search */}
         <div>
