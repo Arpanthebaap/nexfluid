@@ -353,7 +353,7 @@ const BrandPage = () => {
                               src={imgs.length > 0 ? imgs[0] : null}
                               alt={prodName(product)}
                               productCode={product.product_code}
-                              brand={product.brand}
+                              brand={brand}
                               size="lg"
                               categoryImageUrl={resolvedCatImg}
                               className="!h-full !w-full"
