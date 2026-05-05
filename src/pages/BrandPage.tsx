@@ -363,7 +363,7 @@ const BrandPage = () => {
                           {/* Text info */}
                           <div className="flex-1 min-w-0 text-center lg:text-left">
                             <p className="text-xs lg:text-sm text-muted-foreground uppercase tracking-wide">
-                              <span className="font-semibold text-foreground/70">{product.brand}</span>
+                              <span className="font-semibold text-foreground/70">{brand}</span>
                               <span className="mx-1.5">·</span>
                               <span>{product.product_code}</span>
                             </p>
