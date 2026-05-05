@@ -189,6 +189,7 @@ Deno.serve(async (req) => {
               slug: uniqueSlug,
               product_code: pd.product_code,
               brand: pd.brand || null,
+              brands: detectBrands(pd.brand, pd.name_en, pd.name_it),
               category_id: categoryId,
               description_en: pd.description_en || null,
               description_it: pd.description_it || null,
