@@ -25,6 +25,7 @@ const Header = () => {
   const lang = i18n.language as 'it' | 'en';
 
   useEffect(() => {
+    if (!sidebarOpen || categories.length > 0) return;
     const fetchCategories = async () => {
       const { data } = await supabase
         .from('categories')
@@ -34,7 +35,7 @@ const Header = () => {
       setCategories(data || []);
     };
     fetchCategories();
-  }, []);
+  }, [sidebarOpen, categories.length]);
 
   const topCategories = categories.filter(c => !c.parent_id);
   const getChildren = (parentId: string) => categories.filter(c => c.parent_id === parentId);
