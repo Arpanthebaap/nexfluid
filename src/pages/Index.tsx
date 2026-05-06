@@ -60,7 +60,7 @@ const Index = () => {
           ? 'Oltre 85.000 componenti industriali: valvole, pneumatica, idraulica, automazione. Preventivi rapidi, ricambi originali, spedizione express in Italia e UE.'
           : '85,000+ industrial components: valves, pneumatics, hydraulics, automation. Fast quotes, original parts, express shipping across Italy and EU.'
         } />
-        <link rel="canonical" href="https://nexfluid.it" />
+        <link rel="canonical" href={lang === 'en' ? 'https://nexfluid.com/' : 'https://nexfluid.it/'} />
         <link rel="alternate" hrefLang="it" href="https://nexfluid.it/" />
         <link rel="alternate" hrefLang="en" href="https://nexfluid.com/" />
         <link rel="alternate" hrefLang="x-default" href="https://nexfluid.it/" />
