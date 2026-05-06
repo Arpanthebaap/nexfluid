@@ -7,4 +7,5 @@ Disallow: /forgot-password
 Disallow: /reset-password
 Disallow: /search
 
-Sitemap: https://xhejomioyecdfpvmohqh.supabase.co/functions/v1/generate-sitemap
+Sitemap: https://nexfluid.it/sitemap.xml
+Sitemap: https://nexfluid.com/sitemap.xml
