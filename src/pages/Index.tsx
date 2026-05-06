@@ -130,11 +130,8 @@ const Index = () => {
                             <img
                               src={parent.image_url}
                               alt={catName(parent)}
-                              width="320"
-                              height="240"
                               className="w-full h-full object-cover aspect-[4/3]"
                               loading="lazy"
-                              decoding="async"
                             />
                           </Link>
                         )}
@@ -152,11 +149,8 @@ const Index = () => {
                                     <img
                                       src={child.image_url}
                                       alt={catName(child)}
-                                      width="40"
-                                      height="40"
                                       className="w-10 h-10 rounded object-cover shrink-0"
                                       loading="lazy"
-                                      decoding="async"
                                     />
                                   )}
                                   <span className="text-xs sm:text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">

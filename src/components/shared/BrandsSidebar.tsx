@@ -20,8 +20,6 @@ const BrandsSidebar = () => {
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.matchMedia('(max-width: 1023px)').matches) return;
     const fetch = async () => {
       const { data } = await supabase
         .from('categories')

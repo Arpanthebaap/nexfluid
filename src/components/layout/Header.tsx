@@ -25,7 +25,6 @@ const Header = () => {
   const lang = i18n.language as 'it' | 'en';
 
   useEffect(() => {
-    if (!sidebarOpen || categories.length > 0) return;
     const fetchCategories = async () => {
       const { data } = await supabase
         .from('categories')
@@ -35,7 +34,7 @@ const Header = () => {
       setCategories(data || []);
     };
     fetchCategories();
-  }, [sidebarOpen, categories.length]);
+  }, []);
 
   const topCategories = categories.filter(c => !c.parent_id);
   const getChildren = (parentId: string) => categories.filter(c => c.parent_id === parentId);
@@ -73,7 +72,7 @@ const Header = () => {
 
             {/* Logo */}
             <Link to="/" className="shrink-0">
-              <img src="/lovable-uploads/f98792b3-9ddb-4b96-b688-27ee7bbf2994.png" alt="Nexfluid - Automation in Stock" width="160" height="40" fetchPriority="high" decoding="async" className="h-8 md:h-10 w-auto" />
+              <img src="/lovable-uploads/f98792b3-9ddb-4b96-b688-27ee7bbf2994.png" alt="Nexfluid - Automation in Stock" className="h-8 md:h-10 w-auto" />
             </Link>
 
             {/* Search bar with autocomplete */}
