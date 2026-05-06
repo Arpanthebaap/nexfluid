@@ -14,10 +14,22 @@
 
     <link rel="icon" href="/favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-    <link rel="canonical" href="https://nexfluid.it/" />
+    <link id="canonical-link" rel="canonical" href="https://nexfluid.it/" />
     <link rel="alternate" hreflang="it" href="https://nexfluid.it/" />
     <link rel="alternate" hreflang="en" href="https://nexfluid.com/" />
     <link rel="alternate" hreflang="x-default" href="https://nexfluid.it/" />
+    <script>
+      (function () {
+        try {
+          var h = location.hostname;
+          var isEn = h.indexOf('nexfluid.com') !== -1;
+          var origin = isEn ? 'https://nexfluid.com' : 'https://nexfluid.it';
+          var link = document.getElementById('canonical-link');
+          if (link) link.setAttribute('href', origin + location.pathname + location.search);
+          if (isEn) document.documentElement.setAttribute('lang', 'en');
+        } catch (e) {}
+      })();
+    </script>
 
     <link rel="preconnect" href="https://xhejomioyecdfpvmohqh.supabase.co" crossorigin />
     <link rel="dns-prefetch" href="https://xhejomioyecdfpvmohqh.supabase.co" />
