@@ -250,6 +250,7 @@ const Categories = () => {
         {currentCategory && (
           <meta name="description" content={catDesc(currentCategory) || `${catName(currentCategory)} — ${lang === 'it' ? 'Prodotti industriali su Nexfluid' : 'Industrial products at Nexfluid'}`} />
         )}
+        <link rel="canonical" href={`https://nexfluid.${lang === 'en' ? 'com' : 'it'}${slug ? `/categories/${slug}` : '/categories'}`} />
         <link rel="alternate" hrefLang="it" href={`https://nexfluid.it${slug ? `/categories/${slug}` : '/categories'}`} />
         <link rel="alternate" hrefLang="en" href={`https://nexfluid.com${slug ? `/categories/${slug}` : '/categories'}`} />
         <link rel="alternate" hrefLang="x-default" href={`https://nexfluid.it${slug ? `/categories/${slug}` : '/categories'}`} />
