@@ -29,7 +29,7 @@ const OurBrands = ({ showDescription = false, layout = 'stacked' }: { showDescri
             width="160"
             height="56"
             loading={idx < 4 ? 'eager' : 'lazy'}
-            fetchPriority={idx < 4 ? 'high' : 'auto'}
+            fetchPriority={idx === 0 ? 'high' : 'auto'}
             decoding="async"
             className="max-h-14 max-w-[90%] object-contain"
           />
