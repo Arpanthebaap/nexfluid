@@ -28,8 +28,7 @@ const OurBrands = ({ showDescription = false, layout = 'stacked' }: { showDescri
             alt={`${brand.name} logo`}
             width="160"
             height="56"
-            loading={idx < 4 ? 'eager' : 'lazy'}
-            fetchPriority={idx < 4 ? 'high' : 'auto'}
+            loading="lazy"
             decoding="async"
             className="max-h-14 max-w-[90%] object-contain"
           />

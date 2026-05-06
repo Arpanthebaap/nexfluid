@@ -133,8 +133,7 @@ const Index = () => {
                               width="320"
                               height="240"
                               className="w-full h-full object-cover aspect-[4/3]"
-                              loading={idx < 1 ? 'eager' : 'lazy'}
-                              fetchPriority={idx < 1 ? 'high' : 'auto'}
+                              loading="lazy"
                               decoding="async"
                             />
                           </Link>
