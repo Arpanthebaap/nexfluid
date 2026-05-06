@@ -64,6 +64,7 @@ const Contact = () => {
           ? 'Contattaci per un preventivo su valvole, pneumatica, idraulica e automazione industriale.'
           : 'Contact us for a quote on valves, pneumatics, hydraulics and industrial automation.'
         } />
+        <link rel="canonical" href={`https://nexfluid.${lang === 'en' ? 'com' : 'it'}/contact`} />
         <link rel="alternate" hrefLang="it" href="https://nexfluid.it/contact" />
         <link rel="alternate" hrefLang="en" href="https://nexfluid.com/contact" />
         <link rel="alternate" hrefLang="x-default" href="https://nexfluid.it/contact" />
