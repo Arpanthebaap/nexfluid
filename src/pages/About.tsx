@@ -93,11 +93,11 @@ const About = () => {
               </div>
             </motion.div>
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-              <div className="rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
+              <div className="rounded-lg overflow-hidden bg-muted flex items-center justify-center">
                 <img
                   src={aboutHeroImage}
-                  alt="Nexfluid industrial products"
-                  className="w-full h-full object-cover"
+                  alt="Nexfluid warehouse and logistics"
+                  className="w-full h-auto object-contain"
                 />
               </div>
             </motion.div>
@@ -126,8 +126,8 @@ const About = () => {
                 transition={{ delay: i * 0.1 }}
                 className="rounded-lg border bg-card p-6 text-center space-y-4"
               >
-                <div className="mx-auto h-20 w-20 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                  <img src={cat.image} alt={cat.title[lang === 'it' ? 'it' : 'en']} className="h-14 w-14 object-contain" />
+                <div className="mx-auto aspect-square w-full max-w-[200px] rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                  <img src={cat.image} alt={cat.title[lang === 'it' ? 'it' : 'en']} className="w-full h-full object-cover" />
                 </div>
                 <h3 className="text-sm font-bold text-foreground uppercase">
                   {cat.title[lang === 'it' ? 'it' : 'en']}
