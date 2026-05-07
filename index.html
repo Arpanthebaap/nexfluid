@@ -38,7 +38,24 @@
           var origin = isEn ? 'https://nexfluid.com' : 'https://nexfluid.it';
           var link = document.getElementById('canonical-link');
           if (link) link.setAttribute('href', origin + location.pathname + location.search);
-          if (isEn) document.documentElement.setAttribute('lang', 'en');
+          if (isEn) {
+            document.documentElement.setAttribute('lang', 'en');
+            document.title = 'Nexfluid — Automation in Stock | Valves, Pneumatics, Hydraulics';
+            var setMeta = function(sel, val) {
+              var el = document.querySelector(sel);
+              if (el) el.setAttribute('content', val);
+            };
+            setMeta('meta[name="description"]', '85,000+ industrial components: valves, pneumatics, hydraulics, automation. Fast quotes, original parts, express shipping across Italy and EU.');
+            setMeta('meta[property="og:title"]', 'Nexfluid — Automation in Stock');
+            setMeta('meta[property="og:description"]', '85,000+ industrial components: valves, pneumatics, hydraulics, automation. Fast quotes, original parts, express shipping.');
+            setMeta('meta[property="og:url"]', 'https://nexfluid.com' + location.pathname);
+            setMeta('meta[property="og:locale"]', 'en_US');
+            setMeta('meta[property="og:locale:alternate"]', 'it_IT');
+            setMeta('meta[property="og:image"]', 'https://nexfluid.com/nexfluid-logo.png');
+            setMeta('meta[name="twitter:title"]', 'Nexfluid — Automation in Stock');
+            setMeta('meta[name="twitter:description"]', '85,000+ industrial components: valves, pneumatics, hydraulics, automation.');
+            setMeta('meta[name="twitter:image"]', 'https://nexfluid.com/nexfluid-logo.png');
+          }
         } catch (e) {}
       })();
     </script>
