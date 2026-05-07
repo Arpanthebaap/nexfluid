@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Menu, X, User, Phone, Mail, LogOut } from 'lucide-react';
+import i18nInstance from '@/lib/i18n';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import SearchAutocomplete from '@/components/shared/SearchAutocomplete';
@@ -15,6 +16,37 @@ type Category = {
 };
 
 const brands = ['PARKER', 'ASCO', 'AVENTICS', 'JOUCOMATIC', 'NUMATICS', 'EMERSON', 'SIRAI'];
+
+const LanguageSwitcher = ({ lang }: { lang: 'it' | 'en' }) => {
+  const handleClick = (target: 'it' | 'en') => (e: React.MouseEvent) => {
+    if (typeof window === 'undefined') return;
+    const host = window.location.hostname;
+    const isProd = host === 'nexfluid.it' || host === 'www.nexfluid.it' || host === 'nexfluid.com' || host === 'www.nexfluid.com';
+    if (isProd) {
+      const origin = target === 'it' ? 'https://nexfluid.it' : 'https://nexfluid.com';
+      window.location.href = origin + window.location.pathname + window.location.search;
+      e.preventDefault();
+    } else {
+      e.preventDefault();
+      i18nInstance.changeLanguage(target);
+    }
+  };
+  const base = 'flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold transition-colors';
+  const active = 'bg-white text-primary';
+  const inactive = 'text-primary-foreground/70 hover:text-primary-foreground';
+  return (
+    <div className="hidden md:flex items-center rounded-full overflow-hidden border border-primary-foreground/30">
+      <button onClick={handleClick('it')} className={`${base} ${lang === 'it' ? active : inactive}`} aria-label="Italiano">
+        <span className="text-base leading-none">🇮🇹</span>
+        <span>IT</span>
+      </button>
+      <button onClick={handleClick('en')} className={`${base} ${lang === 'en' ? active : inactive}`} aria-label="English">
+        <span className="text-base leading-none">🇬🇧</span>
+        <span>EN</span>
+      </button>
+    </div>
+  );
+};
 
 const Header = () => {
   const { i18n } = useTranslation();
@@ -55,24 +87,6 @@ const Header = () => {
               <Mail className="h-3 w-3" />
               <span>info@nexfluid.it</span>
             </a>
-            <div className="flex items-center gap-1 ml-2 pl-2 border-l border-gray-400">
-              <a
-                href={`https://nexfluid.it${typeof window !== 'undefined' ? window.location.pathname : '/'}`}
-                aria-label="Italiano"
-                title="Italiano"
-                className={`text-base leading-none transition-opacity ${lang === 'it' ? 'opacity-100' : 'opacity-50 hover:opacity-100'}`}
-              >
-                🇮🇹
-              </a>
-              <a
-                href={`https://nexfluid.com${typeof window !== 'undefined' ? window.location.pathname : '/'}`}
-                aria-label="English"
-                title="English"
-                className={`text-base leading-none transition-opacity ${lang === 'en' ? 'opacity-100' : 'opacity-50 hover:opacity-100'}`}
-              >
-                🇬🇧
-              </a>
-            </div>
           </div>
         </div>
 
@@ -98,6 +112,7 @@ const Header = () => {
 
             {/* Sign in / User menu */}
             <div className="flex items-center gap-3">
+              <LanguageSwitcher lang={lang} />
               {user ? (
                 <>
                   <button

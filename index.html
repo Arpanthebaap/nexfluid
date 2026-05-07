@@ -55,6 +55,20 @@
             setMeta('meta[name="twitter:title"]', 'Nexfluid — Automation in Stock');
             setMeta('meta[name="twitter:description"]', '85,000+ industrial components: valves, pneumatics, hydraulics, automation.');
             setMeta('meta[name="twitter:image"]', 'https://nexfluid.com/nexfluid-logo.png');
+            // Rewrite JSON-LD blocks so structured data references the .com domain
+            var ldScripts = document.querySelectorAll('script[type="application/ld+json"]');
+            ldScripts.forEach(function(s) {
+              try {
+                var data = JSON.parse(s.textContent);
+                var json = JSON.stringify(data).replace(/https:\/\/nexfluid\.it/g, 'https://nexfluid.com');
+                s.textContent = json;
+              } catch (e) {}
+            });
+            // content-language header equivalent
+            var cl = document.createElement('meta');
+            cl.setAttribute('http-equiv', 'content-language');
+            cl.setAttribute('content', 'en');
+            document.head.appendChild(cl);
           }
         } catch (e) {}
       })();
