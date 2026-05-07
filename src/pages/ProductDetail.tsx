@@ -433,24 +433,24 @@ const ProductDetail = () => {
                         <span className="px-4 py-1.5 text-sm font-medium border-x">{qty}</span>
                         <button onClick={() => setQty((q) => q + 1)} className="px-3 py-1.5 text-sm font-bold text-primary hover:bg-muted">+</button>
                       </div>
-                      <span className="text-sm font-medium text-primary">AMOUNT</span>
+                      <span className="text-sm font-medium text-primary">{lang === 'it' ? 'QUANTITÀ' : 'AMOUNT'}</span>
                     </div>
 
                     <div className="mt-4 space-y-1 text-sm text-muted-foreground">
-                      <p><span className="font-medium text-foreground">Condition:</span> NEW</p>
-                      <p><span className="font-medium text-foreground">Sold by:</span> NEXFLUID</p>
-                      <p><span className="font-medium text-foreground">Shipping:</span> Express Courier</p>
+                      <p><span className="font-medium text-foreground">{lang === 'it' ? 'Condizione:' : 'Condition:'}</span> {lang === 'it' ? 'NUOVO' : 'NEW'}</p>
+                      <p><span className="font-medium text-foreground">{lang === 'it' ? 'Venduto da:' : 'Sold by:'}</span> NEXFLUID</p>
+                      <p><span className="font-medium text-foreground">{lang === 'it' ? 'Spedizione:' : 'Shipping:'}</span> {lang === 'it' ? 'Corriere Espresso' : 'Express Courier'}</p>
                     </div>
 
                     <Button className="mt-4 w-full uppercase font-bold tracking-wide">
-                      Request a Quote
+                      {lang === 'it' ? 'Richiedi Preventivo' : 'Request a Quote'}
                     </Button>
                   </div>
 
                   {/* Quote form */}
                   <form onSubmit={handleSubmit} className="rounded-lg border bg-card p-6 space-y-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="pdp-name" className="font-bold text-primary">Name</Label>
+                      <Label htmlFor="pdp-name" className="font-bold text-primary">{lang === 'it' ? 'Nome' : 'Name'}</Label>
                       <Input id="pdp-name" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
@@ -458,31 +458,31 @@ const ProductDetail = () => {
                       <Input id="pdp-email" type="email" required value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="pdp-country" className="font-bold text-primary">Shipping Country</Label>
+                      <Label htmlFor="pdp-country" className="font-bold text-primary">{lang === 'it' ? 'Paese di Spedizione' : 'Shipping Country'}</Label>
                       <Select value={form.country} onValueChange={(v) => setForm((f) => ({ ...f, country: v }))}>
-                        <SelectTrigger id="pdp-country"><SelectValue placeholder="Select country" /></SelectTrigger>
+                        <SelectTrigger id="pdp-country"><SelectValue placeholder={lang === 'it' ? 'Seleziona paese' : 'Select country'} /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="IT">Italy</SelectItem>
-                          <SelectItem value="DE">Germany</SelectItem>
-                          <SelectItem value="FR">France</SelectItem>
-                          <SelectItem value="ES">Spain</SelectItem>
-                          <SelectItem value="UK">United Kingdom</SelectItem>
-                          <SelectItem value="OTHER">Other</SelectItem>
+                          <SelectItem value="IT">{lang === 'it' ? 'Italia' : 'Italy'}</SelectItem>
+                          <SelectItem value="DE">{lang === 'it' ? 'Germania' : 'Germany'}</SelectItem>
+                          <SelectItem value="FR">{lang === 'it' ? 'Francia' : 'France'}</SelectItem>
+                          <SelectItem value="ES">{lang === 'it' ? 'Spagna' : 'Spain'}</SelectItem>
+                          <SelectItem value="UK">{lang === 'it' ? 'Regno Unito' : 'United Kingdom'}</SelectItem>
+                          <SelectItem value="OTHER">{lang === 'it' ? 'Altro' : 'Other'}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="pdp-message" className="font-bold text-primary">Message</Label>
+                      <Label htmlFor="pdp-message" className="font-bold text-primary">{lang === 'it' ? 'Messaggio' : 'Message'}</Label>
                       <Textarea id="pdp-message" rows={3} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="font-bold text-primary">Attachment</Label>
+                      <Label className="font-bold text-primary">{lang === 'it' ? 'Allegato' : 'Attachment'}</Label>
                       <Input type="file" className="text-sm" />
-                      <p className="text-xs text-muted-foreground">Upload any document (photos, datasheet, requisition form) you would like us to reference.</p>
+                      <p className="text-xs text-muted-foreground">{lang === 'it' ? 'Carica qualsiasi documento (foto, scheda tecnica, modulo di richiesta) a cui vuoi fare riferimento.' : 'Upload any document (photos, datasheet, requisition form) you would like us to reference.'}</p>
                     </div>
                     <Button type="submit" disabled={formLoading} className="w-full uppercase font-bold tracking-wide gap-2">
                       <Send className="h-4 w-4" />
-                      {formLoading ? '...' : 'Send'}
+                      {formLoading ? '...' : (lang === 'it' ? 'Invia' : 'Send')}
                     </Button>
                   </form>
                 </div>

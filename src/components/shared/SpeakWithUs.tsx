@@ -15,7 +15,7 @@ const SpeakWithUs = () => {
     <section className="bg-primary py-12 md:py-16 text-primary-foreground">
       <div className="container mx-auto px-4 text-center">
         <h2 className="text-xl font-bold sm:text-2xl font-display uppercase tracking-tight">
-          Speak With Us
+          {lang === 'it' ? 'Parla Con Noi' : 'Speak With Us'}
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm text-primary-foreground/60 leading-relaxed">
           {lang === 'it'

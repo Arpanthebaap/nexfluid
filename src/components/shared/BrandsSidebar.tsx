@@ -39,7 +39,7 @@ const BrandsSidebar = () => {
     <aside className="hidden lg:block w-52 shrink-0 space-y-6">
       {/* Brands */}
       <div>
-        <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Brand</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">{lang === 'it' ? 'Marchi' : 'Brands'}</h3>
         <ul className="space-y-1">
           {brands.map(b => (
             <li key={b}>
@@ -56,7 +56,7 @@ const BrandsSidebar = () => {
 
       {/* Categories */}
       <div>
-        <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Categories</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">{lang === 'it' ? 'Categorie' : 'Categories'}</h3>
         <ul className="space-y-1">
           {topCategories.map(cat => {
             const children = getChildren(cat.id);
