@@ -41,12 +41,18 @@ const altLinks = (path) =>
     <xhtml:link rel="alternate" hreflang="en" href="${EN}${path}" />
     <xhtml:link rel="alternate" hreflang="x-default" href="${IT}${path}" />`;
 
-const urlEntry = (path, { lastmod, changefreq, priority }) => `  <url>
-    <loc>${IT}${path}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ""}
+// Emit two <url> entries per page — one self-referencing for each domain — so
+// Google treats nexfluid.it and nexfluid.com as distinct language versions
+// instead of duplicates.
+const urlEntry = (path, { lastmod, changefreq, priority }) => {
+  const make = (origin) => `  <url>
+    <loc>${origin}${path}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ""}
     <changefreq>${changefreq}</changefreq>
     <priority>${priority}</priority>
 ${altLinks(path)}
   </url>`;
+  return `${make(IT)}\n${make(EN)}`;
+};
 
 const wrap = (body) => `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">

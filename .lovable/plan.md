@@ -1,62 +1,63 @@
-# Language switcher + per-domain SEO fix
+# Fix: Google showing wrong-language description per domain
 
-## 1. Move language switcher between Search and Sign-in
+## Root cause (short)
 
-Currently the IT/EN flags sit in the small grey top contact bar. Move them into the main blue header row, positioned between the search bar and the Sign-in button — exactly where the user wants them.
+Both `nexfluid.it` and `nexfluid.com` serve the **same** `index.html`. The raw bytes Googlebot fetches contain Italian title/description/JSON-LD. The current JS swap only runs after first-pass indexing, so Google has cached crossed snippets and is treating the two domains as a duplicate cluster.
 
-**File: `src/components/layout/Header.tsx`**
-- Remove the flag block from the top contact bar.
-- Add a new compact language pill in the main header, placed right before the Sign-in / User menu group:
-  - Two buttons: 🇮🇹 IT and 🇬🇧 EN, separated by a divider, rounded pill, light background so it stands out on the blue header.
-  - Active language: solid white background + primary text color.
-  - Inactive language: transparent + white text, hover lightens.
-- Behavior:
-  - On production (`nexfluid.it` / `nexfluid.com`): clicking a flag navigates to the other domain at the **same path** (e.g. `/categories/valves`) so users land on the translated equivalent.
-  - On preview (`*.lovable.app` / `localhost`): the production domains are not reachable, so clicking instead calls `i18n.changeLanguage('it'|'en')` locally so the user can preview both languages without leaving the sandbox.
-  - Detect environment with `window.location.hostname`.
-- Mobile: keep the same pill visible (it's small enough), or move it into the mobile search row.
+We can't run two separate builds on Lovable hosting, but we can make the per-domain swap happen **before any meta tag is parsed for indexing** and remove the hardcoded language bias from the raw HTML so neither domain has a "default" language baked in.
 
-## 2. Make the switcher work reliably
+## Changes
 
-Right now `src/lib/i18n.ts` hard-codes the preview/localhost to English. That fights with manual switching. Update so:
-- Initial language is still derived from the domain (IT for `.it`, EN for `.com`, EN default on preview).
-- Once the user clicks a flag on preview, `i18next` actually changes language and React re-renders. (Currently it would, but the component doesn't call `changeLanguage` — it only links to a domain.) The new pill will call `i18n.changeLanguage` on preview.
+### 1. `index.html` — neutralize raw HTML, swap synchronously before first paint
 
-## 3. Per-domain SEO — making Google show the right language for each domain
+- Remove hardcoded Italian values from raw HTML for the tags Google reads:
+  - `<title>` → empty placeholder filled by inline script.
+  - `<meta name="description">` → empty.
+  - `<meta property="og:title">`, `og:description`, `og:url`, `og:locale`, `og:image` → empty.
+  - `<meta name="twitter:title">`, `twitter:description`, `twitter:image` → empty.
+  - `<html lang>` → no value (set by script).
+  - The two `<script type="application/ld+json">` blocks → **remove from raw HTML entirely**. Inject them dynamically from the inline script using the correct domain.
+- Move the inline detection script to be the **very first** thing in `<head>` (right after `<meta charset>` and viewport), so it runs before Googlebot parses any meta tag.
+- Script logic:
+  - Detect host: `nexfluid.com` / `www.nexfluid.com` → English; everything else (`nexfluid.it`, preview, localhost) → Italian, except preview defaults to English for QA.
+  - Set `document.documentElement.lang`, `<title>`, all meta descriptions/OG/Twitter, canonical, hreflang order (self-referencing first).
+  - `document.write` (or `document.head.insertAdjacentHTML('beforeend', …)`) the JSON-LD block with the matching domain — only one block written, never both.
+  - Add `<meta http-equiv="content-language">` matching the chosen language.
+- Keep the existing static `<link rel="alternate" hreflang>` tags (they stay valid for both languages).
 
-This is the hard part. Lovable serves a single SPA bundle for both `nexfluid.it` and `nexfluid.com`, so the **initial HTML is identical** before JavaScript runs. Google does render JS, but it indexes the first HTML response strongly and can mix things up — exactly what's happening in the screenshots.
+### 2. `public/robots.txt` — declare both sitemaps
 
-We will make the per-domain swap as aggressive and crawler-friendly as possible:
+Ensure it lists:
+```
+Sitemap: https://nexfluid.it/sitemap.xml
+Sitemap: https://nexfluid.com/sitemap.xml
+```
+(Lovable serves the same file from both hosts; that's fine — Google reads the file on whichever host it's fetching.)
 
-**File: `index.html`**
-- The inline domain-detect script already swaps `<title>`, description, OG tags when host is `nexfluid.com`. Move this script to run **before** any other head content that depends on it, and also:
-  - Update the `<html lang>` attribute (already done).
-  - Update the canonical link to the matching domain (already done).
-  - Update `og:url`, `og:locale`, hreflang order so the **self-referencing hreflang** for the current domain comes first.
-  - Update the JSON-LD `Organization` and `WebSite` blocks so `url`, `logo`, and `potentialAction.target` use `nexfluid.com` when on `.com`. Currently both JSON-LD blocks hard-code `nexfluid.it`, which tells Google "this site is nexfluid.it" even on the .com domain — a major confusion signal. We will rewrite the JSON-LD via the same inline script when on `.com`.
-  - Add `<meta http-equiv="content-language" content="en">` swap for `.com`.
+### 3. `scripts/generate-sitemap.mjs` — emit both-domain entries (verify)
 
-**File: `public/robots.txt` and sitemaps**
-- Verify `public/sitemap.xml` and `scripts/generate-sitemap.mjs` emit **two URL sets** with proper `<xhtml:link rel="alternate" hreflang="it"|"en">` entries for every page — one URL per domain. If only `.it` URLs are listed today, `.com` will struggle to get indexed properly. Update the generator to emit both.
+Currently each `<url>` lists only `<loc>` on `.it` with `hreflang` alternates. For maximum disambiguation, emit **separate `<url>` entries for `.com` and `.it`** for every page, each self-referencing in its own `<loc>`, with mutual hreflang. This tells Google the two domains are distinct language versions, not duplicates.
 
-**File: `src/lib/i18n.ts`**
-- No change to the detector — domain-based detection is already correct for production.
+### 4. No code change needed in `src/lib/i18n.ts`
 
-## 4. What you need to do on your side (Google Search Console)
+Domain detector already correct.
 
-After we deploy:
-1. In **Google Search Console**, make sure both `https://nexfluid.it` and `https://nexfluid.com` are added as **separate properties** (Domain or URL-prefix).
-2. For each property: open **URL Inspection** → paste the homepage → click **Request Indexing**. Repeat for 3-5 key pages (categories, about, contact).
-3. Submit the sitemap on each property: `https://nexfluid.it/sitemap.xml` on the .it property, `https://nexfluid.com/sitemap.xml` on the .com property.
-4. Wait 1–3 weeks. Google's index of the wrong-language description will refresh on its own once it re-crawls and sees the corrected per-domain meta + JSON-LD + hreflang signals.
+## What you must do in Google Search Console (required)
 
-There is no way to force Google to refresh faster than this — even big sites wait days. The technical signals on our side will be 100% correct after this change; the rest is patience + the indexing requests above.
+These technical changes won't refresh Google's cache instantly — the snippet you see in screenshots is cached. After we deploy:
 
-## Technical summary
+1. **Both properties must exist separately**: `https://nexfluid.it` and `https://nexfluid.com` as two URL-prefix properties.
+2. For **each** property → **Removals** → **Outdated content** → submit the homepage URL. This forces Google to drop the cached snippet within ~24h.
+3. For **each** property → **URL Inspection** → paste homepage → **Request Indexing**. Repeat for `/categories`, `/about`, `/contact`.
+4. Submit `sitemap.xml` on each property.
+5. Wait 3–10 days. Google will re-crawl, see the now-correct per-domain raw HTML, and rebuild snippets cleanly. The duplicate-cluster grouping will dissolve once each domain has distinct first-pass HTML.
 
-- Header.tsx: relocate language switcher to between SearchAutocomplete and the Sign-in button; behavior branches on hostname (prod = navigate to other domain, preview = `i18n.changeLanguage`).
-- index.html: extend the host-detect inline script to also rewrite the two JSON-LD blocks and add `content-language` for `.com`.
-- scripts/generate-sitemap.mjs + public/sitemap.xml: emit both `nexfluid.it` and `nexfluid.com` URLs with mutual `hreflang` alternates.
-- No DB or backend changes.
+There is no way to force this faster — even after our fix, the Removals + Request Indexing combo is what makes Google refresh in days instead of weeks.
 
-After approval I'll implement all of the above in one pass.
+## Files touched
+
+- `index.html` — strip language-biased hardcoded tags, move/extend inline domain script, dynamic JSON-LD injection.
+- `public/robots.txt` — verify both sitemaps listed.
+- `scripts/generate-sitemap.mjs` — emit per-domain `<url>` entries (one for `.it`, one for `.com`) with mutual hreflang.
+
+No DB, auth, or component changes. Approve and I'll implement in one pass.
