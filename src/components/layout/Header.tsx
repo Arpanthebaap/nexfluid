@@ -81,7 +81,7 @@ const Header = () => {
 
             {/* Sign in / User menu */}
             <div className="flex items-center gap-3">
-              {user ? (
+              <LanguageSwitcher lang={lang} />
                 <>
                   <button
                     onClick={() => signOut()}
