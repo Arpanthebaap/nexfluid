@@ -55,6 +55,24 @@ const Header = () => {
               <Mail className="h-3 w-3" />
               <span>info@nexfluid.it</span>
             </a>
+            <div className="flex items-center gap-1 ml-2 pl-2 border-l border-gray-400">
+              <a
+                href={`https://nexfluid.it${typeof window !== 'undefined' ? window.location.pathname : '/'}`}
+                aria-label="Italiano"
+                title="Italiano"
+                className={`text-base leading-none transition-opacity ${lang === 'it' ? 'opacity-100' : 'opacity-50 hover:opacity-100'}`}
+              >
+                🇮🇹
+              </a>
+              <a
+                href={`https://nexfluid.com${typeof window !== 'undefined' ? window.location.pathname : '/'}`}
+                aria-label="English"
+                title="English"
+                className={`text-base leading-none transition-opacity ${lang === 'en' ? 'opacity-100' : 'opacity-50 hover:opacity-100'}`}
+              >
+                🇬🇧
+              </a>
+            </div>
           </div>
         </div>
 
@@ -72,7 +90,7 @@ const Header = () => {
 
             {/* Logo */}
             <Link to="/" className="shrink-0">
-              <img src="/lovable-uploads/f98792b3-9ddb-4b96-b688-27ee7bbf2994.png" alt="Nexfluid - Automation in Stock" className="h-12 md:h-16 w-auto" />
+              <img src="/lovable-uploads/f98792b3-9ddb-4b96-b688-27ee7bbf2994.png" alt="Nexfluid - Automation in Stock" className="h-16 md:h-24 w-auto" />
             </Link>
 
             {/* Search bar with autocomplete */}
