@@ -166,7 +166,7 @@ const Header = () => {
 
             {/* Brands */}
             <div className="px-4 pb-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Brand</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">{lang === 'it' ? 'Marchi' : 'Brands'}</h3>
               <ul className="space-y-1.5">
                 {brands.map(b => (
                   <li key={b}>
@@ -184,7 +184,7 @@ const Header = () => {
 
             {/* Categories */}
             <div className="px-4 pb-6">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Categories</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">{lang === 'it' ? 'Categorie' : 'Categories'}</h3>
               <ul className="space-y-1">
                 {topCategories.map(cat => {
                   const children = getChildren(cat.id);

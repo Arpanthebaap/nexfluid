@@ -34,7 +34,7 @@ const Footer = () => {
           {/* Categories */}
           <div className="space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-primary-foreground/80">
-              Categories
+              {lang === 'it' ? 'Categorie' : 'Categories'}
             </h3>
             <nav className="flex flex-col gap-1.5">
               <Link to="/categories/valves" className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors">
@@ -52,7 +52,7 @@ const Footer = () => {
 
           {/* Brands */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-primary-foreground/80">Brands</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-primary-foreground/80">{lang === 'it' ? 'Marchi' : 'Brands'}</h3>
             <div className="flex flex-col gap-1.5 text-sm text-primary-foreground/60">
               {['Parker', 'Asco', 'Aventics', 'Joucomatic', 'Numatics', 'Emerson', 'Sirai'].map(b => (
                 <Link key={b} to={`/brands/${b}`} className="hover:text-primary-foreground transition-colors">{b}</Link>
@@ -75,9 +75,9 @@ const Footer = () => {
         </div>
 
         <div className="mt-12 border-t border-primary-foreground/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-primary-foreground/40">
-          <span>Nexfluid © {new Date().getFullYear()} | All Rights Reserve</span>
+          <span>Nexfluid © {new Date().getFullYear()} | {lang === 'it' ? 'Tutti i diritti riservati' : 'All Rights Reserved'}</span>
           <div className="flex gap-4">
-            <Link to="/privacy-policy" className="hover:text-primary-foreground/60 transition-colors">Privacy Policy</Link>
+            <Link to="/privacy-policy" className="hover:text-primary-foreground/60 transition-colors">{lang === 'it' ? 'Informativa sulla Privacy' : 'Privacy Policy'}</Link>
             <Link to="/cookie-policy" className="hover:text-primary-foreground/60 transition-colors">Cookie Policy</Link>
           </div>
         </div>
