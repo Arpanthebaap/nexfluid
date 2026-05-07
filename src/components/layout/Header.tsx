@@ -17,6 +17,37 @@ type Category = {
 
 const brands = ['PARKER', 'ASCO', 'AVENTICS', 'JOUCOMATIC', 'NUMATICS', 'EMERSON', 'SIRAI'];
 
+const LanguageSwitcher = ({ lang }: { lang: 'it' | 'en' }) => {
+  const handleClick = (target: 'it' | 'en') => (e: React.MouseEvent) => {
+    if (typeof window === 'undefined') return;
+    const host = window.location.hostname;
+    const isProd = host === 'nexfluid.it' || host === 'www.nexfluid.it' || host === 'nexfluid.com' || host === 'www.nexfluid.com';
+    if (isProd) {
+      const origin = target === 'it' ? 'https://nexfluid.it' : 'https://nexfluid.com';
+      window.location.href = origin + window.location.pathname + window.location.search;
+      e.preventDefault();
+    } else {
+      e.preventDefault();
+      i18nInstance.changeLanguage(target);
+    }
+  };
+  const base = 'flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold transition-colors';
+  const active = 'bg-white text-primary';
+  const inactive = 'text-primary-foreground/70 hover:text-primary-foreground';
+  return (
+    <div className="hidden md:flex items-center rounded-full overflow-hidden border border-primary-foreground/30">
+      <button onClick={handleClick('it')} className={`${base} ${lang === 'it' ? active : inactive}`} aria-label="Italiano">
+        <span className="text-base leading-none">🇮🇹</span>
+        <span>IT</span>
+      </button>
+      <button onClick={handleClick('en')} className={`${base} ${lang === 'en' ? active : inactive}`} aria-label="English">
+        <span className="text-base leading-none">🇬🇧</span>
+        <span>EN</span>
+      </button>
+    </div>
+  );
+};
+
 const Header = () => {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
