@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Search, Menu, X, User, Phone, Mail, LogOut } from 'lucide-react';
-import SearchAutocomplete from '@/components/shared/SearchAutocomplete';
+import i18nInstance from '@/lib/i18n';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import SearchAutocomplete from '@/components/shared/SearchAutocomplete';
