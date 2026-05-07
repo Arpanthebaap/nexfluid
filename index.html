@@ -1,11 +1,131 @@
 <!doctype html>
-<html lang="it">
+<html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      Per-domain SEO bootstrap — runs FIRST, before any other meta tag is parsed.
+      Googlebot's first-pass indexer reads the synchronously-mutated DOM, so each
+      domain (nexfluid.it / nexfluid.com) gets its own language-specific title,
+      description, OG tags, hreflang, JSON-LD and canonical, even though both
+      domains share the same static index.html bundle.
+    -->
+    <script>
+      (function () {
+        try {
+          var h = (location.hostname || '').toLowerCase();
+          var isEn = h === 'nexfluid.com' || h === 'www.nexfluid.com';
+          // Preview / localhost defaults to English for QA.
+          var isPreview = h === 'localhost' || h.endsWith('.lovable.app') || h.indexOf('lovableproject.com') !== -1;
+          if (isPreview) isEn = true;
+
+          var ORIGIN_IT = 'https://nexfluid.it';
+          var ORIGIN_EN = 'https://nexfluid.com';
+          var origin = isEn ? ORIGIN_EN : ORIGIN_IT;
+          var altOrigin = isEn ? ORIGIN_IT : ORIGIN_EN;
+
+          var lang = isEn ? 'en' : 'it';
+          var locale = isEn ? 'en_US' : 'it_IT';
+          var localeAlt = isEn ? 'it_IT' : 'en_US';
+
+          var title = isEn
+            ? 'Nexfluid — Automation in Stock | Valves, Pneumatics, Hydraulics'
+            : 'Nexfluid — Automazione in Stock | Valvole, Pneumatica, Idraulica';
+          var desc = isEn
+            ? '85,000+ industrial components: valves, pneumatics, hydraulics, automation. Fast quotes, original parts, express shipping across Italy and EU.'
+            : 'Oltre 85.000 componenti industriali: valvole, pneumatica, idraulica, automazione. Preventivi rapidi, ricambi originali, spedizione express in Italia e UE.';
+          var ogTitle = isEn
+            ? 'Nexfluid — Automation in Stock'
+            : 'Nexfluid — Automazione in Stock';
+          var ogDesc = isEn
+            ? '85,000+ industrial components: valves, pneumatics, hydraulics, automation. Fast quotes, original parts, express shipping.'
+            : 'Oltre 85.000 componenti industriali: valvole, pneumatica, idraulica, automazione. Preventivi rapidi, ricambi originali, spedizione express.';
+          var twTitle = ogTitle;
+          var twDesc = isEn
+            ? '85,000+ industrial components: valves, pneumatics, hydraulics, automation.'
+            : '85.000+ componenti industriali: valvole, pneumatica, idraulica, automazione.';
+          var image = origin + '/nexfluid-logo.png';
+          var path = location.pathname + location.search;
+
+          // <html lang>
+          document.documentElement.setAttribute('lang', lang);
+
+          // Helper to write a meta tag immediately into the document being parsed.
+          function w(html) { document.write(html); }
+
+          // Title & primary meta
+          w('<title>' + title + '</title>');
+          w('<meta name="description" content="' + desc + '">');
+          w('<meta http-equiv="content-language" content="' + lang + '">');
+
+          // Canonical + hreflang (self-referencing first)
+          w('<link rel="canonical" href="' + origin + path + '">');
+          w('<link rel="alternate" hreflang="' + lang + '" href="' + origin + path + '">');
+          w('<link rel="alternate" hreflang="' + (isEn ? 'it' : 'en') + '" href="' + altOrigin + path + '">');
+          w('<link rel="alternate" hreflang="x-default" href="' + ORIGIN_IT + path + '">');
+
+          // Open Graph
+          w('<meta property="og:site_name" content="Nexfluid">');
+          w('<meta property="og:type" content="website">');
+          w('<meta property="og:title" content="' + ogTitle + '">');
+          w('<meta property="og:description" content="' + ogDesc + '">');
+          w('<meta property="og:url" content="' + origin + path + '">');
+          w('<meta property="og:locale" content="' + locale + '">');
+          w('<meta property="og:locale:alternate" content="' + localeAlt + '">');
+          w('<meta property="og:image" content="' + image + '">');
+
+          // Twitter
+          w('<meta name="twitter:card" content="summary_large_image">');
+          w('<meta name="twitter:title" content="' + twTitle + '">');
+          w('<meta name="twitter:description" content="' + twDesc + '">');
+          w('<meta name="twitter:image" content="' + image + '">');
+
+          // JSON-LD — Organization
+          var org = {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Nexfluid",
+            "url": origin,
+            "logo": origin + "/nexfluid-logo.png",
+            "description": isEn
+              ? "Industrial automation components distributor — valves, pneumatics, hydraulics, automation parts"
+              : "Distributore di componenti per l'automazione industriale — valvole, pneumatica, idraulica, ricambi automazione",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Via De Gasperi 6",
+              "addressLocality": "Saccolongo",
+              "addressCountry": "IT"
+            },
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "email": "info@nexfluid.it",
+              "telephone": "+39-333-8933395",
+              "contactType": "sales",
+              "areaServed": ["IT", "EU"],
+              "availableLanguage": ["Italian", "English"]
+            },
+            "sameAs": []
+          };
+          var site = {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Nexfluid",
+            "url": origin,
+            "inLanguage": lang,
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": origin + "/search?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          };
+          w('<script type="application/ld+json">' + JSON.stringify(org) + '<\/script>');
+          w('<script type="application/ld+json">' + JSON.stringify(site) + '<\/script>');
+        } catch (e) {}
+      })();
+    </script>
+
     <meta name="theme-color" content="#0F172A" />
-    <title>Nexfluid — Automazione in Stock | Valvole, Pneumatica, Idraulica</title>
-    <meta name="description" content="Oltre 85.000 componenti industriali: valvole, pneumatica, idraulica, automazione. Preventivi rapidi, ricambi originali, spedizione express in Italia e UE." />
     <meta name="author" content="Nexfluid" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="googlebot" content="index, follow" />
@@ -26,109 +146,9 @@
 
     <link rel="icon" href="/favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-    <link id="canonical-link" rel="canonical" href="https://nexfluid.it/" />
-    <link rel="alternate" hreflang="it" href="https://nexfluid.it/" />
-    <link rel="alternate" hreflang="en" href="https://nexfluid.com/" />
-    <link rel="alternate" hreflang="x-default" href="https://nexfluid.it/" />
-    <script>
-      (function () {
-        try {
-          var h = location.hostname;
-          var isEn = h.indexOf('nexfluid.com') !== -1;
-          var origin = isEn ? 'https://nexfluid.com' : 'https://nexfluid.it';
-          var link = document.getElementById('canonical-link');
-          if (link) link.setAttribute('href', origin + location.pathname + location.search);
-          if (isEn) {
-            document.documentElement.setAttribute('lang', 'en');
-            document.title = 'Nexfluid — Automation in Stock | Valves, Pneumatics, Hydraulics';
-            var setMeta = function(sel, val) {
-              var el = document.querySelector(sel);
-              if (el) el.setAttribute('content', val);
-            };
-            setMeta('meta[name="description"]', '85,000+ industrial components: valves, pneumatics, hydraulics, automation. Fast quotes, original parts, express shipping across Italy and EU.');
-            setMeta('meta[property="og:title"]', 'Nexfluid — Automation in Stock');
-            setMeta('meta[property="og:description"]', '85,000+ industrial components: valves, pneumatics, hydraulics, automation. Fast quotes, original parts, express shipping.');
-            setMeta('meta[property="og:url"]', 'https://nexfluid.com' + location.pathname);
-            setMeta('meta[property="og:locale"]', 'en_US');
-            setMeta('meta[property="og:locale:alternate"]', 'it_IT');
-            setMeta('meta[property="og:image"]', 'https://nexfluid.com/nexfluid-logo.png');
-            setMeta('meta[name="twitter:title"]', 'Nexfluid — Automation in Stock');
-            setMeta('meta[name="twitter:description"]', '85,000+ industrial components: valves, pneumatics, hydraulics, automation.');
-            setMeta('meta[name="twitter:image"]', 'https://nexfluid.com/nexfluid-logo.png');
-            // Rewrite JSON-LD blocks so structured data references the .com domain
-            var ldScripts = document.querySelectorAll('script[type="application/ld+json"]');
-            ldScripts.forEach(function(s) {
-              try {
-                var data = JSON.parse(s.textContent);
-                var json = JSON.stringify(data).replace(/https:\/\/nexfluid\.it/g, 'https://nexfluid.com');
-                s.textContent = json;
-              } catch (e) {}
-            });
-            // content-language header equivalent
-            var cl = document.createElement('meta');
-            cl.setAttribute('http-equiv', 'content-language');
-            cl.setAttribute('content', 'en');
-            document.head.appendChild(cl);
-          }
-        } catch (e) {}
-      })();
-    </script>
 
     <link rel="preconnect" href="https://xhejomioyecdfpvmohqh.supabase.co" crossorigin />
     <link rel="dns-prefetch" href="https://xhejomioyecdfpvmohqh.supabase.co" />
-
-    <meta property="og:site_name" content="Nexfluid" />
-    <meta property="og:title" content="Nexfluid — Automazione in Stock" />
-    <meta property="og:description" content="Oltre 85.000 componenti industriali: valvole, pneumatica, idraulica, automazione. Preventivi rapidi, ricambi originali, spedizione express." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://nexfluid.it/" />
-    <meta property="og:locale" content="it_IT" />
-    <meta property="og:locale:alternate" content="en_US" />
-    <meta property="og:image" content="https://nexfluid.it/nexfluid-logo.png" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Nexfluid — Automazione in Stock" />
-    <meta name="twitter:description" content="85.000+ componenti industriali: valvole, pneumatica, idraulica, automazione." />
-    <meta name="twitter:image" content="https://nexfluid.it/nexfluid-logo.png" />
-
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Nexfluid",
-      "url": "https://nexfluid.it",
-      "logo": "https://nexfluid.it/nexfluid-logo.png",
-      "description": "Industrial automation components distributor — valves, pneumatics, hydraulics, automation parts",
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "Via De Gasperi 6",
-        "addressLocality": "Saccolongo",
-        "addressCountry": "IT"
-      },
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "email": "info@nexfluid.it",
-        "telephone": "+39-333-8933395",
-        "contactType": "sales",
-        "areaServed": ["IT","EU"],
-        "availableLanguage": ["Italian","English"]
-      },
-      "sameAs": []
-    }
-    </script>
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Nexfluid",
-      "url": "https://nexfluid.it",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://nexfluid.it/search?q={search_term_string}",
-        "query-input": "required name=search_term_string"
-      }
-    }
-    </script>
   </head>
 
   <body>
