@@ -55,6 +55,24 @@ const Header = () => {
               <Mail className="h-3 w-3" />
               <span>info@nexfluid.it</span>
             </a>
+            <div className="flex items-center gap-1 ml-2 pl-2 border-l border-gray-400">
+              <a
+                href={`https://nexfluid.it${typeof window !== 'undefined' ? window.location.pathname : '/'}`}
+                aria-label="Italiano"
+                title="Italiano"
+                className={`text-base leading-none transition-opacity ${lang === 'it' ? 'opacity-100' : 'opacity-50 hover:opacity-100'}`}
+              >
+                🇮🇹
+              </a>
+              <a
+                href={`https://nexfluid.com${typeof window !== 'undefined' ? window.location.pathname : '/'}`}
+                aria-label="English"
+                title="English"
+                className={`text-base leading-none transition-opacity ${lang === 'en' ? 'opacity-100' : 'opacity-50 hover:opacity-100'}`}
+              >
+                🇬🇧
+              </a>
+            </div>
           </div>
         </div>
 
