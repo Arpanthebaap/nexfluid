@@ -31,17 +31,17 @@ const LanguageSwitcher = ({ lang }: { lang: 'it' | 'en' }) => {
       i18nInstance.changeLanguage(target);
     }
   };
-  const base = 'flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold transition-colors';
+  const base = 'flex items-center gap-1.5 px-2 py-1 text-xs font-semibold transition-colors';
   const active = 'bg-white text-primary';
-  const inactive = 'text-primary-foreground/70 hover:text-primary-foreground';
+  const inactive = 'text-primary-foreground/70 hover:text-primary-foreground hover:bg-white/10';
   return (
-    <div className="hidden md:flex items-center rounded-full overflow-hidden border border-primary-foreground/30">
+    <div className="flex items-center rounded-full overflow-hidden border border-primary-foreground/30 shrink-0">
       <button onClick={handleClick('it')} className={`${base} ${lang === 'it' ? active : inactive}`} aria-label="Italiano">
-        <span className="text-base leading-none">🇮🇹</span>
+        <img src="https://flagcdn.com/w20/it.png" srcSet="https://flagcdn.com/w40/it.png 2x" width="18" height="13" alt="" className="rounded-sm" />
         <span>IT</span>
       </button>
       <button onClick={handleClick('en')} className={`${base} ${lang === 'en' ? active : inactive}`} aria-label="English">
-        <span className="text-base leading-none">🇬🇧</span>
+        <img src="https://flagcdn.com/w20/gb.png" srcSet="https://flagcdn.com/w40/gb.png 2x" width="18" height="13" alt="" className="rounded-sm" />
         <span>EN</span>
       </button>
     </div>
