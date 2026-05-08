@@ -78,6 +78,7 @@ const ProductDetail = () => {
   const [qty, setQty] = useState(1);
   const [formLoading, setFormLoading] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', country: '', message: '' });
+  const [attachment, setAttachment] = useState<File | null>(null);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -173,20 +174,37 @@ const ProductDetail = () => {
       });
       if (error) throw error;
 
+      // Encode attachment if present
+      let attachmentPayload: { filename: string; content: string; contentType: string } | null = null;
+      if (attachment) {
+        const buf = await attachment.arrayBuffer();
+        let binary = '';
+        const bytes = new Uint8Array(buf);
+        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+        attachmentPayload = {
+          filename: attachment.name,
+          content: btoa(binary),
+          contentType: attachment.type || 'application/octet-stream',
+        };
+      }
+
       // Send email notification
       supabase.functions.invoke('quote-notify', {
         body: {
           name: form.name,
           email: form.email,
+          country: form.country || null,
           product_code: product.product_code,
           product_name: lang === 'it' ? product.name_it : product.name_en,
           message: form.message || null,
           language: lang,
+          attachment: attachmentPayload,
         },
       }).catch(console.error);
 
       toast({ title: lang === 'it' ? 'Richiesta inviata!' : 'Request sent!', description: lang === 'it' ? 'Ti contatteremo presto.' : 'We will contact you soon.' });
       setForm({ name: '', email: '', country: '', message: '' });
+      setAttachment(null);
     } catch {
       toast({ title: 'Error', variant: 'destructive' });
     } finally {
@@ -465,10 +483,6 @@ const ProductDetail = () => {
 
                   {/* Quote Request Form */}
                   <form id="quote-form" onSubmit={handleSubmit} className="rounded-lg border bg-card p-6 space-y-4 scroll-mt-24">
-                    <h2 className="text-lg font-bold font-display text-primary uppercase">
-                      {lang === 'it' ? 'Richiedi un Preventivo' : 'Request a Quote'}
-                    </h2>
-                    <div className="w-16 h-0.5 bg-primary" />
                     <div className="space-y-1.5">
                       <Label htmlFor="qf-name" className="text-primary font-semibold">
                         {lang === 'it' ? 'Nome' : 'Name'} *
@@ -490,6 +504,22 @@ const ProductDetail = () => {
                         {lang === 'it' ? 'Messaggio' : 'Message'}
                       </Label>
                       <Textarea id="qf-message" rows={4} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="qf-attachment" className="text-primary font-semibold">
+                        {lang === 'it' ? 'Allegato' : 'Attachment'}
+                      </Label>
+                      <Input
+                        id="qf-attachment"
+                        type="file"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.txt"
+                        onChange={(e) => setAttachment(e.target.files?.[0] || null)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {lang === 'it'
+                          ? 'Carica eventuali documenti (foto, scheda tecnica, modulo richiesta) che vuoi usare come riferimento per questo prodotto.'
+                          : 'Upload any other document (photos, datasheet, requisition form) you would like us to reference for this product.'}
+                      </p>
                     </div>
                     <Button type="submit" disabled={formLoading} className="w-full uppercase font-bold tracking-wide">
                       <Send className="h-4 w-4 mr-2" />

@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { name, email, company, phone, product_code, product_name, message, language } = await req.json();
+    const { name, email, company, phone, country, product_code, product_name, message, language, attachment } = await req.json();
 
     console.log("📧 Quote request:", { name, email, product_code, product_name });
 
@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
       <tr><td style="padding:8px 0;font-weight:bold;">Email:</td><td><a href="mailto:${email}">${email}</a></td></tr>
       ${company ? `<tr><td style="padding:8px 0;font-weight:bold;">Azienda:</td><td>${company}</td></tr>` : ""}
       ${phone ? `<tr><td style="padding:8px 0;font-weight:bold;">Telefono:</td><td>${phone}</td></tr>` : ""}
+      ${country ? `<tr><td style="padding:8px 0;font-weight:bold;">Paese:</td><td>${country}</td></tr>` : ""}
       ${product_code ? `<tr><td style="padding:8px 0;font-weight:bold;">Codice:</td><td style="font-family:monospace;">${product_code}</td></tr>` : ""}
       ${product_name ? `<tr><td style="padding:8px 0;font-weight:bold;">Prodotto:</td><td>${product_name}</td></tr>` : ""}
     </table>
@@ -73,13 +74,25 @@ Deno.serve(async (req) => {
       message ? `\nMessaggio:\n${message}` : null,
     ].filter(Boolean).join("\n");
 
-    await transporter.sendMail({
+    const mailOptions: any = {
       from: `"Nexfluid" <${fromEmail}>`,
       to: fromEmail,
+      replyTo: email,
       subject,
       text: textBody,
       html: htmlBody,
-    });
+    };
+
+    if (attachment && attachment.content && attachment.filename) {
+      mailOptions.attachments = [{
+        filename: attachment.filename,
+        content: attachment.content,
+        encoding: "base64",
+        contentType: attachment.contentType || "application/octet-stream",
+      }];
+    }
+
+    await transporter.sendMail(mailOptions);
 
     console.log("✅ Email sent to", fromEmail);
 
