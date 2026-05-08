@@ -21,9 +21,6 @@ const BrandPage = lazy(() => import("./pages/BrandPage"));
 const SearchResults = lazy(() => import("./pages/SearchResults"));
 const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
 const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
-const SignInPage = lazy(() => import("./pages/SignIn"));
-const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Lazy-loaded admin pages
@@ -70,9 +67,6 @@ const App = () => (
                 <Route path="/search" element={<SearchResults />} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="/cookie-policy" element={<CookiePolicy />} />
-                <Route path="/sign-in" element={<SignInPage />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
               </Route>
 
               {/* Admin routes */}

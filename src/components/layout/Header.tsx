@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Search, Menu, X, User, Phone, Mail, LogOut } from 'lucide-react';
+import { Menu, X, Phone, Mail } from 'lucide-react';
 import i18nInstance from '@/lib/i18n';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import SearchAutocomplete from '@/components/shared/SearchAutocomplete';
 
 type Category = {
@@ -50,8 +49,6 @@ const LanguageSwitcher = ({ lang }: { lang: 'it' | 'en' }) => {
 
 const Header = () => {
   const { i18n } = useTranslation();
-  const navigate = useNavigate();
-  const { user, signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const lang = i18n.language as 'it' | 'en';
@@ -110,36 +107,9 @@ const Header = () => {
             {/* Search bar with autocomplete */}
             <SearchAutocomplete className="hidden md:block flex-1 max-w-lg mx-6" />
 
-            {/* Sign in / User menu */}
+            {/* Language */}
             <div className="flex items-center gap-3">
               <LanguageSwitcher lang={lang} />
-              {user ? (
-                <>
-                  <button
-                    onClick={() => signOut()}
-                    className="hidden md:flex items-center gap-1.5 text-primary-foreground/70 hover:text-primary-foreground text-sm transition-colors"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    {lang === 'it' ? 'Esci' : 'Sign out'}
-                  </button>
-                  <button onClick={() => signOut()} className="text-primary-foreground md:hidden p-1">
-                    <LogOut className="h-5 w-5" />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/sign-in"
-                    className="hidden md:flex items-center gap-1.5 text-primary-foreground/70 hover:text-primary-foreground text-sm transition-colors"
-                  >
-                    <User className="h-4 w-4" />
-                    {lang === 'it' ? 'Accedi' : 'Sign in'}
-                  </Link>
-                  <Link to="/sign-in" className="text-primary-foreground md:hidden p-1">
-                    <User className="h-5 w-5" />
-                  </Link>
-                </>
-              )}
             </div>
           </div>
 
