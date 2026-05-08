@@ -442,49 +442,15 @@ const ProductDetail = () => {
                       <p><span className="font-medium text-foreground">{lang === 'it' ? 'Spedizione:' : 'Shipping:'}</span> {lang === 'it' ? 'Corriere Espresso' : 'Express Courier'}</p>
                     </div>
 
-                    <Button className="mt-4 w-full uppercase font-bold tracking-wide">
-                      {lang === 'it' ? 'Richiedi Preventivo' : 'Request a Quote'}
+                    <Button asChild className="mt-4 w-full uppercase font-bold tracking-wide">
+                      <a
+                        href={`mailto:info@nexfluid.it?subject=${encodeURIComponent((lang === 'it' ? 'Richiesta Preventivo - ' : 'Quote Request - ') + product.product_code)}&body=${encodeURIComponent((lang === 'it' ? 'Salve, vorrei un preventivo per:\n\nCodice: ' : 'Hello, I would like a quote for:\n\nCode: ') + product.product_code + '\n' + (lang === 'it' ? 'Prodotto: ' : 'Product: ') + productName + '\n' + (lang === 'it' ? 'Quantità: ' : 'Quantity: ') + qty + '\n\n' + (lang === 'it' ? 'Grazie.' : 'Thank you.'))}`}
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        {lang === 'it' ? 'Richiedi Preventivo' : 'Request a Quote'}
+                      </a>
                     </Button>
                   </div>
-
-                  {/* Quote form */}
-                  <form onSubmit={handleSubmit} className="rounded-lg border bg-card p-6 space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="pdp-name" className="font-bold text-primary">{lang === 'it' ? 'Nome' : 'Name'}</Label>
-                      <Input id="pdp-name" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="pdp-email" className="font-bold text-primary">Email</Label>
-                      <Input id="pdp-email" type="email" required value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="pdp-country" className="font-bold text-primary">{lang === 'it' ? 'Paese di Spedizione' : 'Shipping Country'}</Label>
-                      <Select value={form.country} onValueChange={(v) => setForm((f) => ({ ...f, country: v }))}>
-                        <SelectTrigger id="pdp-country"><SelectValue placeholder={lang === 'it' ? 'Seleziona paese' : 'Select country'} /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="IT">{lang === 'it' ? 'Italia' : 'Italy'}</SelectItem>
-                          <SelectItem value="DE">{lang === 'it' ? 'Germania' : 'Germany'}</SelectItem>
-                          <SelectItem value="FR">{lang === 'it' ? 'Francia' : 'France'}</SelectItem>
-                          <SelectItem value="ES">{lang === 'it' ? 'Spagna' : 'Spain'}</SelectItem>
-                          <SelectItem value="UK">{lang === 'it' ? 'Regno Unito' : 'United Kingdom'}</SelectItem>
-                          <SelectItem value="OTHER">{lang === 'it' ? 'Altro' : 'Other'}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="pdp-message" className="font-bold text-primary">{lang === 'it' ? 'Messaggio' : 'Message'}</Label>
-                      <Textarea id="pdp-message" rows={3} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="font-bold text-primary">{lang === 'it' ? 'Allegato' : 'Attachment'}</Label>
-                      <Input type="file" className="text-sm" />
-                      <p className="text-xs text-muted-foreground">{lang === 'it' ? 'Carica qualsiasi documento (foto, scheda tecnica, modulo di richiesta) a cui vuoi fare riferimento.' : 'Upload any document (photos, datasheet, requisition form) you would like us to reference.'}</p>
-                    </div>
-                    <Button type="submit" disabled={formLoading} className="w-full uppercase font-bold tracking-wide gap-2">
-                      <Send className="h-4 w-4" />
-                      {formLoading ? '...' : (lang === 'it' ? 'Invia' : 'Send')}
-                    </Button>
-                  </form>
                 </div>
               </div>
             </div>
