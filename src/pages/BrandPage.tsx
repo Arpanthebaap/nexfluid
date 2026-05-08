@@ -388,9 +388,9 @@ const BrandPage = () => {
                               <button onClick={() => handleQuantity(product.id, 1)} className="px-3 py-1.5 lg:px-3 lg:py-2 text-base hover:bg-muted transition-colors">+</button>
                             </div>
                             <Button asChild className="uppercase font-bold tracking-wide lg:px-6 lg:py-2 lg:h-auto lg:text-sm">
-                              <a href={`mailto:info@nexfluid.it?subject=${encodeURIComponent((lang === 'it' ? 'Richiesta Preventivo - ' : 'Quote Request - ') + product.product_code)}&body=${encodeURIComponent((lang === 'it' ? 'Salve, vorrei un preventivo per:\n\nCodice: ' : 'Hello, I would like a quote for:\n\nCode: ') + product.product_code + '\n' + (lang === 'it' ? 'Prodotto: ' : 'Product: ') + (lang === 'it' ? product.name_it : product.name_en) + '\n' + (lang === 'it' ? 'Quantità: ' : 'Quantity: ') + qty + '\n\n' + (lang === 'it' ? 'Grazie.' : 'Thank you.'))}`}>
+                              <Link to={`/products/${product.slug}?from=${encodeURIComponent(brand)}#quote-form`}>
                                 {lang === 'it' ? 'Richiedi un Preventivo' : 'REQUEST A Quote'}
-                              </a>
+                              </Link>
                             </Button>
                           </div>
                         </div>
