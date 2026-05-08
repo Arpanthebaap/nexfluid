@@ -442,15 +442,51 @@ const ProductDetail = () => {
                       <p><span className="font-medium text-foreground">{lang === 'it' ? 'Spedizione:' : 'Shipping:'}</span> {lang === 'it' ? 'Corriere Espresso' : 'Express Courier'}</p>
                     </div>
 
-                    <Button asChild className="mt-4 w-full uppercase font-bold tracking-wide">
-                      <a
-                        href={`mailto:info@nexfluid.it?subject=${encodeURIComponent((lang === 'it' ? 'Richiesta Preventivo - ' : 'Quote Request - ') + product.product_code)}&body=${encodeURIComponent((lang === 'it' ? 'Salve, vorrei un preventivo per:\n\nCodice: ' : 'Hello, I would like a quote for:\n\nCode: ') + product.product_code + '\n' + (lang === 'it' ? 'Prodotto: ' : 'Product: ') + productName + '\n' + (lang === 'it' ? 'Quantità: ' : 'Quantity: ') + qty + '\n\n' + (lang === 'it' ? 'Grazie.' : 'Thank you.'))}`}
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        {lang === 'it' ? 'Richiedi un Preventivo' : 'REQUEST A Quote'}
-                      </a>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        document.getElementById('quote-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                      className="mt-4 w-full uppercase font-bold tracking-wide"
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      {lang === 'it' ? 'Richiedi un Preventivo' : 'REQUEST A Quote'}
                     </Button>
                   </div>
+
+                  {/* Quote Request Form */}
+                  <form id="quote-form" onSubmit={handleSubmit} className="rounded-lg border bg-card p-6 space-y-4 scroll-mt-24">
+                    <h2 className="text-lg font-bold font-display text-primary uppercase">
+                      {lang === 'it' ? 'Richiedi un Preventivo' : 'Request a Quote'}
+                    </h2>
+                    <div className="w-16 h-0.5 bg-primary" />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="qf-name" className="text-primary font-semibold">
+                        {lang === 'it' ? 'Nome' : 'Name'} *
+                      </Label>
+                      <Input id="qf-name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="qf-email" className="text-primary font-semibold">Email *</Label>
+                      <Input id="qf-email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="qf-country" className="text-primary font-semibold">
+                        {lang === 'it' ? 'Paese di Spedizione' : 'Shipping Country'}
+                      </Label>
+                      <Input id="qf-country" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="qf-message" className="text-primary font-semibold">
+                        {lang === 'it' ? 'Messaggio' : 'Message'}
+                      </Label>
+                      <Textarea id="qf-message" rows={4} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+                    </div>
+                    <Button type="submit" disabled={formLoading} className="w-full uppercase font-bold tracking-wide">
+                      <Send className="h-4 w-4 mr-2" />
+                      {formLoading ? '...' : (lang === 'it' ? 'INVIA' : 'SEND')}
+                    </Button>
+                  </form>
                 </div>
               </div>
             </div>
