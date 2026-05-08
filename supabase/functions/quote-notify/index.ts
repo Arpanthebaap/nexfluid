@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { name, email, company, phone, product_code, product_name, message, language } = await req.json();
+    const { name, email, company, phone, country, product_code, product_name, message, language, attachment } = await req.json();
 
     console.log("📧 Quote request:", { name, email, product_code, product_name });
 
