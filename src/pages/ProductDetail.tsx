@@ -147,6 +147,15 @@ const ProductDetail = () => {
     fetchProduct();
   }, [slug, lang]);
 
+  useEffect(() => {
+    if (loading) return;
+    if (window.location.hash === '#quote-form') {
+      setTimeout(() => {
+        document.getElementById('quote-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [loading]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!product) return;
