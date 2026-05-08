@@ -78,6 +78,7 @@ const ProductDetail = () => {
   const [qty, setQty] = useState(1);
   const [formLoading, setFormLoading] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', country: '', message: '' });
+  const [attachment, setAttachment] = useState<File | null>(null);
 
   useEffect(() => {
     const fetchProduct = async () => {
