@@ -447,7 +447,7 @@ const ProductDetail = () => {
                         href={`mailto:info@nexfluid.it?subject=${encodeURIComponent((lang === 'it' ? 'Richiesta Preventivo - ' : 'Quote Request - ') + product.product_code)}&body=${encodeURIComponent((lang === 'it' ? 'Salve, vorrei un preventivo per:\n\nCodice: ' : 'Hello, I would like a quote for:\n\nCode: ') + product.product_code + '\n' + (lang === 'it' ? 'Prodotto: ' : 'Product: ') + productName + '\n' + (lang === 'it' ? 'Quantità: ' : 'Quantity: ') + qty + '\n\n' + (lang === 'it' ? 'Grazie.' : 'Thank you.'))}`}
                       >
                         <Send className="h-4 w-4 mr-2" />
-                        {lang === 'it' ? 'Richiedi Preventivo' : 'Request a Quote'}
+                        {lang === 'it' ? 'Richiedi un Preventivo' : 'REQUEST A Quote'}
                       </a>
                     </Button>
                   </div>
