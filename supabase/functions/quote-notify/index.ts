@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
       <tr><td style="padding:8px 0;font-weight:bold;">Email:</td><td><a href="mailto:${email}">${email}</a></td></tr>
       ${company ? `<tr><td style="padding:8px 0;font-weight:bold;">Azienda:</td><td>${company}</td></tr>` : ""}
       ${phone ? `<tr><td style="padding:8px 0;font-weight:bold;">Telefono:</td><td>${phone}</td></tr>` : ""}
+      ${country ? `<tr><td style="padding:8px 0;font-weight:bold;">Paese:</td><td>${country}</td></tr>` : ""}
       ${product_code ? `<tr><td style="padding:8px 0;font-weight:bold;">Codice:</td><td style="font-family:monospace;">${product_code}</td></tr>` : ""}
       ${product_name ? `<tr><td style="padding:8px 0;font-weight:bold;">Prodotto:</td><td>${product_name}</td></tr>` : ""}
     </table>
