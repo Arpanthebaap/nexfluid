@@ -174,20 +174,37 @@ const ProductDetail = () => {
       });
       if (error) throw error;
 
+      // Encode attachment if present
+      let attachmentPayload: { filename: string; content: string; contentType: string } | null = null;
+      if (attachment) {
+        const buf = await attachment.arrayBuffer();
+        let binary = '';
+        const bytes = new Uint8Array(buf);
+        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+        attachmentPayload = {
+          filename: attachment.name,
+          content: btoa(binary),
+          contentType: attachment.type || 'application/octet-stream',
+        };
+      }
+
       // Send email notification
       supabase.functions.invoke('quote-notify', {
         body: {
           name: form.name,
           email: form.email,
+          country: form.country || null,
           product_code: product.product_code,
           product_name: lang === 'it' ? product.name_it : product.name_en,
           message: form.message || null,
           language: lang,
+          attachment: attachmentPayload,
         },
       }).catch(console.error);
 
       toast({ title: lang === 'it' ? 'Richiesta inviata!' : 'Request sent!', description: lang === 'it' ? 'Ti contatteremo presto.' : 'We will contact you soon.' });
       setForm({ name: '', email: '', country: '', message: '' });
+      setAttachment(null);
     } catch {
       toast({ title: 'Error', variant: 'destructive' });
     } finally {
