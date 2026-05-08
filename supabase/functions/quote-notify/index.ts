@@ -74,13 +74,25 @@ Deno.serve(async (req) => {
       message ? `\nMessaggio:\n${message}` : null,
     ].filter(Boolean).join("\n");
 
-    await transporter.sendMail({
+    const mailOptions: any = {
       from: `"Nexfluid" <${fromEmail}>`,
       to: fromEmail,
+      replyTo: email,
       subject,
       text: textBody,
       html: htmlBody,
-    });
+    };
+
+    if (attachment && attachment.content && attachment.filename) {
+      mailOptions.attachments = [{
+        filename: attachment.filename,
+        content: attachment.content,
+        encoding: "base64",
+        contentType: attachment.contentType || "application/octet-stream",
+      }];
+    }
+
+    await transporter.sendMail(mailOptions);
 
     console.log("✅ Email sent to", fromEmail);
 
