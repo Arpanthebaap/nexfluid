@@ -447,9 +447,9 @@ const Categories = () => {
                                 <button onClick={() => updateQty(product.id, 1)} className="px-2.5 py-1.5 text-sm hover:bg-muted active:scale-95">+</button>
                               </div>
                               <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground uppercase text-xs font-bold tracking-wider px-3 sm:px-4">
-                                <Link to={`/contact?product=${product.product_code}&qty=${qty}`}>
+                                <a href={`mailto:info@nexfluid.it?subject=${encodeURIComponent((lang === 'it' ? 'Richiesta Preventivo - ' : 'Quote Request - ') + product.product_code)}&body=${encodeURIComponent((lang === 'it' ? 'Salve, vorrei un preventivo per:\n\nCodice: ' : 'Hello, I would like a quote for:\n\nCode: ') + product.product_code + '\n' + (lang === 'it' ? 'Prodotto: ' : 'Product: ') + (lang === 'it' ? product.name_it : product.name_en) + '\n' + (lang === 'it' ? 'Quantità: ' : 'Quantity: ') + qty + '\n\n' + (lang === 'it' ? 'Grazie.' : 'Thank you.'))}`}>
                                   {lang === 'it' ? 'Preventivo' : 'Quote'}
-                                </Link>
+                                </a>
                               </Button>
                             </div>
                           </div>
