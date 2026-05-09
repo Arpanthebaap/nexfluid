@@ -17,22 +17,22 @@ const OurBrands = ({ showDescription = false, layout = 'stacked' }: { showDescri
 
   const logosGrid = (
     <div className="grid grid-cols-4 gap-4">
-      {brandLogos.map((brand, idx) => (
+      {brandLogos.slice(0, 4).map((brand) => (
         <Link
           key={brand.name}
           to={`/brands/${brand.name}`}
           className="flex items-center justify-center rounded-lg border bg-card p-4 h-24 hover:shadow-lg transition-shadow"
         >
-          <img
-            src={brand.logo}
-            alt={`${brand.name} logo`}
-            className="max-h-14 max-w-[90%] object-contain"
-            width="160"
-            height="56"
-            loading={idx < 4 ? 'eager' : 'lazy'}
-            decoding="async"
-            fetchPriority={idx < 4 ? 'high' : 'low'}
-          />
+          <img src={brand.logo} alt={`${brand.name} logo`} className="max-h-14 max-w-[90%] object-contain" />
+        </Link>
+      ))}
+      {brandLogos.slice(4).map((brand) => (
+        <Link
+          key={brand.name}
+          to={`/brands/${brand.name}`}
+          className="flex items-center justify-center rounded-lg border bg-card p-4 h-24 hover:shadow-lg transition-shadow"
+        >
+          <img src={brand.logo} alt={`${brand.name} logo`} className="max-h-14 max-w-[90%] object-contain" />
         </Link>
       ))}
     </div>
