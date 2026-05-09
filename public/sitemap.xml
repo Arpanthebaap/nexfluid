@@ -1,35 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
-    <loc>https://nexfluid.it/sitemap-static.xml</loc>
-    <lastmod>2026-05-09</lastmod>
-  </sitemap>
-  <sitemap>
-    <loc>https://nexfluid.it/sitemap-categories.xml</loc>
-    <lastmod>2026-05-09</lastmod>
-  </sitemap>
-  <sitemap>
-    <loc>https://nexfluid.it/sitemap-products-1.xml</loc>
-    <lastmod>2026-05-09</lastmod>
-  </sitemap>
-  <sitemap>
-    <loc>https://nexfluid.it/sitemap-products-2.xml</loc>
-    <lastmod>2026-05-09</lastmod>
-  </sitemap>
-  <sitemap>
-    <loc>https://nexfluid.it/sitemap-products-3.xml</loc>
-    <lastmod>2026-05-09</lastmod>
-  </sitemap>
-  <sitemap>
-    <loc>https://nexfluid.it/sitemap-products-4.xml</loc>
-    <lastmod>2026-05-09</lastmod>
-  </sitemap>
-  <sitemap>
-    <loc>https://nexfluid.it/sitemap-products-5.xml</loc>
-    <lastmod>2026-05-09</lastmod>
-  </sitemap>
-  <sitemap>
-    <loc>https://nexfluid.it/sitemap-products-6.xml</loc>
+    <loc>https://nexfluid.it/sitemap-it.xml</loc>
     <lastmod>2026-05-09</lastmod>
   </sitemap>
 </sitemapindex>
