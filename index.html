@@ -132,16 +132,31 @@
     <meta name="google-site-verification" content="9IDooweTvozQb7dG8tLLUXiT-NuwXJje5nEdDvEp2ks" />
     <meta name="format-detection" content="telephone=no" />
 
-    <!-- Start cookieyes banner -->
-    <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/b75a3284068761c9c089fbba9af26ca6/script.js"></script>
+    <!-- Fonts: preconnect + non-blocking stylesheet (replaces @import in CSS) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" /></noscript>
+
+    <!-- Start cookieyes banner (deferred to avoid render-blocking) -->
+    <script id="cookieyes" type="text/javascript" defer src="https://cdn-cookieyes.com/client_data/b75a3284068761c9c089fbba9af26ca6/script.js"></script>
     <!-- End cookieyes banner -->
 
-    <!-- Google Tag Manager -->
-    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-    })(window,document,'script','dataLayer','GTM-TBHS72ZB');</script>
+    <!-- Google Tag Manager (loaded after window load to reduce TBT/render-blocking) -->
+    <script>
+    (function(w,d){
+      function loadGTM(){
+        (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+        })(w,d,'script','dataLayer','GTM-TBHS72ZB');
+      }
+      if (d.readyState === 'complete') { setTimeout(loadGTM, 1500); }
+      else { w.addEventListener('load', function(){ setTimeout(loadGTM, 1500); }); }
+    })(window, document);
+    </script>
     <!-- End Google Tag Manager -->
 
     <link rel="icon" href="/favicon.png" type="image/png" />
@@ -149,6 +164,8 @@
 
     <link rel="preconnect" href="https://xhejomioyecdfpvmohqh.supabase.co" crossorigin />
     <link rel="dns-prefetch" href="https://xhejomioyecdfpvmohqh.supabase.co" />
+    <link rel="dns-prefetch" href="https://cdn-cookieyes.com" />
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
   </head>
 
   <body>

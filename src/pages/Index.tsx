@@ -132,6 +132,9 @@ const Index = () => {
                               alt={catName(parent)}
                               className="w-full h-full object-cover aspect-[4/3]"
                               loading="lazy"
+                              decoding="async"
+                              width="256"
+                              height="192"
                             />
                           </Link>
                         )}
@@ -151,6 +154,9 @@ const Index = () => {
                                       alt={catName(child)}
                                       className="w-10 h-10 rounded object-cover shrink-0"
                                       loading="lazy"
+                                      decoding="async"
+                                      width="40"
+                                      height="40"
                                     />
                                   )}
                                   <span className="text-xs sm:text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">
