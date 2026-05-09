@@ -7,5 +7,7 @@ Disallow: /forgot-password
 Disallow: /reset-password
 Disallow: /search
 
-Sitemap: https://nexfluid.it/sitemap.xml
-Sitemap: https://nexfluid.com/sitemap.xml
+# Italian domain — submit sitemap-it.xml in Search Console for nexfluid.it
+Sitemap: https://nexfluid.it/sitemap-it.xml
+# English domain — submit sitemap-en.xml in Search Console for nexfluid.com
+Sitemap: https://nexfluid.com/sitemap-en.xml
