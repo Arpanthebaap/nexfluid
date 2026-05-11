@@ -15,10 +15,12 @@
       (function () {
         try {
           var h = (location.hostname || '').toLowerCase();
-          var isEn = h === 'nexfluid.com' || h === 'www.nexfluid.com';
-          // Preview / localhost defaults to English for QA.
-          var isPreview = h === 'localhost' || h.endsWith('.lovable.app') || h.indexOf('lovableproject.com') !== -1;
-          if (isPreview) isEn = true;
+          var isIt = h === 'nexfluid.it' || h === 'www.nexfluid.it' || h.indexOf('nexfluid.it') !== -1;
+          var isEn = h === 'nexfluid.com' || h === 'www.nexfluid.com' || h.indexOf('nexfluid.com') !== -1;
+          // Preview / localhost / vercel preview defaults to English for QA.
+          var isPreview = h === 'localhost' || h.endsWith('.lovable.app') || h.indexOf('lovableproject.com') !== -1 || h.endsWith('.vercel.app');
+          if (!isIt && !isEn && isPreview) isEn = true;
+          if (isIt) isEn = false;
 
           var ORIGIN_IT = 'https://nexfluid.it';
           var ORIGIN_EN = 'https://nexfluid.com';

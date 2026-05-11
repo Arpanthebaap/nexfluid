@@ -6,10 +6,10 @@ const domainDetector = {
   name: 'domain',
   lookup() {
     if (typeof window === 'undefined') return undefined;
-    const host = window.location.hostname;
-    if (host === 'nexfluid.com' || host === 'www.nexfluid.com') return 'en';
-    if (host === 'nexfluid.it' || host === 'www.nexfluid.it') return 'it';
-    if (host === 'localhost' || host.endsWith('.lovable.app')) return 'en';
+    const host = window.location.hostname.toLowerCase();
+    if (host.indexOf('nexfluid.it') !== -1) return 'it';
+    if (host.indexOf('nexfluid.com') !== -1) return 'en';
+    if (host === 'localhost' || host.endsWith('.lovable.app') || host.endsWith('.vercel.app')) return 'en';
     return undefined;
   },
   cacheUserLanguage() {},
