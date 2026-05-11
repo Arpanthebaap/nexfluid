@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /signin
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /search
+
+Sitemap: https://nexfluid.com/sitemap.xml
