@@ -17,10 +17,10 @@ Deno.serve(async (req) => {
 
     console.log("📧 Quote request:", { name, email, product_code, product_name });
 
-    const smtpHost = Deno.env.get("SMTP_HOST") || "smtp.nexfluid.it";
-    const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "465");
-    const smtpUsername = Deno.env.get("SMTP_USERNAME")!;
-    const smtpPassword = Deno.env.get("SMTP_PASSWORD")!;
+    const smtpHost = (Deno.env.get("SMTP_HOST") || "smtp.nexfluid.it").trim();
+    const smtpPort = parseInt((Deno.env.get("SMTP_PORT") || "465").trim());
+    const smtpUsername = (Deno.env.get("SMTP_USERNAME") || "").trim();
+    const smtpPassword = (Deno.env.get("SMTP_PASSWORD") || "").trim();
     const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "info@nexfluid.it";
 
     if (!smtpUsername || !smtpPassword) {
@@ -36,11 +36,15 @@ Deno.serve(async (req) => {
       host: smtpHost,
       port: smtpPort,
       secure: useSSL,
-      auth: { user: smtpUsername, pass: smtpPassword },
-      tls: { servername: "shellrent.com", rejectUnauthorized: false },
+      auth: { type: "login", user: smtpUsername, pass: smtpPassword },
+      authMethod: "PLAIN",
+      tls: { rejectUnauthorized: false },
       requireTLS: !useSSL,
     });
-    console.log(`📡 SMTP: ${smtpHost}:${smtpPort} secure=${useSSL} user=${smtpUsername}`);
+    // Diagnostic: confirm credentials length/trim without leaking values
+    console.log(
+      `📡 SMTP: ${smtpHost}:${smtpPort} secure=${useSSL} user="${smtpUsername}" userLen=${smtpUsername.length} passLen=${smtpPassword.length} userTrimmed=${smtpUsername === smtpUsername.trim()} passTrimmed=${smtpPassword === smtpPassword.trim()}`
+    );
 
     const subject = `Nuova Richiesta Preventivo${product_code ? ` — ${product_code}` : ""}${product_name ? ` (${product_name})` : ""}`;
 
