@@ -17,10 +17,10 @@ Deno.serve(async (req) => {
 
     console.log("📧 Quote request:", { name, email, product_code, product_name });
 
-    const smtpHost = Deno.env.get("SMTP_HOST") || "smtp.nexfluid.it";
-    const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "465");
-    const smtpUsername = Deno.env.get("SMTP_USERNAME")!;
-    const smtpPassword = Deno.env.get("SMTP_PASSWORD")!;
+    const smtpHost = (Deno.env.get("SMTP_HOST") || "smtp.nexfluid.it").trim();
+    const smtpPort = parseInt((Deno.env.get("SMTP_PORT") || "465").trim());
+    const smtpUsername = (Deno.env.get("SMTP_USERNAME") || "").trim();
+    const smtpPassword = (Deno.env.get("SMTP_PASSWORD") || "").trim();
     const fromEmail = Deno.env.get("SMTP_FROM_EMAIL") || "info@nexfluid.it";
 
     if (!smtpUsername || !smtpPassword) {
