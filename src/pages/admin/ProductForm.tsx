@@ -7,11 +7,17 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Plus, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Category = Tables<'categories'>;
+
+interface SpecRow {
+  name: string;
+  value: string;
+  unit: string;
+}
 
 export default function ProductForm() {
   const { id } = useParams();
@@ -35,13 +41,20 @@ export default function ProductForm() {
     meta_title_en: '',
     meta_description_it: '',
     meta_description_en: '',
+    featured_image: '',
   });
+
+  const [specs, setSpecs] = useState<SpecRow[]>([]);
 
   useEffect(() => {
     supabase.from('categories').select('*').order('name_en').then(({ data }) => setCategories(data ?? []));
     if (!isNew && id) {
-      supabase.from('products').select('*').eq('id', id).single().then(({ data }) => {
+      (async () => {
+        const { data } = await supabase.from('products').select('*').eq('id', id).single();
         if (data) {
+          const imgs = Array.isArray(data.images) ? (data.images as any[]) : [];
+          const firstImg = imgs[0];
+          const featured = typeof firstImg === 'string' ? firstImg : firstImg?.url ?? '';
           setForm({
             product_code: data.product_code,
             name_it: data.name_it,
@@ -56,10 +69,21 @@ export default function ProductForm() {
             meta_title_en: data.meta_title_en ?? '',
             meta_description_it: data.meta_description_it ?? '',
             meta_description_en: data.meta_description_en ?? '',
+            featured_image: featured,
           });
         }
+        const { data: attrs } = await supabase
+          .from('product_attributes')
+          .select('attribute_name, attribute_value, attribute_unit')
+          .eq('product_id', id)
+          .order('attribute_name');
+        setSpecs((attrs ?? []).map((a) => ({
+          name: a.attribute_name,
+          value: a.attribute_value,
+          unit: a.attribute_unit ?? '',
+        })));
         setLoading(false);
-      });
+      })();
     }
   }, [id, isNew]);
 
@@ -74,35 +98,91 @@ export default function ProductForm() {
     }
   };
 
+  const updateSpec = (idx: number, field: keyof SpecRow, value: string) => {
+    setSpecs((prev) => prev.map((s, i) => (i === idx ? { ...s, [field]: value } : s)));
+  };
+  const addSpec = () => setSpecs((prev) => [...prev, { name: '', value: '', unit: '' }]);
+  const removeSpec = (idx: number) => setSpecs((prev) => prev.filter((_, i) => i !== idx));
+
   const handleSave = async () => {
     if (!form.product_code || !form.name_en || !form.name_it || !form.slug) {
       toast({ title: 'Missing required fields', description: 'Code, names (IT/EN), and slug are required.', variant: 'destructive' });
       return;
     }
     setSaving(true);
+
+    // Build images array: featured image is first
+    let images: any[] = [];
+    if (!isNew && id) {
+      const { data: existing } = await supabase.from('products').select('images').eq('id', id).single();
+      const existingImgs = Array.isArray(existing?.images) ? (existing!.images as any[]) : [];
+      // Remove old first / replace if changed
+      const rest = existingImgs.slice(1);
+      if (form.featured_image.trim()) {
+        images = [form.featured_image.trim(), ...rest];
+      } else {
+        images = rest;
+      }
+    } else if (form.featured_image.trim()) {
+      images = [form.featured_image.trim()];
+    }
+
     const payload = {
-      ...form,
-      category_id: form.category_id || null,
+      product_code: form.product_code,
+      name_it: form.name_it,
+      name_en: form.name_en,
+      slug: form.slug,
       brand: form.brand || null,
+      category_id: form.category_id || null,
       status: form.status as 'draft' | 'published' | 'pending_rewrite' | 'archived',
+      description_it: form.description_it,
+      description_en: form.description_en,
+      meta_title_it: form.meta_title_it,
+      meta_title_en: form.meta_title_en,
+      meta_description_it: form.meta_description_it,
+      meta_description_en: form.meta_description_en,
+      images,
     };
 
+    let productId = id;
     if (isNew) {
-      const { error } = await supabase.from('products').insert([payload]);
+      const { data, error } = await supabase.from('products').insert([payload]).select('id').single();
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      } else {
-        toast({ title: 'Product created' });
-        navigate('/admin/products');
+        setSaving(false);
+        return;
       }
+      productId = data!.id;
     } else {
       const { error } = await supabase.from('products').update(payload).eq('id', id!);
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      } else {
-        toast({ title: 'Product updated' });
+        setSaving(false);
+        return;
       }
     }
+
+    // Replace technical specs (only for existing products / once created)
+    if (productId) {
+      await supabase.from('product_attributes').delete().eq('product_id', productId);
+      const rows = specs
+        .filter((s) => s.name.trim() && s.value.trim())
+        .map((s) => ({
+          product_id: productId!,
+          attribute_name: s.name.trim(),
+          attribute_value: s.value.trim(),
+          attribute_unit: s.unit.trim() || null,
+        }));
+      if (rows.length > 0) {
+        const { error: attrErr } = await supabase.from('product_attributes').insert(rows);
+        if (attrErr) {
+          toast({ title: 'Specs save error', description: attrErr.message, variant: 'destructive' });
+        }
+      }
+    }
+
+    toast({ title: isNew ? 'Product created' : 'Product updated' });
+    if (isNew) navigate('/admin/products');
     setSaving(false);
   };
 
@@ -174,6 +254,33 @@ export default function ProductForm() {
         </Card>
 
         <Card>
+          <CardHeader><CardTitle>Featured Image</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Image URL</Label>
+              <Input
+                placeholder="https://… or /uploads/…"
+                value={form.featured_image}
+                onChange={(e) => update('featured_image', e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Saved as the product's primary image. Leave blank to use the branded placeholder.
+              </p>
+            </div>
+            {form.featured_image && (
+              <div className="border rounded-md p-3 bg-muted/30">
+                <img
+                  src={form.featured_image}
+                  alt="Preview"
+                  className="max-h-48 mx-auto object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardHeader><CardTitle>Descriptions</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -184,6 +291,51 @@ export default function ProductForm() {
               <Label>Description (Italian)</Label>
               <Textarea rows={4} value={form.description_it} onChange={(e) => update('description_it', e.target.value)} />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Technical Specs</CardTitle>
+            <Button type="button" size="sm" variant="outline" onClick={addSpec}>
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {specs.length === 0 && (
+              <p className="text-sm text-muted-foreground">No technical specs yet. Click “Add” to create one.</p>
+            )}
+            {specs.map((s, idx) => (
+              <div key={idx} className="grid grid-cols-[1fr_1fr_80px_auto] gap-2 items-end">
+                <div className="space-y-1">
+                  {idx === 0 && <Label className="text-xs">Name</Label>}
+                  <Input
+                    placeholder="e.g. Working Pressure Max"
+                    value={s.name}
+                    onChange={(e) => updateSpec(idx, 'name', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  {idx === 0 && <Label className="text-xs">Value</Label>}
+                  <Input
+                    placeholder="e.g. 10"
+                    value={s.value}
+                    onChange={(e) => updateSpec(idx, 'value', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  {idx === 0 && <Label className="text-xs">Unit</Label>}
+                  <Input
+                    placeholder="bar"
+                    value={s.unit}
+                    onChange={(e) => updateSpec(idx, 'unit', e.target.value)}
+                  />
+                </div>
+                <Button type="button" variant="ghost" size="icon" onClick={() => removeSpec(idx)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
           </CardContent>
         </Card>
 
