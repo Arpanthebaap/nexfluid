@@ -90,12 +90,21 @@ Deno.serve(async (req) => {
     };
 
     if (attachment && attachment.content && attachment.filename) {
-      mailOptions.attachments = [{
-        filename: attachment.filename,
-        content: attachment.content,
-        encoding: "base64",
-        contentType: attachment.contentType || "application/octet-stream",
-      }];
+      try {
+        const binary = atob(attachment.content);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        mailOptions.attachments = [{
+          filename: attachment.filename,
+          content: bytes,
+          contentType: attachment.contentType || "application/octet-stream",
+        }];
+        console.log(`📎 Attachment: ${attachment.filename} (${bytes.length} bytes, ${attachment.contentType})`);
+      } catch (e) {
+        console.error("Failed to decode attachment:", e);
+      }
+    } else {
+      console.log("📎 No attachment in payload");
     }
 
     await transporter.sendMail(mailOptions);
