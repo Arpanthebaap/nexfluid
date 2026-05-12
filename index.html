@@ -134,8 +134,19 @@
     <meta name="google-site-verification" content="9IDooweTvozQb7dG8tLLUXiT-NuwXJje5nEdDvEp2ks" />
     <meta name="format-detection" content="telephone=no" />
 
-    <!-- Start cookieyes banner -->
-    <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/b75a3284068761c9c089fbba9af26ca6/script.js"></script>
+    <!-- Start cookieyes banner (per-domain) -->
+    <script>
+      (function () {
+        try {
+          var h = (location.hostname || '').toLowerCase();
+          var isIt = h.indexOf('nexfluid.it') !== -1;
+          var src = isIt
+            ? 'https://cdn-cookieyes.com/client_data/1be25e34d00888ae3e55f762a27e0bfc/script.js'
+            : 'https://cdn-cookieyes.com/client_data/b75a3284068761c9c089fbba9af26ca6/script.js';
+          document.write('<script id="cookieyes" type="text/javascript" src="' + src + '"><\/script>');
+        } catch (e) {}
+      })();
+    </script>
     <!-- End cookieyes banner -->
 
     <!-- Google Tag Manager -->
