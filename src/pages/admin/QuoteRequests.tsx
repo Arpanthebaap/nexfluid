@@ -5,10 +5,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { Trash2 } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 type QuoteRequest = Tables<'quote_requests'>;
@@ -20,6 +31,7 @@ export default function QuoteRequests() {
   const [selected, setSelected] = useState<QuoteRequest | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
   const [newStatus, setNewStatus] = useState('');
+  const [toDelete, setToDelete] = useState<QuoteRequest | null>(null);
 
   const fetchQuotes = async () => {
     setLoading(true);
@@ -51,6 +63,18 @@ export default function QuoteRequests() {
     } else {
       toast({ title: 'Quote updated' });
       setSelected(null);
+      fetchQuotes();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!toDelete) return;
+    const { error } = await supabase.from('quote_requests').delete().eq('id', toDelete.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Quote deleted' });
+      setToDelete(null);
       fetchQuotes();
     }
   };
@@ -108,6 +132,14 @@ export default function QuoteRequests() {
                   <TableCell><Badge variant={statusColor(q.status)}>{q.status}</Badge></TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" onClick={() => openDetail(q)}>View</Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setToDelete(q)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -153,11 +185,38 @@ export default function QuoteRequests() {
                 <Label>Admin Notes</Label>
                 <Textarea rows={3} value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} />
               </div>
-              <Button className="w-full" onClick={handleUpdate}>Save Changes</Button>
+              <div className="flex gap-2">
+                <Button className="flex-1" onClick={handleUpdate}>Save Changes</Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => { const q = selected; setSelected(null); setToDelete(q); }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Delete
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!toDelete} onOpenChange={(open) => !open && setToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this quote request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {toDelete && (
+                <>Are you sure you want to permanently delete the quote from <strong>{toDelete.name}</strong> ({toDelete.email})? This action cannot be undone.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
