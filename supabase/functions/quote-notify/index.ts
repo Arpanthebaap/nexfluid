@@ -36,11 +36,15 @@ Deno.serve(async (req) => {
       host: smtpHost,
       port: smtpPort,
       secure: useSSL,
-      auth: { user: smtpUsername, pass: smtpPassword },
-      tls: { servername: "shellrent.com", rejectUnauthorized: false },
+      auth: { type: "login", user: smtpUsername, pass: smtpPassword },
+      authMethod: "PLAIN",
+      tls: { rejectUnauthorized: false },
       requireTLS: !useSSL,
     });
-    console.log(`📡 SMTP: ${smtpHost}:${smtpPort} secure=${useSSL} user=${smtpUsername}`);
+    // Diagnostic: confirm credentials length/trim without leaking values
+    console.log(
+      `📡 SMTP: ${smtpHost}:${smtpPort} secure=${useSSL} user="${smtpUsername}" userLen=${smtpUsername.length} passLen=${smtpPassword.length} userTrimmed=${smtpUsername === smtpUsername.trim()} passTrimmed=${smtpPassword === smtpPassword.trim()}`
+    );
 
     const subject = `Nuova Richiesta Preventivo${product_code ? ` — ${product_code}` : ""}${product_name ? ` (${product_name})` : ""}`;
 
