@@ -6,7 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from '@/hooks/use-toast';
+import { Plus, Search, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import type { Tables } from '@/integrations/supabase/types';
 
 type Product = Tables<'products'> & {
@@ -22,6 +33,7 @@ export default function Products() {
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<Product | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -58,6 +70,18 @@ export default function Products() {
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  const handleDelete = async () => {
+    if (!deleting) return;
+    const { error } = await supabase.from('products').delete().eq('id', deleting.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Product deleted' });
+      fetchProducts();
+    }
+    setDeleting(null);
+  };
 
   return (
     <div>
@@ -123,6 +147,9 @@ export default function Products() {
                     <Button variant="ghost" size="sm" asChild>
                       <Link to={`/admin/products/${p.id}`}>Edit</Link>
                     </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setDeleting(p)} className="text-destructive hover:text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -147,6 +174,23 @@ export default function Products() {
           </div>
         </div>
       )}
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete product?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deleting?.name_en}" ({deleting?.product_code}). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
