@@ -503,8 +503,8 @@ const ProductDetail = () => {
                       <tbody>
                         {attributes.map((attr) => (
                           <tr key={attr.id} className="border-b">
-                            <td className="py-2 text-muted-foreground">{attr.attribute_name}</td>
-                            <td className="py-2 text-right font-medium">{attr.attribute_value}{attr.attribute_unit ? ` ${attr.attribute_unit}` : ''}</td>
+                            <td className="py-2 text-muted-foreground">{translateSpecLabel(attr.attribute_name)}</td>
+                            <td className="py-2 text-right font-medium">{translateSpecValue(attr.attribute_name, attr.attribute_value)}{attr.attribute_unit ? ` ${attr.attribute_unit}` : ''}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -523,8 +523,8 @@ const ProductDetail = () => {
                       <tbody>
                         {specsFallback.map((spec, i) => (
                           <tr key={i} className="border-b">
-                            <td className="py-2 text-muted-foreground">{spec.name}</td>
-                            <td className="py-2 text-right font-medium">{spec.value}</td>
+                            <td className="py-2 text-muted-foreground">{translateSpecLabel(spec.name)}</td>
+                            <td className="py-2 text-right font-medium">{translateSpecValue(spec.name, spec.value)}</td>
                           </tr>
                         ))}
                       </tbody>
