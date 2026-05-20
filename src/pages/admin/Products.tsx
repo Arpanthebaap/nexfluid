@@ -147,6 +147,9 @@ export default function Products() {
                     <Button variant="ghost" size="sm" asChild>
                       <Link to={`/admin/products/${p.id}`}>Edit</Link>
                     </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setDeleting(p)} className="text-destructive hover:text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
