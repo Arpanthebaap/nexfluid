@@ -33,6 +33,7 @@ export default function Products() {
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<Product | null>(null);
 
   useEffect(() => {
     fetchProducts();
