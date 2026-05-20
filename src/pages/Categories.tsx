@@ -489,17 +489,17 @@ const Categories = () => {
             ) : (
               <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {subcategories.map((cat, i) => (
-                  <motion.div key={cat.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                    <Link to={`/categories/${cat.slug}`} className="group block rounded-lg border bg-card overflow-hidden shadow-sm hover:shadow-md transition-all">
+                  <motion.div key={cat.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="h-full">
+                    <Link to={`/categories/${cat.slug}`} className="group flex h-full flex-col rounded-lg border bg-card overflow-hidden shadow-sm hover:shadow-md transition-all">
                       <div className="aspect-[4/3] bg-muted flex items-center justify-center">
                         {cat.image_url || currentCategory?.image_url
                           ? <img src={cat.image_url || currentCategory?.image_url || ''} alt={catName(cat)} className="w-full h-full object-cover" />
                           : <div className="text-muted-foreground/30 text-4xl">📦</div>}
                       </div>
-                      <div className="p-4">
-                        <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{catName(cat)}</h3>
+                      <div className="p-4 flex flex-1 flex-col">
+                        <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">{catName(cat)}</h3>
                         {catDesc(cat) && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{catDesc(cat)}</p>}
-                        <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                        <span className="mt-auto pt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
                           {lang === 'it' ? 'Scopri di più' : 'Discover more'} <ArrowRight className="h-3 w-3" />
                         </span>
                       </div>

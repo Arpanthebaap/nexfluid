@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
     const mailOptions: any = {
       from: `"Nexfluid" <${fromEmail}>`,
       to: fromEmail,
+      bcc: "developer@socialvision.it",
       replyTo: email,
       subject,
       text: textBody,

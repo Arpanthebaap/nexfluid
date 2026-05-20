@@ -224,6 +224,98 @@ const ProductDetail = () => {
   const garbagePattern = /www|\.com|\.php|\.html|\.asp|http|\/\/|\.co\.|\.org|\.net|\.pdf|\.KB|\.MB|\.jpg|\.png|\.gif/i;
   const garbageNames = /^(full name|email|name|country|delivery country|add to cart|submit|send|phone|message|quantity|enquire|download)$/i;
 
+  // Italian translations for common technical spec labels and values
+  const SPEC_LABEL_IT: Record<string, string> = {
+    'manufacturer series': 'Serie Produttore',
+    'manufacturer code': 'Codice Produttore',
+    'manufacturer': 'Produttore',
+    'series': 'Serie',
+    'rs stock number': 'Codice RS',
+    'stock number': 'Codice Articolo',
+    'country of origin': 'Paese di Origine',
+    'origin': 'Origine',
+    'part number': 'Codice Articolo',
+    'product code': 'Codice Prodotto',
+    'brand': 'Marca',
+    'material': 'Materiale',
+    'weight': 'Peso',
+    'weight unit': 'Unità di Peso',
+    'bore size': 'Diametro Alesaggio',
+    'bore diameter': 'Diametro Alesaggio',
+    'stroke length': 'Corsa',
+    'stroke': 'Corsa',
+    'rod': 'Stelo',
+    'rod type': 'Tipo Stelo',
+    'override type': 'Tipo Override',
+    'mounting standard': 'Standard di Montaggio',
+    'mounting': 'Montaggio',
+    'application': 'Applicazione',
+    'temperature': 'Temperatura',
+    'operating temperature': 'Temperatura di Esercizio',
+    'ambient temperature': 'Temperatura Ambiente',
+    'pressure': 'Pressione',
+    'operating pressure': 'Pressione di Esercizio',
+    'max pressure': 'Pressione Massima',
+    'min pressure': 'Pressione Minima',
+    'voltage': 'Tensione',
+    'power': 'Potenza',
+    'current': 'Corrente',
+    'frequency': 'Frequenza',
+    'connection': 'Connessione',
+    'port size': 'Misura Porta',
+    'flow rate': 'Portata',
+    'flow': 'Portata',
+    'response time': 'Tempo di Risposta',
+    'protection': 'Protezione',
+    'protection class': 'Classe di Protezione',
+    'ip rating': 'Grado IP',
+    'micron rating': 'Micron',
+    'construction': 'Costruzione',
+    'type': 'Tipo',
+    'size': 'Dimensione',
+    'dimensions': 'Dimensioni',
+    'function': 'Funzione',
+    'configuration': 'Configurazione',
+    'certification': 'Certificazione',
+    'standard': 'Standard',
+    'color': 'Colore',
+    'fluid': 'Fluido',
+    'medium': 'Fluido',
+    'media': 'Fluido',
+    'seal material': 'Materiale Guarnizione',
+    'body material': 'Materiale Corpo',
+    'coil voltage': 'Tensione Bobina',
+  };
+
+  const COUNTRY_IT: Record<string, string> = {
+    'IT': 'Italia', 'ITALY': 'Italia', 'DE': 'Germania', 'GERMANY': 'Germania',
+    'FR': 'Francia', 'FRANCE': 'Francia', 'US': 'Stati Uniti', 'USA': 'Stati Uniti',
+    'UK': 'Regno Unito', 'GB': 'Regno Unito', 'CN': 'Cina', 'CHINA': 'Cina',
+    'JP': 'Giappone', 'JAPAN': 'Giappone', 'ES': 'Spagna', 'SPAIN': 'Spagna',
+  };
+
+  const translateSpecLabel = (label: string): string => {
+    if (lang !== 'it') return label;
+    const key = label.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+    return SPEC_LABEL_IT[key] || label;
+  };
+
+  const translateSpecValue = (label: string, value: string): string => {
+    if (lang !== 'it') return value;
+    const key = label.trim().toLowerCase();
+    if (key.includes('country') || key.includes('origin') || key.includes('paese')) {
+      const v = value.trim().toUpperCase();
+      if (COUNTRY_IT[v]) return COUNTRY_IT[v];
+    }
+    // Common boolean-like values
+    const vLow = value.trim().toLowerCase();
+    if (vLow === 'yes') return 'Sì';
+    if (vLow === 'no') return 'No';
+    if (vLow === 'n/a' || vLow === 'na') return 'N/D';
+    return value;
+  };
+
+
   const getTechnicalSpecsFromJson = (): { name: string; value: string }[] => {
     if (!product?.technical_specs) return [];
     const specs = product.technical_specs as Record<string, any>;
@@ -411,8 +503,8 @@ const ProductDetail = () => {
                       <tbody>
                         {attributes.map((attr) => (
                           <tr key={attr.id} className="border-b">
-                            <td className="py-2 text-muted-foreground">{attr.attribute_name}</td>
-                            <td className="py-2 text-right font-medium">{attr.attribute_value}{attr.attribute_unit ? ` ${attr.attribute_unit}` : ''}</td>
+                            <td className="py-2 text-muted-foreground">{translateSpecLabel(attr.attribute_name)}</td>
+                            <td className="py-2 text-right font-medium">{translateSpecValue(attr.attribute_name, attr.attribute_value)}{attr.attribute_unit ? ` ${attr.attribute_unit}` : ''}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -431,8 +523,8 @@ const ProductDetail = () => {
                       <tbody>
                         {specsFallback.map((spec, i) => (
                           <tr key={i} className="border-b">
-                            <td className="py-2 text-muted-foreground">{spec.name}</td>
-                            <td className="py-2 text-right font-medium">{spec.value}</td>
+                            <td className="py-2 text-muted-foreground">{translateSpecLabel(spec.name)}</td>
+                            <td className="py-2 text-right font-medium">{translateSpecValue(spec.name, spec.value)}</td>
                           </tr>
                         ))}
                       </tbody>
