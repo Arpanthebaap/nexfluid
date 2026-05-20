@@ -80,7 +80,7 @@ const BrandedProductImage = ({
       />
       {/* Nexfluid branding overlay — bottom watermark */}
       <div className="absolute bottom-0 right-0 left-0 flex items-end justify-between px-2 py-1.5 bg-gradient-to-t from-foreground/10 to-transparent pointer-events-none">
-        <span className="text-[8px] font-mono text-foreground/30 uppercase tracking-wider truncate">
+        <span className="text-[8px] text-foreground/30 uppercase tracking-wider truncate">
           {productCode}
         </span>
         <img
