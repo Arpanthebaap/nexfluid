@@ -71,6 +71,18 @@ export default function Products() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  const handleDelete = async () => {
+    if (!deleting) return;
+    const { error } = await supabase.from('products').delete().eq('id', deleting.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Product deleted' });
+      fetchProducts();
+    }
+    setDeleting(null);
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
