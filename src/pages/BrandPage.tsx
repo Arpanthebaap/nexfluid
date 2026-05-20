@@ -494,7 +494,8 @@ const BrandPage = () => {
                           {cat.count} {cat.count === 1 ? (lang === 'it' ? 'prodotto' : 'product') : (lang === 'it' ? 'prodotti' : 'products')}
                         </span>
                       </Link>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })()
