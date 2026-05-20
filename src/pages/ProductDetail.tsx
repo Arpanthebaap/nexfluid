@@ -650,7 +650,7 @@ const ProductDetail = () => {
                           categoryImageUrl={categoryImageUrl}
                           size="lg"
                         />
-                        <p className="font-mono text-xs font-semibold text-primary">{rp.product_code}</p>
+                        <p className="text-xs font-semibold text-primary">{rp.product_code}</p>
                         <p className="text-xs text-muted-foreground truncate group-hover:text-primary transition-colors">{rpName}</p>
                       </Link>
                     );
