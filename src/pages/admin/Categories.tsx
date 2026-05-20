@@ -1,14 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, ChevronRight } from 'lucide-react';
+import { Plus, ChevronRight, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -17,8 +26,10 @@ type Category = Tables<'categories'>;
 export default function Categories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
+  const [deleting, setDeleting] = useState<Category | null>(null);
   const [form, setForm] = useState({ name_en: '', name_it: '', slug: '', parent_id: '', sort_order: '0' });
 
   const fetchCategories = async () => {
@@ -31,6 +42,18 @@ export default function Categories() {
 
   const topLevel = categories.filter((c) => !c.parent_id);
   const getChildren = (parentId: string) => categories.filter((c) => c.parent_id === parentId);
+
+  // When searching, flatten matching results
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return null;
+    return categories.filter(
+      (c) =>
+        c.name_en.toLowerCase().includes(q) ||
+        c.name_it.toLowerCase().includes(q) ||
+        c.slug.toLowerCase().includes(q),
+    );
+  }, [search, categories]);
 
   const openNew = () => {
     setEditing(null);
@@ -79,6 +102,34 @@ export default function Categories() {
     fetchCategories();
   };
 
+  const handleDelete = async () => {
+    if (!deleting) return;
+    // Block delete if it has children or products
+    const childCount = categories.filter((c) => c.parent_id === deleting.id).length;
+    if (childCount > 0) {
+      toast({ title: 'Cannot delete', description: `Category has ${childCount} subcategories. Remove or reassign them first.`, variant: 'destructive' });
+      setDeleting(null);
+      return;
+    }
+    const { count } = await supabase
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('category_id', deleting.id);
+    if ((count ?? 0) > 0) {
+      toast({ title: 'Cannot delete', description: `Category has ${count} products. Reassign them first.`, variant: 'destructive' });
+      setDeleting(null);
+      return;
+    }
+    const { error } = await supabase.from('categories').delete().eq('id', deleting.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Category deleted' });
+    }
+    setDeleting(null);
+    fetchCategories();
+  };
+
   const renderRow = (cat: Category, depth = 0) => (
     <>
       <TableRow key={cat.id}>
@@ -96,9 +147,12 @@ export default function Categories() {
         </TableCell>
         <TableCell className="text-right">
           <Button variant="ghost" size="sm" onClick={() => openEdit(cat)}>Edit</Button>
+          <Button variant="ghost" size="sm" onClick={() => setDeleting(cat)} className="text-destructive hover:text-destructive">
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </TableCell>
       </TableRow>
-      {getChildren(cat.id).map((child) => renderRow(child, depth + 1))}
+      {!filtered && getChildren(cat.id).map((child) => renderRow(child, depth + 1))}
     </>
   );
 
@@ -149,6 +203,16 @@ export default function Categories() {
         </Dialog>
       </div>
 
+      <div className="relative max-w-sm mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by name or slug..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
@@ -164,6 +228,12 @@ export default function Categories() {
           <TableBody>
             {loading ? (
               <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+            ) : filtered ? (
+              filtered.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No matches</TableCell></TableRow>
+              ) : (
+                filtered.map((cat) => renderRow(cat))
+              )
             ) : topLevel.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No categories found</TableCell></TableRow>
             ) : (
@@ -172,6 +242,23 @@ export default function Categories() {
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete category?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{deleting?.name_en}". Categories with subcategories or products cannot be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
