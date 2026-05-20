@@ -472,15 +472,17 @@ const BrandPage = () => {
                         </span>
                       </Link>
                     )}
-                    {cats.map(cat => (
+                    {cats.map(cat => {
+                      const resolvedImg = cat.image_url || resolveCategoryImage(cat.id);
+                      return (
                       <Link
                         key={cat.id}
                         to={`/brands/${brandName}/${cat.slug}`}
                         className="group rounded-lg border bg-card p-4 hover:shadow-lg transition-shadow flex flex-col items-center text-center"
                       >
                         <div className="w-full aspect-square rounded-md bg-muted flex items-center justify-center mb-3 overflow-hidden">
-                          {cat.image_url ? (
-                            <img src={cat.image_url} alt={catName(cat)} className="w-full h-full object-cover" />
+                          {resolvedImg ? (
+                            <img src={resolvedImg} alt={catName(cat)} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
                           ) : (
                             <Package className="h-10 w-10 text-muted-foreground/30" />
                           )}
