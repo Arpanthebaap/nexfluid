@@ -71,7 +71,7 @@ const BrandPage = () => {
   useEffect(() => {
     let cancelled = false;
 
-    const fetchWithRetry = async <T,>(fn: () => Promise<T>, retries = 2): Promise<T> => {
+    const fetchWithRetry = async <T,>(fn: () => PromiseLike<T>, retries = 2): Promise<T> => {
       let lastErr: unknown;
       for (let i = 0; i <= retries; i++) {
         try {
@@ -88,10 +88,10 @@ const BrandPage = () => {
       setLoading(true);
       try {
         const [catsRes, countsRes, totalRes] = await Promise.all([
-          fetchWithRetry(() => supabase.from('categories').select('id, slug, name_it, name_en, parent_id, image_url').eq('is_active', true).order('sort_order')),
-          fetchWithRetry(() => supabase.rpc('get_brand_category_counts', { _brand: brand })),
-          fetchWithRetry(() => supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('status', 'published').contains('brands', [brand])),
-        ]);
+          fetchWithRetry(() => supabase.from('categories').select('id, slug, name_it, name_en, parent_id, image_url').eq('is_active', true).order('sort_order') as any),
+          fetchWithRetry(() => supabase.rpc('get_brand_category_counts', { _brand: brand }) as any),
+          fetchWithRetry(() => supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('status', 'published').contains('brands', [brand]) as any),
+        ]) as any[];
 
         if (cancelled) return;
 
