@@ -10,6 +10,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 
 import PublicLayout from "./components/layout/PublicLayout";
 import Index from "./pages/Index";
+import ScrollToTop from "./components/ScrollToTop";
 
 // Lazy-loaded public pages
 const Contact = lazy(() => import("./pages/Contact"));
@@ -52,6 +53,7 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <BrowserRouter>
+          <ScrollToTop />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route element={<PublicLayout />}>

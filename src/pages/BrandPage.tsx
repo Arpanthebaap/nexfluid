@@ -69,25 +69,53 @@ const BrandPage = () => {
 
   // Fetch all categories, brand counts, and total brand product count
   useEffect(() => {
+    let cancelled = false;
+
+    const fetchWithRetry = async <T,>(fn: () => PromiseLike<T>, retries = 2): Promise<T> => {
+      let lastErr: unknown;
+      for (let i = 0; i <= retries; i++) {
+        try {
+          return await fn();
+        } catch (e) {
+          lastErr = e;
+          await new Promise(r => setTimeout(r, 400 * (i + 1)));
+        }
+      }
+      throw lastErr;
+    };
+
     const fetchData = async () => {
       setLoading(true);
-      const [{ data: cats }, { data: counts }, { count: total }] = await Promise.all([
-        supabase.from('categories').select('id, slug, name_it, name_en, parent_id, image_url').eq('is_active', true).order('sort_order'),
-        supabase.rpc('get_brand_category_counts', { _brand: brand }),
-        supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('status', 'published').contains('brands', [brand]),
-      ]);
+      try {
+        const [catsRes, countsRes, totalRes] = await Promise.all([
+          fetchWithRetry(() => supabase.from('categories').select('id, slug, name_it, name_en, parent_id, image_url').eq('is_active', true).order('sort_order') as any),
+          fetchWithRetry(() => supabase.rpc('get_brand_category_counts', { _brand: brand }) as any),
+          fetchWithRetry(() => supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('status', 'published').contains('brands', [brand]) as any),
+        ]) as any[];
 
-      setAllCategories(cats || []);
-      setTotalBrandCount(total || 0);
+        if (cancelled) return;
 
-      const countMap = new Map<string, number>();
-      if (counts) {
-        (counts as any[]).forEach((r: any) => countMap.set(r.category_id, Number(r.product_count)));
+        // If queries returned errors silently, retry once more individually
+        const cats = catsRes.data;
+        const counts = countsRes.data;
+        const total = totalRes.count;
+
+        setAllCategories(cats || []);
+        setTotalBrandCount(total || 0);
+
+        const countMap = new Map<string, number>();
+        if (counts) {
+          (counts as any[]).forEach((r: any) => countMap.set(r.category_id, Number(r.product_count)));
+        }
+        setBrandCounts(countMap);
+      } catch (err) {
+        console.error('[BrandPage] fetchData failed:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setBrandCounts(countMap);
-      setLoading(false);
     };
     fetchData();
+    return () => { cancelled = true; };
   }, [brand]);
 
   // Resolve current view based on slug
