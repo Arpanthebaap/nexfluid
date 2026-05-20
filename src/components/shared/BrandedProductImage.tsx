@@ -40,9 +40,15 @@ const BrandedProductImage = ({
   }, [src, categoryImageUrl]);
 
   const [stage, setStage] = useState(0);
+  const [retryToken, setRetryToken] = useState(0);
+  const [retriedStages, setRetriedStages] = useState<Set<number>>(new Set());
 
   // Reset stage whenever the chain changes (new product / new category)
-  useEffect(() => { setStage(0); }, [chain.join('|')]);
+  useEffect(() => {
+    setStage(0);
+    setRetryToken(0);
+    setRetriedStages(new Set());
+  }, [chain.join('|')]);
 
   const sizeClasses = {
     sm: 'h-24 w-24',
@@ -66,16 +72,28 @@ const BrandedProductImage = ({
   const currentSrc = chain[stage];
   const isCategoryFallback = stage > 0; // visually mark category fallback
 
+  const handleError = () => {
+    // Retry transient image errors once per stage before falling through
+    if (!retriedStages.has(stage)) {
+      const next = new Set(retriedStages);
+      next.add(stage);
+      setRetriedStages(next);
+      setTimeout(() => setRetryToken(t => t + 1), 350);
+      return;
+    }
+    setStage(s => s + 1);
+  };
+
   return (
     <div className={`relative overflow-hidden rounded-lg bg-muted ${sizeClasses[size]} ${className}`}>
       <img
         // key forces a fresh <img> each stage so onError fires reliably
-        key={currentSrc}
-        src={currentSrc}
+        key={`${currentSrc}|${retryToken}`}
+        src={retryToken > 0 ? `${currentSrc}${currentSrc.includes('?') ? '&' : '?'}_r=${retryToken}` : currentSrc}
         alt={alt}
         className={`w-full h-full p-2 ${isCategoryFallback ? 'object-cover' : 'object-contain'}`}
         loading="lazy"
-        onError={() => setStage(s => s + 1)}
+        onError={handleError}
         referrerPolicy="no-referrer"
       />
       {/* Nexfluid branding overlay — bottom watermark */}
