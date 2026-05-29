@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 const brandLogos = [
-  { name: 'Parker', logo: '/lovable-uploads/d79eb4f8-72e7-4b40-be99-9757c23801d9.png' },
   { name: 'ASCO', logo: '/lovable-uploads/d9635bac-3b56-47aa-94e6-ea6f9646ce32.png' },
   { name: 'AVENTICS', logo: '/lovable-uploads/7aefcd0b-457b-4058-b902-488481e5f1a8.png' },
   { name: 'JOUCOMATIC', logo: '/lovable-uploads/34983170-1e8d-43d7-8804-0224e46a0ccc.png' },
@@ -47,8 +46,8 @@ const OurBrands = ({ showDescription = false, layout = 'stacked' }: { showDescri
   const description = showDescription ? (
     <p className="mt-4 text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
       {lang === 'it'
-        ? 'Collaboriamo con marchi affermati per garantire elevati standard tecnici e fornire una risposta concreta alle esigenze produttive, offrendo componenti testati e pronti all\'uso.\n\nGarantiamo disponibilità immediata a magazzino di prodotti Parker e di altri marchi, tra cui Asco, Aventics, Joucomatic, Numatics, Emerson e Sirai. Queste collaborazioni riflettono la nostra attenzione nella selezione di componenti affidabili e riconosciuti nel settore industriale.'
-        : 'We work with established brands to guarantee high technical standards and provide a concrete response to production needs, offering tested components ready for use.\n\nWe ensure immediate stock availability of Parker products and other brands, including Asco, Aventics, Joucomatic, Numatics, Emerson and Sirai. These partnerships reflect our focus on selecting reliable components that are well recognized in the industrial sector.'}
+        ? 'Collaboriamo con marchi affermati per garantire elevati standard tecnici e fornire una risposta concreta alle esigenze produttive, offrendo componenti testati e pronti all\'uso.\n\nGarantiamo disponibilità immediata a magazzino di prodotti di marchi affermati, tra cui Asco, Aventics, Joucomatic, Numatics, Emerson e Sirai. Queste collaborazioni riflettono la nostra attenzione nella selezione di componenti affidabili e riconosciuti nel settore industriale.'
+        : 'We work with established brands to guarantee high technical standards and provide a concrete response to production needs, offering tested components ready for use.\n\nWe ensure immediate stock availability of products from established brands, including Asco, Aventics, Joucomatic, Numatics, Emerson and Sirai. These partnerships reflect our focus on selecting reliable components that are well recognized in the industrial sector.'}
     </p>
   ) : null;
 

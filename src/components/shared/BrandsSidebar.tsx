@@ -11,7 +11,7 @@ type Category = {
   parent_id: string | null;
 };
 
-const brands = ['PARKER', 'ASCO', 'AVENTICS', 'JOUCOMATIC', 'NUMATICS', 'EMERSON', 'SIRAI'];
+const brands = ['ASCO', 'AVENTICS', 'JOUCOMATIC', 'NUMATICS', 'EMERSON', 'SIRAI'];
 
 const BrandsSidebar = () => {
   const { i18n } = useTranslation();

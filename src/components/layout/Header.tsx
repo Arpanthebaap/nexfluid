@@ -14,7 +14,7 @@ type Category = {
   parent_id: string | null;
 };
 
-const brands = ['PARKER', 'ASCO', 'AVENTICS', 'JOUCOMATIC', 'NUMATICS', 'EMERSON', 'SIRAI'];
+const brands = ['ASCO', 'AVENTICS', 'JOUCOMATIC', 'NUMATICS', 'EMERSON', 'SIRAI'];
 
 const LanguageSwitcher = ({ lang }: { lang: 'it' | 'en' }) => {
   const handleClick = (target: 'it' | 'en') => (e: React.MouseEvent) => {
