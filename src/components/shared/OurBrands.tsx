@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 const brandLogos = [
-  { name: 'Parker', logo: '/lovable-uploads/d79eb4f8-72e7-4b40-be99-9757c23801d9.png' },
   { name: 'ASCO', logo: '/lovable-uploads/d9635bac-3b56-47aa-94e6-ea6f9646ce32.png' },
   { name: 'AVENTICS', logo: '/lovable-uploads/7aefcd0b-457b-4058-b902-488481e5f1a8.png' },
   { name: 'JOUCOMATIC', logo: '/lovable-uploads/34983170-1e8d-43d7-8804-0224e46a0ccc.png' },
