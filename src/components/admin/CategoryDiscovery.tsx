@@ -18,7 +18,6 @@ const PRESET_URLS = [
   'https://www.valves-direct.com/10-solenoid-valves',
   'https://www.valves-direct.com/11-vacuum-technologies',
   'https://www.valves-direct.com/12-valve-systems',
-  'https://it.rs-online.com/web/b/parker/',
 ];
 
 type DiscoveryResult = {
