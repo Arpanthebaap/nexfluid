@@ -71,11 +71,17 @@ const BrandPage = () => {
   useEffect(() => {
     let cancelled = false;
 
-    const fetchWithRetry = async <T,>(fn: () => PromiseLike<T>, retries = 2): Promise<T> => {
+    const fetchWithRetry = async <T,>(fn: () => PromiseLike<T>, retries = 3): Promise<T> => {
       let lastErr: unknown;
       for (let i = 0; i <= retries; i++) {
         try {
-          return await fn();
+          const res = await fn();
+          // Supabase resolves with { data, error } instead of throwing, so a
+          // transient server error would otherwise never be retried.
+          if (res && typeof res === 'object' && (res as any).error) {
+            throw (res as any).error;
+          }
+          return res;
         } catch (e) {
           lastErr = e;
           await new Promise(r => setTimeout(r, 400 * (i + 1)));
@@ -86,33 +92,43 @@ const BrandPage = () => {
 
     const fetchData = async () => {
       setLoading(true);
-      try {
-        const [catsRes, countsRes, totalRes] = await Promise.all([
-          fetchWithRetry(() => supabase.from('categories').select('id, slug, name_it, name_en, parent_id, image_url').eq('is_active', true).order('sort_order') as any),
-          fetchWithRetry(() => supabase.rpc('get_brand_category_counts', { _brand: brand }) as any),
-          fetchWithRetry(() => supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true).eq('status', 'published').contains('brands', [brand]) as any),
-        ]) as any[];
 
-        if (cancelled) return;
+      // Fetch categories and per-brand category counts independently so a
+      // transient failure in one request never blanks the whole page.
+      const [catsResult, countsResult] = await Promise.allSettled([
+        fetchWithRetry(() => supabase.from('categories').select('id, slug, name_it, name_en, parent_id, image_url').eq('is_active', true).order('sort_order') as any),
+        fetchWithRetry(() => supabase.rpc('get_brand_category_counts', { _brand: brand }) as any),
+      ]);
 
-        // If queries returned errors silently, retry once more individually
-        const cats = catsRes.data;
-        const counts = countsRes.data;
-        const total = totalRes.count;
+      if (cancelled) return;
 
-        setAllCategories(cats || []);
-        setTotalBrandCount(total || 0);
+      if (catsResult.status === 'fulfilled') {
+        setAllCategories((catsResult.value as any).data || []);
+      } else {
+        console.error('[BrandPage] categories fetch failed:', catsResult.reason);
+      }
 
+      if (countsResult.status === 'fulfilled') {
+        const counts = (countsResult.value as any).data as any[] | null;
         const countMap = new Map<string, number>();
+        let total = 0;
         if (counts) {
-          (counts as any[]).forEach((r: any) => countMap.set(r.category_id, Number(r.product_count)));
+          counts.forEach((r: any) => {
+            const c = Number(r.product_count);
+            countMap.set(r.category_id, c);
+            total += c;
+          });
         }
         setBrandCounts(countMap);
-      } catch (err) {
-        console.error('[BrandPage] fetchData failed:', err);
-      } finally {
-        if (!cancelled) setLoading(false);
+        // Derive the total from the per-category counts instead of running a
+        // separate expensive count('exact') query over ~20k brand rows, which
+        // was the main intermittent point of failure.
+        setTotalBrandCount(total);
+      } else {
+        console.error('[BrandPage] brand counts fetch failed:', countsResult.reason);
       }
+
+      if (!cancelled) setLoading(false);
     };
     fetchData();
     return () => { cancelled = true; };
