@@ -71,11 +71,17 @@ const BrandPage = () => {
   useEffect(() => {
     let cancelled = false;
 
-    const fetchWithRetry = async <T,>(fn: () => PromiseLike<T>, retries = 2): Promise<T> => {
+    const fetchWithRetry = async <T,>(fn: () => PromiseLike<T>, retries = 3): Promise<T> => {
       let lastErr: unknown;
       for (let i = 0; i <= retries; i++) {
         try {
-          return await fn();
+          const res = await fn();
+          // Supabase resolves with { data, error } instead of throwing, so a
+          // transient server error would otherwise never be retried.
+          if (res && typeof res === 'object' && (res as any).error) {
+            throw (res as any).error;
+          }
+          return res;
         } catch (e) {
           lastErr = e;
           await new Promise(r => setTimeout(r, 400 * (i + 1)));
