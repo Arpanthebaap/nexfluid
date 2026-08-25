@@ -23,6 +23,16 @@
       "has": [{ "type": "host", "value": "(www\\.)?nexfluid\\.it" }],
       "destination": "/robots-it.txt"
     },
+    {
+      "source": "/llms.txt",
+      "has": [{ "type": "host", "value": "(www\\.)?nexfluid\\.com" }],
+      "destination": "/llms-en.txt"
+    },
+    {
+      "source": "/llms.txt",
+      "has": [{ "type": "host", "value": "(www\\.)?nexfluid\\.it" }],
+      "destination": "/llms-it.txt"
+    },
     { "source": "/((?!api/|assets/|.*\\.).*)", "destination": "/index.html" }
   ],
   "headers": [
@@ -35,6 +45,13 @@
     },
     {
       "source": "/robots(.*)\\.txt",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+        { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/llms(.*)\\.txt",
       "headers": [
         { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
         { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" }
