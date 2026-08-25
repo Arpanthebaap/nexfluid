@@ -1,17 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Generic fallback sitemap. On Vercel, /sitemap.xml is rewritten per host:
-    nexfluid.it  → /sitemap-it.xml (Italian URLs only)
-    nexfluid.com → /sitemap-en.xml (English URLs only)
-  This file is only served when no host-specific rewrite matches (e.g. on
-  preview environments). It points to both language indexes so neither domain
-  is starved during preview, but production traffic should never see it.
--->
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
     <loc>https://nexfluid.it/sitemap-it.xml</loc>
-  </sitemap>
-  <sitemap>
-    <loc>https://nexfluid.com/sitemap-en.xml</loc>
+    <lastmod>2026-08-25</lastmod>
   </sitemap>
 </sitemapindex>
